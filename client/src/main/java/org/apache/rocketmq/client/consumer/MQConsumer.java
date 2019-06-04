@@ -26,6 +26,9 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 
 /**
  * Message queue consumer interface
+ * <p>
+ *     消息队列使用者接口
+ * </p>
  */
 public interface MQConsumer extends MQAdmin {
     /**

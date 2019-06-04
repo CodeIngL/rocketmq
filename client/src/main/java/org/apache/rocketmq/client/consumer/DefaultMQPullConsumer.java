@@ -37,6 +37,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
  * Default pulling consumer
  */
 public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsumer {
+    //默认的基于拉的消费端消费
     protected final transient DefaultMQPullConsumerImpl defaultMQPullConsumerImpl;
 
     /**
@@ -225,6 +226,10 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
         return this.defaultMQPullConsumerImpl.fetchSubscribeMessageQueues(topic);
     }
 
+    /**
+     * 开始消费
+     * @throws MQClientException
+     */
     @Override
     public void start() throws MQClientException {
         this.defaultMQPullConsumerImpl.start();

@@ -58,6 +58,15 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
  * <p>
  * <strong>Thread Safety:</strong> After initialization, the instance can be regarded as thread-safe.
  * </p>
+ * <p>
+ *     在大多数情况下，这是消耗消息的最常推荐的类。
+ * </p>
+ * <p>
+ *     从技术上讲，这个推送客户端实际上是底层拉取服务的包装。 具体来说，在从代理中提取的消息到达时，它会粗略地调用已注册的回调处理程序来提供消息。 有关典型用法，请参阅示例模块中的quickstart/Consumer。
+ * </p>
+ * <p>
+ *   线程安全：初始化后，实例可视为线程安全。
+ * </p>
  */
 public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsumer {
 
@@ -144,6 +153,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Message listener
+     * 消息监听
      */
     private MessageListener messageListener;
 
@@ -175,6 +185,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Flow control threshold on queue level, each message queue will cache at most 1000 messages by default,
      * Consider the {@code pullBatchSize}, the instantaneous value may exceed the limit
+     * <p>
+     *     队列级别的流量控制阈值，每个消息队列默认最多缓存1000条消息，考虑{@code pullBatchSize}，瞬时值可能超过限制
+     * </p>
      */
     private int pullThresholdForQueue = 1000;
 
@@ -255,6 +268,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Interface of asynchronous transfer data
+     * <p>
+     *     异步传输数据的接口
+     * </p>
      */
     private TraceDispatcher traceDispatcher = null;
 

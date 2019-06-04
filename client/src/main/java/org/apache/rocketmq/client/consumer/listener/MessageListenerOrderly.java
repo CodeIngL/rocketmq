@@ -22,6 +22,9 @@ import org.apache.rocketmq.common.message.MessageExt;
 /**
  * A MessageListenerConcurrently object is used to receive asynchronously delivered messages orderly.one queue,one
  * thread
+ * <p>
+ *     如果消耗失败，建议不要抛出异常，而不是返回ConsumeOrderlyStatus.SUSPEND_CURRENT_QUEUE_A_MOMENT
+ * </p>
  */
 public interface MessageListenerOrderly extends MessageListener {
     /**
