@@ -48,6 +48,9 @@ import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static org.apache.rocketmq.remoting.common.RemotingHelper.exceptionSimpleDesc;
+
 public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     private static final InternalLogger log = ClientLogger.getLog();
     private final static long MAX_TIME_CONSUME_CONTINUOUSLY =
@@ -79,7 +82,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             this.consumeRequestQueue,
             new ThreadFactoryImpl("ConsumeMessageThread_"));
 
-        this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("ConsumeMessageScheduledThread_"));
+        this.scheduledExecutorService = newSingleThreadScheduledExecutor(new ThreadFactoryImpl("ConsumeMessageScheduledThread_"));
     }
 
     public void start() {
@@ -170,10 +173,10 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             }
         } catch (Throwable e) {
             result.setConsumeResult(CMResult.CR_THROW_EXCEPTION);
-            result.setRemark(RemotingHelper.exceptionSimpleDesc(e));
+            result.setRemark(exceptionSimpleDesc(e));
 
             log.warn(String.format("consumeMessageDirectly exception: %s Group: %s Msgs: %s MQ: %s",
-                RemotingHelper.exceptionSimpleDesc(e),
+                exceptionSimpleDesc(e),
                 ConsumeMessageOrderlyService.this.consumerGroup,
                 msgs,
                 mq), e);
@@ -471,7 +474,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                                 status = messageListener.consumeMessage(Collections.unmodifiableList(msgs), context);
                             } catch (Throwable e) {
                                 log.warn("consumeMessage exception: {} Group: {} Msgs: {} MQ: {}",
-                                    RemotingHelper.exceptionSimpleDesc(e),
+                                    exceptionSimpleDesc(e),
                                     ConsumeMessageOrderlyService.this.consumerGroup,
                                     msgs,
                                     messageQueue);

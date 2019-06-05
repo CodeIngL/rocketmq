@@ -64,16 +64,16 @@ public class ConsumeMessageTraceHookImpl implements ConsumeMessageHook {
                 // If trace switch is false ,skip it
                 continue;
             }
-            TraceBean traceBean = new TraceBean();
-            traceBean.setTopic(msg.getTopic());//
-            traceBean.setMsgId(msg.getMsgId());//
-            traceBean.setTags(msg.getTags());//
-            traceBean.setKeys(msg.getKeys());//
-            traceBean.setStoreTime(msg.getStoreTimestamp());//
-            traceBean.setBodyLength(msg.getStoreSize());//
-            traceBean.setRetryTimes(msg.getReconsumeTimes());//
+            TraceBean trace = new TraceBean();
+            trace.setTopic(msg.getTopic());//
+            trace.setMsgId(msg.getMsgId());//
+            trace.setTags(msg.getTags());//
+            trace.setKeys(msg.getKeys());//
+            trace.setStoreTime(msg.getStoreTimestamp());//
+            trace.setBodyLength(msg.getStoreSize());//
+            trace.setRetryTimes(msg.getReconsumeTimes());//
             traceContext.setRegionId(regionId);//
-            beans.add(traceBean);
+            beans.add(trace);
         }
         if (beans.size() > 0) {
             traceContext.setTraceBeans(beans);

@@ -82,17 +82,30 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.netty.NettyClientConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.remoting.common.RemotingHelper.exceptionSimpleDesc;
+
+/**
+ * 代表了网络端点中的客户端，因此这个广泛存在于mq消费端，mq生产端，mq代理
+ * 网络交互，mq消费端<->mq代理，mq代理<->mq生产端
+ */
 public class MQClientInstance {
     private final static long LOCK_TIMEOUT_MILLIS = 3000;
     private final InternalLogger log = ClientLogger.getLog();
     private final ClientConfig clientConfig;
+    //实例内存索引
     private final int instanceIndex;
+    //实例指定的id
     private final String clientId;
     private final long bootTimestamp = System.currentTimeMillis();
+    /**
+     * 组名和生产者
+     */
     private final ConcurrentMap<String/* group */, MQProducerInner> producerTable = new ConcurrentHashMap<String, MQProducerInner>();
     private final ConcurrentMap<String/* group */, MQConsumerInner> consumerTable = new ConcurrentHashMap<String, MQConsumerInner>();
     private final ConcurrentMap<String/* group */, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<String, MQAdminExtInner>();
     private final NettyClientConfig nettyClientConfig;
+
+
     private final MQClientAPIImpl mQClientAPIImpl;
     private final MQAdminImpl mQAdminImpl;
     private final ConcurrentMap<String/* Topic */, TopicRouteData> topicRouteTable = new ConcurrentHashMap<String, TopicRouteData>();
@@ -118,10 +131,12 @@ public class MQClientInstance {
     private DatagramSocket datagramSocket;
     private Random random = new Random();
 
+    //构造器
     public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId) {
         this(clientConfig, instanceIndex, clientId, null);
     }
 
+    //构造器
     public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId, RPCHook rpcHook) {
         this.clientConfig = clientConfig;
         this.instanceIndex = instanceIndex;
@@ -156,11 +171,18 @@ public class MQClientInstance {
             MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION), RemotingCommand.getSerializeTypeConfigInThisServer());
     }
 
+    /**
+     * 信息转换，topic路由信息转换为topic订阅信息
+     * @param topic
+     * @param route
+     * @return
+     */
     public static TopicPublishInfo topicRouteData2TopicPublishInfo(final String topic, final TopicRouteData route) {
         TopicPublishInfo info = new TopicPublishInfo();
         info.setTopicRouteData(route);
-        if (route.getOrderTopicConf() != null && route.getOrderTopicConf().length() > 0) {
-            String[] brokers = route.getOrderTopicConf().split(";");
+        String orderTopicConf = route.getOrderTopicConf();
+        if (orderTopicConf != null && orderTopicConf.length() > 0) {
+            String[] brokers = orderTopicConf.split(";");
             for (String broker : brokers) {
                 String[] item = broker.split(":");
                 int nums = Integer.parseInt(item[1]);
@@ -169,7 +191,6 @@ public class MQClientInstance {
                     info.getMessageQueueList().add(mq);
                 }
             }
-
             info.setOrderTopic(true);
         } else {
             List<QueueData> qds = route.getQueueDatas();
@@ -198,13 +219,17 @@ public class MQClientInstance {
                     }
                 }
             }
-
             info.setOrderTopic(false);
         }
-
         return info;
     }
 
+    /**
+     * 信息转换，topic路由信息转换topic订阅信息
+     * @param topic
+     * @param route
+     * @return
+     */
     public static Set<MessageQueue> topicRouteData2TopicSubscribeInfo(final String topic, final TopicRouteData route) {
         Set<MessageQueue> mqList = new HashSet<MessageQueue>();
         List<QueueData> qds = route.getQueueDatas();
@@ -216,10 +241,13 @@ public class MQClientInstance {
                 }
             }
         }
-
         return mqList;
     }
 
+    /**
+     * 启动网络客户端
+     * @throws MQClientException
+     */
     public void start() throws MQClientException {
 
         synchronized (this) {
@@ -231,14 +259,19 @@ public class MQClientInstance {
                         this.mQClientAPIImpl.fetchNameServerAddr();
                     }
                     // Start request-response channel
+                    // 启动请求 - 响应通道
                     this.mQClientAPIImpl.start();
                     // Start various schedule tasks
+                    // 启动各种计划任务
                     this.startScheduledTask();
                     // Start pull service
+                    // 开始拉服务
                     this.pullMessageService.start();
                     // Start rebalance service
+                    // 启动重新平衡服务
                     this.rebalanceService.start();
                     // Start push service
+                    // 开始推送服务
                     this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
                     log.info("the client factory [{}] start OK", this.clientId);
                     this.serviceState = ServiceState.RUNNING;
@@ -270,6 +303,9 @@ public class MQClientInstance {
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
 
+        /**
+         * 调度服务，用于调度更新相关的路由表，信息来自nameServer
+         */
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -324,6 +360,10 @@ public class MQClientInstance {
         return clientId;
     }
 
+
+    /**
+     * 有nameServer信息来更新我们的路由表
+     */
     public void updateTopicRouteInfoFromNameServer() {
         Set<String> topicList = new HashSet<String>();
 
@@ -585,6 +625,13 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 从nameServer中获得相关的路由信息
+     * @param topic
+     * @param isDefault
+     * @param defaultMQProducer
+     * @return
+     */
     public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
         DefaultMQProducer defaultMQProducer) {
         try {
@@ -736,7 +783,7 @@ public class MQClientInstance {
         } catch (Exception e1) {
             log.warn("uploadFilterClassToAllFilterServer Exception, ClassName: {} {}",
                 fullClassName,
-                RemotingHelper.exceptionSimpleDesc(e1));
+                exceptionSimpleDesc(e1));
         }
 
         TopicRouteData topicRouteData = this.topicRouteTable.get(topic);
@@ -951,7 +998,11 @@ public class MQClientInstance {
         this.rebalanceService.wakeup();
     }
 
+    /**
+     * 客户端使用的rebalance
+     */
     public void doRebalance() {
+        //内部使用表，对每一个内部的Inner进行rebalance
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
             if (impl != null) {
@@ -964,10 +1015,20 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 获得group对应的生产者
+     * @param group
+     * @return
+     */
     public MQProducerInner selectProducer(final String group) {
         return this.producerTable.get(group);
     }
 
+    /**
+     * 获得group对应的消费端
+     * @param group
+     * @return
+     */
     public MQConsumerInner selectConsumer(final String group) {
         return this.consumerTable.get(group);
     }

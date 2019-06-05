@@ -49,6 +49,11 @@ import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.common.sysflag.PullSysFlag;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
+import static org.apache.rocketmq.client.consumer.PullStatus.FOUND;
+
+/**
+ * 拉模式的核心处理逻辑
+ */
 public class PullAPIWrapper {
     private final InternalLogger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
@@ -67,16 +72,25 @@ public class PullAPIWrapper {
         this.unitMode = unitMode;
     }
 
-    public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult,
-        final SubscriptionData subscriptionData) {
+    /**
+     * 处理拉取结果
+     * @param mq
+     * @param pullResult
+     * @param subscriptionData
+     * @return
+     */
+    public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult, final SubscriptionData subscriptionData) {
         PullResultExt pullResultExt = (PullResultExt) pullResult;
 
+        //更新拉取的消息来自哪个节点
         this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
-        if (PullStatus.FOUND == pullResult.getPullStatus()) {
+        if (FOUND == pullResult.getPullStatus()) { //有消息
             ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
             List<MessageExt> msgList = MessageDecoder.decodes(byteBuffer);
 
+            //过滤的消息
             List<MessageExt> msgListFilterAgain = msgList;
+            //存在tag，要匹配tag
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
                 msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
                 for (MessageExt msg : msgList) {
@@ -88,6 +102,7 @@ public class PullAPIWrapper {
                 }
             }
 
+            //存在hook，要匹配hook
             if (this.hasHook()) {
                 FilterMessageContext filterMessageContext = new FilterMessageContext();
                 filterMessageContext.setUnitMode(unitMode);
@@ -95,17 +110,18 @@ public class PullAPIWrapper {
                 this.executeHook(filterMessageContext);
             }
 
+            //
             for (MessageExt msg : msgListFilterAgain) {
+                //事务消息
                 String traFlag = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
                 if (traFlag != null && Boolean.parseBoolean(traFlag)) {
                     msg.setTransactionId(msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
                 }
-                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MIN_OFFSET,
-                    Long.toString(pullResult.getMinOffset()));
-                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MAX_OFFSET,
-                    Long.toString(pullResult.getMaxOffset()));
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MIN_OFFSET, Long.toString(pullResult.getMinOffset()));
+                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MAX_OFFSET, Long.toString(pullResult.getMaxOffset()));
             }
 
+            //拉取结果可以匹配消息
             pullResultExt.setMsgFoundList(msgListFilterAgain);
         }
 
@@ -127,6 +143,10 @@ public class PullAPIWrapper {
         return !this.filterMessageHookList.isEmpty();
     }
 
+    /**
+     * 执行hook
+     * @param context
+     */
     public void executeHook(final FilterMessageContext context) {
         if (!this.filterMessageHookList.isEmpty()) {
             for (FilterMessageHook hook : this.filterMessageHookList) {

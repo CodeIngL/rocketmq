@@ -16,7 +16,11 @@
  */
 package org.apache.rocketmq.client.hook;
 
+/**
+ * 消息过滤钩子
+ */
 public interface FilterMessageHook {
+
     String hookName();
 
     void filterMessage(final FilterMessageContext context);

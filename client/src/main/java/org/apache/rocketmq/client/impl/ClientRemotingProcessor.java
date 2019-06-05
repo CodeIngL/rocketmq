@@ -46,6 +46,9 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
+import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
+
 
 public class ClientRemotingProcessor implements NettyRequestProcessor {
     private final InternalLogger log = ClientLogger.getLog();
@@ -55,11 +58,18 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         this.mqClientFactory = mqClientFactory;
     }
 
+    /**
+     * 处理请求
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         switch (request.getCode()) {
-            case RequestCode.CHECK_TRANSACTION_STATE:
+            case RequestCode.CHECK_TRANSACTION_STATE: //校验事务状态
                 return this.checkTransactionState(ctx, request);
             case RequestCode.NOTIFY_CONSUMER_IDS_CHANGED:
                 return this.notifyConsumerIdsChanged(ctx, request);
@@ -67,10 +77,8 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
                 return this.resetOffset(ctx, request);
             case RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT:
                 return this.getConsumeStatus(ctx, request);
-
             case RequestCode.GET_CONSUMER_RUNNING_INFO:
                 return this.getConsumerRunningInfo(ctx, request);
-
             case RequestCode.CONSUME_MESSAGE_DIRECTLY:
                 return this.consumeMessageDirectly(ctx, request);
             default:
@@ -84,6 +92,13 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    /**
+     * 校验事务状态
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     public RemotingCommand checkTransactionState(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
         final CheckTransactionStateRequestHeader requestHeader =
@@ -91,15 +106,19 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         final ByteBuffer byteBuffer = ByteBuffer.wrap(request.getBody());
         final MessageExt messageExt = MessageDecoder.decode(byteBuffer);
         if (messageExt != null) {
+            //消息的事务id
             String transactionId = messageExt.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
             if (null != transactionId && !"".equals(transactionId)) {
                 messageExt.setTransactionId(transactionId);
             }
+            //消息所属生产组
             final String group = messageExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP);
             if (group != null) {
+                //找到相应的生产者
                 MQProducerInner producer = this.mqClientFactory.selectProducer(group);
                 if (producer != null) {
-                    final String addr = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
+                    final String addr = parseChannelRemoteAddr(ctx.channel());
+                    //由生产者校验事务状态
                     producer.checkTransactionState(addr, messageExt, requestHeader);
                 } else {
                     log.debug("checkTransactionState, pick producer by group[{}] failed", group);
@@ -114,13 +133,12 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return null;
     }
 
-    public RemotingCommand notifyConsumerIdsChanged(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    public RemotingCommand notifyConsumerIdsChanged(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         try {
             final NotifyConsumerIdsChangedRequestHeader requestHeader =
                 (NotifyConsumerIdsChangedRequestHeader) request.decodeCommandCustomHeader(NotifyConsumerIdsChangedRequestHeader.class);
             log.info("receive broker's notification[{}], the consumer group: {} changed, rebalance immediately",
-                RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
+                parseChannelRemoteAddr(ctx.channel()),
                 requestHeader.getConsumerGroup());
             this.mqClientFactory.rebalanceImmediately();
         } catch (Exception e) {
@@ -129,12 +147,11 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return null;
     }
 
-    public RemotingCommand resetOffset(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+    public RemotingCommand resetOffset(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
         final ResetOffsetRequestHeader requestHeader =
             (ResetOffsetRequestHeader) request.decodeCommandCustomHeader(ResetOffsetRequestHeader.class);
         log.info("invoke reset offset operation from broker. brokerAddr={}, topic={}, group={}, timestamp={}",
-            RemotingHelper.parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(), requestHeader.getGroup(),
+            parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(), requestHeader.getGroup(),
             requestHeader.getTimestamp());
         Map<MessageQueue, Long> offsetTable = new HashMap<MessageQueue, Long>();
         if (request.getBody() != null) {
@@ -148,7 +165,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
     @Deprecated
     public RemotingCommand getConsumeStatus(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        final RemotingCommand response = createResponseCommand(null);
         final GetConsumerStatusRequestHeader requestHeader =
             (GetConsumerStatusRequestHeader) request.decodeCommandCustomHeader(GetConsumerStatusRequestHeader.class);
 
@@ -162,7 +179,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
 
     private RemotingCommand getConsumerRunningInfo(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        final RemotingCommand response = createResponseCommand(null);
         final GetConsumerRunningInfoRequestHeader requestHeader =
             (GetConsumerRunningInfoRequestHeader) request.decodeCommandCustomHeader(GetConsumerRunningInfoRequestHeader.class);
 
@@ -186,7 +203,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
 
     private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        final RemotingCommand response = createResponseCommand(null);
         final ConsumeMessageDirectlyResultRequestHeader requestHeader =
             (ConsumeMessageDirectlyResultRequestHeader) request
                 .decodeCommandCustomHeader(ConsumeMessageDirectlyResultRequestHeader.class);

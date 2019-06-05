@@ -205,8 +205,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
-    private PullResult pullSyncImpl(MessageQueue mq, SubscriptionData subscriptionData, long offset, int maxNums, boolean block,
-        long timeout)
+    private PullResult pullSyncImpl(MessageQueue mq, SubscriptionData subscriptionData, long offset, int maxNums, boolean block, long timeout)
         throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         this.makeSureStateOK();
 
@@ -262,8 +261,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     public void subscriptionAutomatically(final String topic) {
         if (!this.rebalanceImpl.getSubscriptionInner().containsKey(topic)) {
             try {
-                SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(this.defaultMQPullConsumer.getConsumerGroup(),
-                    topic, SubscriptionData.SUB_ALL);
+                SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(this.defaultMQPullConsumer.getConsumerGroup(), topic, SubscriptionData.SUB_ALL);
                 this.rebalanceImpl.subscriptionInner.putIfAbsent(topic, subscriptionData);
             } catch (Exception ignore) {
             }
@@ -579,24 +577,36 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     *  开启消费
+     * @throws MQClientException
+     */
     public synchronized void start() throws MQClientException {
         switch (this.serviceState) {
-            case CREATE_JUST:
+            case CREATE_JUST: //仅仅是创建
                 this.serviceState = ServiceState.START_FAILED;
 
+                //检查配置
                 this.checkConfig();
 
+                //copy订阅的相关信息
                 this.copySubscription();
 
+                //集群消费方式，默认方式
                 if (this.defaultMQPullConsumer.getMessageModel() == MessageModel.CLUSTERING) {
                     this.defaultMQPullConsumer.changeInstanceNameToPID();
                 }
 
+                //mq的网络客户端
                 this.mQClientFactory = MQClientManager.getInstance().getAndCreateMQClientInstance(this.defaultMQPullConsumer, this.rpcHook);
 
+                //设置集群组
                 this.rebalanceImpl.setConsumerGroup(this.defaultMQPullConsumer.getConsumerGroup());
+                //设置消费方式
                 this.rebalanceImpl.setMessageModel(this.defaultMQPullConsumer.getMessageModel());
+                //
                 this.rebalanceImpl.setAllocateMessageQueueStrategy(this.defaultMQPullConsumer.getAllocateMessageQueueStrategy());
+                //设置客户端
                 this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
 
                 this.pullAPIWrapper = new PullAPIWrapper(
@@ -608,10 +618,10 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                     this.offsetStore = this.defaultMQPullConsumer.getOffsetStore();
                 } else {
                     switch (this.defaultMQPullConsumer.getMessageModel()) {
-                        case BROADCASTING:
+                        case BROADCASTING: //广播方式
                             this.offsetStore = new LocalFileOffsetStore(this.mQClientFactory, this.defaultMQPullConsumer.getConsumerGroup());
                             break;
-                        case CLUSTERING:
+                        case CLUSTERING: //远程的方式
                             this.offsetStore = new RemoteBrokerOffsetStore(this.mQClientFactory, this.defaultMQPullConsumer.getConsumerGroup());
                             break;
                         default:
@@ -631,6 +641,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                         null);
                 }
 
+                //开启
                 mQClientFactory.start();
                 log.info("the consumer [{}] start OK", this.defaultMQPullConsumer.getConsumerGroup());
                 this.serviceState = ServiceState.RUNNING;
@@ -638,6 +649,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
             case RUNNING:
             case START_FAILED:
             case SHUTDOWN_ALREADY:
+                //错误的状态
                 throw new MQClientException("The PullConsumer service state not OK, maybe started once, "
                     + this.serviceState
                     + FAQUrl.suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
