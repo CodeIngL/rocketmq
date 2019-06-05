@@ -63,12 +63,9 @@ public class BrokerFastFailure {
     }
 
     public void start() {
-        this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                if (brokerController.getBrokerConfig().isBrokerFastFailureEnable()) {
-                    cleanExpiredRequest();
-                }
+        this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+            if (brokerController.getBrokerConfig().isBrokerFastFailureEnable()) {
+                cleanExpiredRequest();
             }
         }, 1000, 10, TimeUnit.MILLISECONDS);
     }

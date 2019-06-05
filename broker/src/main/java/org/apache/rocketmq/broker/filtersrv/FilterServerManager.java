@@ -51,22 +51,17 @@ public class FilterServerManager {
     }
 
     public void start() {
-
-        this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    FilterServerManager.this.createFilterServer();
-                } catch (Exception e) {
-                    log.error("", e);
-                }
+        this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+            try {
+                FilterServerManager.this.createFilterServer();
+            } catch (Exception e) {
+                log.error("", e);
             }
         }, 1000 * 5, 1000 * 30, TimeUnit.MILLISECONDS);
     }
 
     public void createFilterServer() {
-        int more =
-            this.brokerController.getBrokerConfig().getFilterServerNums() - this.filterServerTable.size();
+        int more = this.brokerController.getBrokerConfig().getFilterServerNums() - this.filterServerTable.size();
         String cmd = this.buildStartCommand();
         for (int i = 0; i < more; i++) {
             FilterServerUtil.callShell(cmd, log);

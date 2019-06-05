@@ -52,6 +52,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_MSG_REGION;
+import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_TRACE_SWITCH;
+import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX;
+import static org.apache.rocketmq.common.message.MessageDecoder.string2messageProperties;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
 
 public abstract class AbstractSendMessageProcessor implements NettyRequestProcessor {
@@ -85,10 +89,10 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         mqtraceContext.setBrokerRegionId(this.brokerController.getBrokerConfig().getRegionId());
         mqtraceContext.setBornTimeStamp(requestHeader.getBornTimestamp());
 
-        Map<String, String> properties = MessageDecoder.string2messageProperties(requestHeader.getProperties());
-        String uniqueKey = properties.get(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
-        properties.put(MessageConst.PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
-        properties.put(MessageConst.PROPERTY_TRACE_SWITCH, String.valueOf(this.brokerController.getBrokerConfig().isTraceOn()));
+        Map<String, String> properties = string2messageProperties(requestHeader.getProperties());
+        String uniqueKey = properties.get(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
+        properties.put(PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
+        properties.put(PROPERTY_TRACE_SWITCH, String.valueOf(this.brokerController.getBrokerConfig().isTraceOn()));
         requestHeader.setProperties(MessageDecoder.messageProperties2String(properties));
 
         if (uniqueKey == null) {
@@ -119,7 +123,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         msgInner.setBody(body);
         msgInner.setFlag(requestHeader.getFlag());
         MessageAccessor.setProperties(msgInner,
-            MessageDecoder.string2messageProperties(requestHeader.getProperties()));
+            string2messageProperties(requestHeader.getProperties()));
         msgInner.setPropertiesString(requestHeader.getProperties());
         msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(topicConfig.getTopicFilterType(),
             msgInner.getTags()));

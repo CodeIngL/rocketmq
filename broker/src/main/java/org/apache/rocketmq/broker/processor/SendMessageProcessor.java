@@ -56,6 +56,7 @@ import java.util.Map;
 import static org.apache.rocketmq.common.help.FAQUrl.suggestTodo;
 import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_MSG_REGION;
 import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_TRACE_SWITCH;
+import static org.apache.rocketmq.common.message.MessageDecoder.string2messageProperties;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
 import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SYSTEM_ERROR;
 
@@ -403,7 +404,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         //设置body
         msgInner.setBody(body);
         msgInner.setFlag(requestHeader.getFlag());
-        MessageAccessor.setProperties(msgInner, MessageDecoder.string2messageProperties(requestHeader.getProperties()));
+        MessageAccessor.setProperties(msgInner, string2messageProperties(requestHeader.getProperties()));
         msgInner.setPropertiesString(requestHeader.getProperties());
         msgInner.setBornTimestamp(requestHeader.getBornTimestamp());
         msgInner.setBornHost(ctx.channel().remoteAddress());
@@ -412,7 +413,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         //投递消息结果
         PutMessageResult putMessageResult = null;
-        Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
+        Map<String, String> oriProps = string2messageProperties(requestHeader.getProperties());
         //获得事务标记
         String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
         if (traFlag != null && Boolean.parseBoolean(traFlag)) { //是否事务消息
@@ -633,7 +634,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         messageExtBatch.setSysFlag(sysFlag);
 
         messageExtBatch.setFlag(requestHeader.getFlag());
-        MessageAccessor.setProperties(messageExtBatch, MessageDecoder.string2messageProperties(requestHeader.getProperties()));
+        MessageAccessor.setProperties(messageExtBatch, string2messageProperties(requestHeader.getProperties()));
         messageExtBatch.setBody(request.getBody());
         messageExtBatch.setBornTimestamp(requestHeader.getBornTimestamp());
         messageExtBatch.setBornHost(ctx.channel().remoteAddress());
