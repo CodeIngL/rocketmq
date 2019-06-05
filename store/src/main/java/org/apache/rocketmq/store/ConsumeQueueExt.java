@@ -35,6 +35,14 @@ import java.util.List;
  * <li>2. And is week reliable.</li>
  * <li>3. Be careful, address returned is always less than 0.</li>
  * <li>4. Pls keep this file small.</li>
+ *
+ * <p>
+ *     消费队列的扩展，存储不重要的东西，如消息存储时间，过滤位图等。
+ * </p>
+ * <li>1. 此类仅由{@link ConsumeQueue}使用</li>
+ * <li>2. 是week可靠的.</li>
+ * <li>3. 注意，返回的地址始终小于0.</li>
+ * <li>4. 请保持此文件小.</li>
  */
 public class ConsumeQueueExt {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);

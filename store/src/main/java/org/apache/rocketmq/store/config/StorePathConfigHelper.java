@@ -28,10 +28,20 @@ public class StorePathConfigHelper {
         return rootDir + File.separator + "consumequeue_ext";
     }
 
+    /**
+     * 索引文件服务
+     * @param rootDir
+     * @return
+     */
     public static String getStorePathIndex(final String rootDir) {
         return rootDir + File.separator + "index";
     }
 
+    /**
+     * 获得checkPoint的存储文件
+     * @param rootDir
+     * @return
+     */
     public static String getStoreCheckpoint(final String rootDir) {
         return rootDir + File.separator + "checkpoint";
     }

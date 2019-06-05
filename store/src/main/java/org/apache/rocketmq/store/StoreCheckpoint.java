@@ -27,6 +27,9 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+/**
+ * 存储检查点
+ */
 public class StoreCheckpoint {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private final RandomAccessFile randomAccessFile;
@@ -36,19 +39,29 @@ public class StoreCheckpoint {
     private volatile long logicsMsgTimestamp = 0;
     private volatile long indexMsgTimestamp = 0;
 
+    /**
+     * 新建存储校验点
+     * @param scpPath
+     * @throws IOException
+     */
     public StoreCheckpoint(final String scpPath) throws IOException {
         File file = new File(scpPath);
         MappedFile.ensureDirOK(file.getParent());
         boolean fileExists = file.exists();
 
+        //访问相关的文件
         this.randomAccessFile = new RandomAccessFile(file, "rw");
         this.fileChannel = this.randomAccessFile.getChannel();
         this.mappedByteBuffer = fileChannel.map(MapMode.READ_WRITE, 0, MappedFile.OS_PAGE_SIZE);
 
+        //文件已经存在，读取并简单的展示
         if (fileExists) {
             log.info("store checkpoint file exists, " + scpPath);
+            //物理消息时间戳
             this.physicMsgTimestamp = this.mappedByteBuffer.getLong(0);
+            //逻辑消息时间戳
             this.logicsMsgTimestamp = this.mappedByteBuffer.getLong(8);
+            //索引消息时间戳
             this.indexMsgTimestamp = this.mappedByteBuffer.getLong(16);
 
             log.info("store checkpoint file physicMsgTimestamp " + this.physicMsgTimestamp + ", "
@@ -62,6 +75,10 @@ public class StoreCheckpoint {
         }
     }
 
+    /**
+     * 关闭，先刷入现在的checkPoint
+     * 在关闭文件的映射关系
+     */
     public void shutdown() {
         this.flush();
 
@@ -75,6 +92,11 @@ public class StoreCheckpoint {
         }
     }
 
+    /**
+     * 刷盘,
+     * 刷入新的checkPoint信息
+     * 强制从内存中刷出，保证刷入磁盘
+     */
     public void flush() {
         this.mappedByteBuffer.putLong(0, this.physicMsgTimestamp);
         this.mappedByteBuffer.putLong(8, this.logicsMsgTimestamp);

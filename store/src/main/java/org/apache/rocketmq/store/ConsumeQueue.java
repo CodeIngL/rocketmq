@@ -24,9 +24,15 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
+import static java.io.File.separator;
+
+/**
+ * 消息消费队列
+ */
 public class ConsumeQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    //存储单元数量默认是20
     public static final int CQ_STORE_UNIT_SIZE = 20;
     private static final InternalLogger LOG_ERROR = InternalLoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
@@ -43,6 +49,14 @@ public class ConsumeQueue {
     private volatile long minLogicOffset = 0;
     private ConsumeQueueExt consumeQueueExt = null;
 
+    /**
+     * 构建消息消费队列
+     * @param topic 主题
+     * @param queueId 队列id
+     * @param storePath 存储路径
+     * @param mappedFileSize 映射文件大小
+     * @param defaultMessageStore 默认的存储器
+     */
     public ConsumeQueue(
         final String topic,
         final int queueId,
@@ -56,15 +70,14 @@ public class ConsumeQueue {
         this.topic = topic;
         this.queueId = queueId;
 
-        String queueDir = this.storePath
-            + File.separator + topic
-            + File.separator + queueId;
+        //存储的路径
+        String queueDir = this.storePath + separator + topic + separator + queueId;
 
         this.mappedFileQueue = new MappedFileQueue(queueDir, mappedFileSize, null);
 
         this.byteBufferIndex = ByteBuffer.allocate(CQ_STORE_UNIT_SIZE);
 
-        if (defaultMessageStore.getMessageStoreConfig().isEnableConsumeQueueExt()) {
+        if (defaultMessageStore.getMessageStoreConfig().isEnableConsumeQueueExt()) { //开启扩展
             this.consumeQueueExt = new ConsumeQueueExt(
                 topic,
                 queueId,
@@ -75,15 +88,23 @@ public class ConsumeQueue {
         }
     }
 
+    /**
+     * 加载该队列的对应的文件映射
+     * @return
+     */
     public boolean load() {
         boolean result = this.mappedFileQueue.load();
         log.info("load consume queue " + this.topic + "-" + this.queueId + " " + (result ? "OK" : "Failed"));
         if (isExtReadEnable()) {
+            //扩展加载，same as consumeQueue
             result &= this.consumeQueueExt.load();
         }
         return result;
     }
 
+    /**
+     * 恢复
+     */
     public void recover() {
         final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
         if (!mappedFiles.isEmpty()) {
@@ -375,18 +396,23 @@ public class ConsumeQueue {
         return this.minLogicOffset / CQ_STORE_UNIT_SIZE;
     }
 
+    /**
+     * 消费队列投递分发的请求
+     * @param request
+     */
     public void putMessagePositionInfoWrapper(DispatchRequest request) {
         final int maxRetries = 30;
+        //是否可写
         boolean canWrite = this.defaultMessageStore.getRunningFlags().isCQWriteable();
         for (int i = 0; i < maxRetries && canWrite; i++) {
-            long tagsCode = request.getTagsCode();
-            if (isExtWriteEnable()) {
-                ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
-                cqExtUnit.setFilterBitMap(request.getBitMap());
-                cqExtUnit.setMsgStoreTime(request.getStoreTimestamp());
-                cqExtUnit.setTagsCode(request.getTagsCode());
+            long tagsCode = request.getTagsCode(); //tag
+            if (isExtWriteEnable()) { //可写
+                ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit(); //扩展信息
+                cqExtUnit.setFilterBitMap(request.getBitMap()); //位图信息
+                cqExtUnit.setMsgStoreTime(request.getStoreTimestamp()); //存储时间
+                cqExtUnit.setTagsCode(request.getTagsCode()); //tag码
 
-                long extAddr = this.consumeQueueExt.put(cqExtUnit);
+                long extAddr = this.consumeQueueExt.put(cqExtUnit); //扩展信息的投递，返回地址
                 if (isExtAddr(extAddr)) {
                     tagsCode = extAddr;
                 } else {
@@ -394,8 +420,8 @@ public class ConsumeQueue {
                         topic, queueId, request.getCommitLogOffset());
                 }
             }
-            boolean result = this.putMessagePositionInfo(request.getCommitLogOffset(),
-                request.getMsgSize(), tagsCode, request.getConsumeQueueOffset());
+            //consumer进行投递
+            boolean result = this.putMessagePositionInfo(request.getCommitLogOffset(), request.getMsgSize(), tagsCode, request.getConsumeQueueOffset());
             if (result) {
                 this.defaultMessageStore.getStoreCheckpoint().setLogicsMsgTimestamp(request.getStoreTimestamp());
                 return;
@@ -417,6 +443,14 @@ public class ConsumeQueue {
         this.defaultMessageStore.getRunningFlags().makeLogicsQueueError();
     }
 
+    /**
+     * 投递
+     * @param offset
+     * @param size
+     * @param tagsCode
+     * @param cqOffset
+     * @return
+     */
     private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
         final long cqOffset) {
 

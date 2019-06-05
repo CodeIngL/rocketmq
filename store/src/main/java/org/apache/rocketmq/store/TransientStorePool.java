@@ -28,36 +28,59 @@ import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
+/**
+ *
+ */
 public class TransientStorePool {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * 池大小
+     */
     private final int poolSize;
+    /**
+     * 文件大小
+     */
     private final int fileSize;
     private final Deque<ByteBuffer> availableBuffers;
     private final MessageStoreConfig storeConfig;
 
     public TransientStorePool(final MessageStoreConfig storeConfig) {
+        //存储配置
         this.storeConfig = storeConfig;
+        //池大小
         this.poolSize = storeConfig.getTransientStorePoolSize();
+        //文件大小
         this.fileSize = storeConfig.getMapedFileSizeCommitLog();
+        //可用的buffer
         this.availableBuffers = new ConcurrentLinkedDeque<>();
     }
 
     /**
      * It's a heavy init method.
+     * <p>
+     *     大开销的init方法
+     * </p>
      */
     public void init() {
         for (int i = 0; i < poolSize; i++) {
             ByteBuffer byteBuffer = ByteBuffer.allocateDirect(fileSize);
 
+            //地址
             final long address = ((DirectBuffer) byteBuffer).address();
+            //指针
             Pointer pointer = new Pointer(address);
+            //锁定
             LibC.INSTANCE.mlock(pointer, new NativeLong(fileSize));
 
+            //添加
             availableBuffers.offer(byteBuffer);
         }
     }
 
+    /**
+     * 销毁
+     */
     public void destroy() {
         for (ByteBuffer byteBuffer : availableBuffers) {
             final long address = ((DirectBuffer) byteBuffer).address();
@@ -66,12 +89,17 @@ public class TransientStorePool {
         }
     }
 
+    /**
+     * 复用归还
+     * @param byteBuffer
+     */
     public void returnBuffer(ByteBuffer byteBuffer) {
         byteBuffer.position(0);
         byteBuffer.limit(fileSize);
         this.availableBuffers.offerFirst(byteBuffer);
     }
 
+    //借用buffer
     public ByteBuffer borrowBuffer() {
         ByteBuffer buffer = availableBuffers.pollFirst();
         if (availableBuffers.size() < poolSize * 0.4) {
@@ -80,6 +108,10 @@ public class TransientStorePool {
         return buffer;
     }
 
+    /**
+     * 池中的数量
+     * @return
+     */
     public int remainBufferNumbs() {
         if (storeConfig.isTransientStorePoolEnable()) {
             return availableBuffers.size();

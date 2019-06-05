@@ -164,15 +164,16 @@ public class AllocateMappedFileService extends ServiceThread {
                 long beginTime = System.currentTimeMillis();
 
                 MappedFile mappedFile;
-                if (messageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
+                if (messageStore.getMessageStoreConfig().isTransientStorePoolEnable()) { //使用瞬态池
                     try {
+                        //文件服务使用spi进行搞定，用户可以替换存储实现文件
                         mappedFile = ServiceLoader.load(MappedFile.class).iterator().next();
                         mappedFile.init(req.getFilePath(), req.getFileSize(), messageStore.getTransientStorePool());
                     } catch (RuntimeException e) {
                         log.warn("Use default implementation.");
                         mappedFile = new MappedFile(req.getFilePath(), req.getFileSize(), messageStore.getTransientStorePool());
                     }
-                } else {
+                } else { //使用普通的方式
                     mappedFile = new MappedFile(req.getFilePath(), req.getFileSize());
                 }
 

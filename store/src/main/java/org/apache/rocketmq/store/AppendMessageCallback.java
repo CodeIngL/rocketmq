@@ -21,11 +21,18 @@ import org.apache.rocketmq.common.message.MessageExtBatch;
 
 /**
  * Write messages callback interface
+ * <p>
+ *     写消息回调接口
  */
 public interface AppendMessageCallback {
 
     /**
      * After message serialization, write MapedByteBuffer
+     *
+     *
+     * <p>
+     *     由mappedFile来回调call实现callback自己处理实现逻辑
+     * </p>
      *
      * @return How many bytes to write
      */
@@ -34,6 +41,9 @@ public interface AppendMessageCallback {
 
     /**
      * After batched message serialization, write MapedByteBuffer
+     * <p>
+     *    同上，but消息是批量消息
+     * </p>
      *
      * @param messageExtBatch, backed up by a byte array
      * @return How many bytes to write

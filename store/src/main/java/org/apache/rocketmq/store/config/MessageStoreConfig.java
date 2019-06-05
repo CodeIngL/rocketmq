@@ -81,14 +81,17 @@ public class MessageStoreConfig {
     // Flow control for ConsumeQueue
     private int putMsgIndexHightWater = 600000;
     // The maximum size of a single log file,default is 512K
+    // 单个日志文件的最大大小，默认为512K
     private int maxMessageSize = 1024 * 1024 * 4;
     // Whether check the CRC32 of the records consumed.
     // This ensures no on-the-wire or on-disk corruption to the messages occurred.
     // This check adds some overhead,so it may be disabled in cases seeking extreme performance.
     private boolean checkCRCOnRecover = true;
     // How many pages are to be flushed when flush CommitLog
+    // 刷新CommitLog时要刷新多少页
     private int flushCommitLogLeastPages = 4;
     // How many pages are to be committed when commit data to file
+    // 将数据提交到文件时要提交的页数
     private int commitCommitLogLeastPages = 4;
     // Flush page size when the disk in warming state
     private int flushLeastPagesWhenWarmMapedFile = 1024 / 4 * 16;
@@ -196,6 +199,10 @@ public class MessageStoreConfig {
         this.mapedFileSizeCommitLog = mapedFileSizeCommitLog;
     }
 
+    /**
+     * 获得consumeQueue对应的映射文件的大小
+     * @return
+     */
     public int getMapedFileSizeConsumeQueue() {
 
         int factor = (int) Math.ceil(this.mapedFileSizeConsumeQueue / (ConsumeQueue.CQ_STORE_UNIT_SIZE * 1.0));
@@ -611,6 +618,9 @@ public class MessageStoreConfig {
     /**
      * Enable transient commitLog store pool only if transientStorePoolEnable is true and the FlushDiskType is
      * ASYNC_FLUSH
+     * <p>
+     *     仅当transientStorePoolEnable为true且FlushDiskType为ASYNC_FLUSH时，才启用瞬态commitLog存储池
+     * </p>
      *
      * @return <tt>true</tt> or <tt>false</tt>
      */

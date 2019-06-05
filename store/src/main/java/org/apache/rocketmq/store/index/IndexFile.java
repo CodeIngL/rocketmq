@@ -27,12 +27,17 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.MappedFile;
 
+/**
+ * 索引文件，提供对索引服务的支持，映射到一个mappedFile
+ */
 public class IndexFile {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
     private static int hashSlotSize = 4;
     private static int indexSize = 20;
     private static int invalidIndex = 0;
+    //hash槽数量
     private final int hashSlotNum;
+    //索引数量
     private final int indexNum;
     private final MappedFile mappedFile;
     private final FileChannel fileChannel;
@@ -81,14 +86,30 @@ public class IndexFile {
         }
     }
 
+    /**
+     * 满
+     * @return
+     */
     public boolean isWriteFull() {
         return this.indexHeader.getIndexCount() >= this.indexNum;
     }
 
+    /**
+     * 销毁
+     * @param intervalForcibly
+     * @return
+     */
     public boolean destroy(final long intervalForcibly) {
         return this.mappedFile.destroy(intervalForcibly);
     }
 
+    /**
+     * 放置key
+     * @param key
+     * @param phyOffset 物理的偏移量
+     * @param storeTimestamp 存储时间
+     * @return
+     */
     public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
         if (this.indexHeader.getIndexCount() < this.indexNum) {
             int keyHash = indexKeyHashMethod(key);
@@ -179,6 +200,12 @@ public class IndexFile {
         return this.indexHeader.getEndPhyOffset();
     }
 
+    /**
+     * 时间的匹配
+     * @param begin 开始时间
+     * @param end 结束时间
+     * @return
+     */
     public boolean isTimeMatched(final long begin, final long end) {
         boolean result = begin < this.indexHeader.getBeginTimestamp() && end > this.indexHeader.getEndTimestamp();
         result = result || (begin >= this.indexHeader.getBeginTimestamp() && begin <= this.indexHeader.getEndTimestamp());
@@ -186,6 +213,16 @@ public class IndexFile {
         return result;
     }
 
+
+    /**
+     *  选择，通过物理偏移量和时间来进行筛选
+     * @param phyOffsets
+     * @param key
+     * @param maxNum
+     * @param begin
+     * @param end
+     * @param lock
+     */
     public void selectPhyOffset(final List<Long> phyOffsets, final String key, final int maxNum,
         final long begin, final long end, boolean lock) {
         if (this.mappedFile.hold()) {

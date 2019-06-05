@@ -16,6 +16,9 @@
  */
 package org.apache.rocketmq.store;
 
+/**
+ * 代表了发送消息的投递结果，用于producer发送消息，返回相应包含了消息的投递结果。
+ */
 public class PutMessageResult {
     private PutMessageStatus putMessageStatus;
     private AppendMessageResult appendMessageResult;
@@ -24,6 +27,12 @@ public class PutMessageResult {
         this.putMessageStatus = putMessageStatus;
         this.appendMessageResult = appendMessageResult;
     }
+
+    public PutMessageResult(PutMessageStatus putMessageStatus) {
+        this.putMessageStatus = putMessageStatus;
+        this.appendMessageResult = null;
+    }
+
 
     public boolean isOk() {
         return this.appendMessageResult != null && this.appendMessageResult.isOk();
