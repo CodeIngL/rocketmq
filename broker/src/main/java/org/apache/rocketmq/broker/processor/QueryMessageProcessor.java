@@ -38,6 +38,11 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.QueryMessageResult;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 
+import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
+
+/**
+ * push方式的消费，使用处理
+ */
 public class QueryMessageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
@@ -67,10 +72,17 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    /**
+     * 主动的查询消息
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     public RemotingCommand queryMessage(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
         final RemotingCommand response =
-            RemotingCommand.createResponseCommand(QueryMessageResponseHeader.class);
+            createResponseCommand(QueryMessageResponseHeader.class);
         final QueryMessageResponseHeader responseHeader =
             (QueryMessageResponseHeader) response.readCustomHeader();
         final QueryMessageRequestHeader requestHeader =
@@ -84,6 +96,7 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
             requestHeader.setMaxNum(this.brokerController.getMessageStoreConfig().getDefaultQueryMaxNum());
         }
 
+        //构建查询结果，提供对消息存储的直接查询
         final QueryMessageResult queryMessageResult =
             this.brokerController.getMessageStore().queryMessage(requestHeader.getTopic(),
                 requestHeader.getKey(), requestHeader.getMaxNum(), requestHeader.getBeginTimestamp(),
@@ -125,7 +138,7 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
 
     public RemotingCommand viewMessageById(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        final RemotingCommand response = createResponseCommand(null);
         final ViewMessageRequestHeader requestHeader =
             (ViewMessageRequestHeader) request.decodeCommandCustomHeader(ViewMessageRequestHeader.class);
 

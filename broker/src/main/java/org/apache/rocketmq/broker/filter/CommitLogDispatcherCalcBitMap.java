@@ -30,6 +30,9 @@ import java.util.Iterator;
 
 /**
  * Calculate bit map of filter.
+ * <p>
+ *     计算过滤器的位图。
+ * </p>
  */
 public class CommitLogDispatcherCalcBitMap implements CommitLogDispatcher {
 
@@ -51,6 +54,7 @@ public class CommitLogDispatcherCalcBitMap implements CommitLogDispatcher {
 
         try {
 
+            //获得topic对应的filter
             Collection<ConsumerFilterData> filterDatas = consumerFilterManager.get(request.getTopic());
 
             if (filterDatas == null || filterDatas.isEmpty()) {
@@ -58,9 +62,7 @@ public class CommitLogDispatcherCalcBitMap implements CommitLogDispatcher {
             }
 
             Iterator<ConsumerFilterData> iterator = filterDatas.iterator();
-            BitsArray filterBitMap = BitsArray.create(
-                this.consumerFilterManager.getBloomFilter().getM()
-            );
+            BitsArray filterBitMap = BitsArray.create(this.consumerFilterManager.getBloomFilter().getM());
 
             long startTime = System.currentTimeMillis();
             while (iterator.hasNext()) {
@@ -79,7 +81,6 @@ public class CommitLogDispatcherCalcBitMap implements CommitLogDispatcher {
                 Object ret = null;
                 try {
                     MessageEvaluationContext context = new MessageEvaluationContext(request.getPropertiesMap());
-
                     ret = filterData.getCompiledExpression().evaluate(context);
                 } catch (Throwable e) {
                     log.error("Calc filter bit map error!commitLogOffset={}, consumer={}, {}", request.getCommitLogOffset(), filterData, e);
@@ -89,10 +90,7 @@ public class CommitLogDispatcherCalcBitMap implements CommitLogDispatcher {
 
                 // eval true
                 if (ret != null && ret instanceof Boolean && (Boolean) ret) {
-                    consumerFilterManager.getBloomFilter().hashTo(
-                        filterData.getBloomFilterData(),
-                        filterBitMap
-                    );
+                    consumerFilterManager.getBloomFilter().hashTo(filterData.getBloomFilterData(), filterBitMap);
                 }
             }
 

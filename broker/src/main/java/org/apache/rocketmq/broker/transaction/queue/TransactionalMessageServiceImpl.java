@@ -42,6 +42,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.rocketmq.broker.transaction.queue.TransactionalMessageUtil.REMOVETAG;
+import static org.apache.rocketmq.broker.transaction.queue.TransactionalMessageUtil.buildHalfTopic;
+import static org.apache.rocketmq.client.consumer.PullStatus.NO_MATCHED_MSG;
+import static org.apache.rocketmq.client.consumer.PullStatus.NO_NEW_MSG;
+import static org.apache.rocketmq.client.consumer.PullStatus.OFFSET_ILLEGAL;
+import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SYSTEM_ERROR;
+
 public class TransactionalMessageServiceImpl implements TransactionalMessageService {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
@@ -102,8 +109,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             msgExt.setMsgId(putMessageResult.getAppendMessageResult().getMsgId());
             log.debug(
                 "Send check message, the offset={} restored in queueOffset={} "
-                    + "commitLogOffset={} "
-                    + "newMsgId={} realMsgId={} topic={}",
+                    + "commitLogOffset={} newMsgId={} realMsgId={} topic={}",
                 offset, msgExt.getQueueOffset(), msgExt.getCommitLogOffset(), msgExt.getMsgId(),
                 msgExt.getUserProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX),
                 msgExt.getTopic());
@@ -117,26 +123,38 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
         }
     }
 
+    /**
+     *
+     * @param transactionTimeout The minimum time of the transactional message to be checked firstly, one message only
+     * exceed this time interval that can be checked.首先检查事务消息的最短时间，一条消息只超过可以检查的时间间隔。
+     * @param transactionCheckMax The maximum number of times the message was checked, if exceed this value, this
+     * message will be discarded. 检查消息的最大次数，如果超过此值，将丢弃消息。
+     * @param listener When the message is considered to be checked or discarded, the relative method of this class will
+     * be invoked. 当认为消息被检查或丢弃时，将调用此类的相对方法。
+     */
     @Override
-    public void check(long transactionTimeout, int transactionCheckMax,
-        AbstractTransactionalMessageCheckListener listener) {
+    public void check(long transactionTimeout, int transactionCheckMax, AbstractTransactionalMessageCheckListener listener) {
         try {
-            String topic = MixAll.RMQ_SYS_TRANS_HALF_TOPIC;
+            //特殊的RMQ_SYS_TRANS_HALF_TOPIC
+            String topic = buildHalfTopic();
+            //获得消息队列
             Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
             if (msgQueues == null || msgQueues.size() == 0) {
                 log.warn("The queue of topic is empty :" + topic);
                 return;
             }
             log.debug("Check topic={}, queues={}", topic, msgQueues);
+            //遍历消息队列
             for (MessageQueue messageQueue : msgQueues) {
                 long startTime = System.currentTimeMillis();
                 MessageQueue opQueue = getOpQueue(messageQueue);
+                //获取half消息偏移量
                 long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
+                //获取op消息偏移量
                 long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
                 log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
                 if (halfOffset < 0 || opOffset < 0) {
-                    log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
-                        halfOffset, opOffset);
+                    log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue, halfOffset, opOffset);
                     continue;
                 }
 
@@ -144,8 +162,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                 HashMap<Long, Long> removeMap = new HashMap<>();
                 PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
                 if (null == pullResult) {
-                    log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
-                        messageQueue, halfOffset, opOffset);
+                    log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null", messageQueue, halfOffset, opOffset);
                     continue;
                 }
                 // single thread
@@ -167,7 +184,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                             if (getMessageNullCount++ > MAX_RETRY_COUNT_WHEN_HALF_NULL) {
                                 break;
                             }
-                            if (getResult.getPullResult().getPullStatus() == PullStatus.NO_NEW_MSG) {
+                            if (getResult.getPullResult().getPullStatus() == NO_NEW_MSG) {
                                 log.debug("No new msg, the miss offset={} in={}, continue check={}, pull result={}", i,
                                     messageQueue, getMessageNullCount, getResult.getPullResult());
                                 break;
@@ -274,13 +291,13 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
         if (null == pullResult) {
             return null;
         }
-        if (pullResult.getPullStatus() == PullStatus.OFFSET_ILLEGAL
-            || pullResult.getPullStatus() == PullStatus.NO_MATCHED_MSG) {
+        if (pullResult.getPullStatus() == OFFSET_ILLEGAL
+            || pullResult.getPullStatus() == NO_MATCHED_MSG) {
             log.warn("The miss op offset={} in queue={} is illegal, pullResult={}", pullOffsetOfOp, opQueue,
                 pullResult);
             transactionalMessageBridge.updateConsumeOffset(opQueue, pullResult.getNextBeginOffset());
             return pullResult;
-        } else if (pullResult.getPullStatus() == PullStatus.NO_NEW_MSG) {
+        } else if (pullResult.getPullStatus() == NO_NEW_MSG) {
             log.warn("The miss op offset={} in queue={} is NO_NEW_MSG, pullResult={}", pullOffsetOfOp, opQueue,
                 pullResult);
             return pullResult;
@@ -294,7 +311,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             Long queueOffset = getLong(new String(opMessageExt.getBody(), TransactionalMessageUtil.charset));
             log.info("Topic: {} tags: {}, OpOffset: {}, HalfOffset: {}", opMessageExt.getTopic(),
                 opMessageExt.getTags(), opMessageExt.getQueueOffset(), queueOffset);
-            if (TransactionalMessageUtil.REMOVETAG.equals(opMessageExt.getTags())) {
+            if (REMOVETAG.equals(opMessageExt.getTags())) {
                 if (queueOffset < miniOffset) {
                     doneOpOffset.add(opMessageExt.getQueueOffset());
                 } else {
@@ -444,6 +461,11 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
         return getResult;
     }
 
+    /**
+     * 获得半阶段的消息，通过偏移量获得
+     * @param commitLogOffset
+     * @return
+     */
     private OperationResult getHalfMessageByOffset(long commitLogOffset) {
         OperationResult response = new OperationResult();
         MessageExt messageExt = this.transactionalMessageBridge.lookMessageByOffset(commitLogOffset);
@@ -451,15 +473,20 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             response.setPrepareMessage(messageExt);
             response.setResponseCode(ResponseCode.SUCCESS);
         } else {
-            response.setResponseCode(ResponseCode.SYSTEM_ERROR);
+            response.setResponseCode(SYSTEM_ERROR);
             response.setResponseRemark("Find prepared transaction message failed");
         }
         return response;
     }
 
+    /**
+     * 删除prepare消息
+     * @param msgExt
+     * @return
+     */
     @Override
     public boolean deletePrepareMessage(MessageExt msgExt) {
-        if (this.transactionalMessageBridge.putOpMessage(msgExt, TransactionalMessageUtil.REMOVETAG)) {
+        if (this.transactionalMessageBridge.putOpMessage(msgExt, REMOVETAG)) {
             log.info("Transaction op message write successfully. messageId={}, queueId={} msgExt:{}", msgExt.getMsgId(), msgExt.getQueueId(), msgExt);
             return true;
         } else {

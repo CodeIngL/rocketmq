@@ -32,6 +32,9 @@ import org.apache.rocketmq.store.QueryMessageResult;
 import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
+/**
+ * 支持消息插件存储，提供了了类似filter的操作，进行相关的过滤操作，在信息流流转到真正的的消息存储引擎之前
+ */
 public abstract class AbstractPluginMessageStore implements MessageStore {
     protected MessageStore next = null;
     protected MessageStorePluginContext context;

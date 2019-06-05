@@ -21,9 +21,22 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import org.apache.rocketmq.store.MessageStore;
 
+/**
+ * uitl，用于构建对应的消息存储
+ */
 public final class MessageStoreFactory {
+    /**
+     * 提供对消息存储服务的wrapper操作，实现拦截处理，
+     * 插件必须存在有两个参数的构造函数，其中之一是MessageStorePluginContext，
+     * 另外一个则是MessageStore
+     * @param context
+     * @param messageStore
+     * @return
+     * @throws IOException
+     */
     public final static MessageStore build(MessageStorePluginContext context, MessageStore messageStore)
         throws IOException {
+        //存储插件，获得插件配置，进行构建插件，来wrapper存储，，号切割插件
         String plugin = context.getBrokerConfig().getMessageStorePlugIn();
         if (plugin != null && plugin.trim().length() != 0) {
             String[] pluginClasses = plugin.split(",");

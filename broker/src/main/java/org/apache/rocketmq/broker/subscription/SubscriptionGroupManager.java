@@ -149,10 +149,14 @@ public class SubscriptionGroupManager extends ConfigManager {
     @Override
     public void decode(String jsonString) {
         if (jsonString != null) {
+            //配置项反序列化
             SubscriptionGroupManager obj = RemotingSerializable.fromJson(jsonString, SubscriptionGroupManager.class);
             if (obj != null) {
+                //copy对应订阅组结构数据
                 this.subscriptionGroupTable.putAll(obj.subscriptionGroupTable);
+                //copy下版本
                 this.dataVersion.assignNewOne(obj.dataVersion);
+                //打印一下
                 this.printLoadDataWhenFirstBoot(obj);
             }
         }

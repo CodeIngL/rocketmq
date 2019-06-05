@@ -22,7 +22,11 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+/**
+ * 事务消息检查服务
+ */
 public class TransactionalMessageCheckService extends ServiceThread {
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
     private BrokerController brokerController;
@@ -46,11 +50,17 @@ public class TransactionalMessageCheckService extends ServiceThread {
         log.info("End transaction check service thread!");
     }
 
+    /**
+     * 等待结束
+     */
     @Override
     protected void onWaitEnd() {
+        //获得超时时间
         long timeout = brokerController.getBrokerConfig().getTransactionTimeOut();
+        //获得最大值
         int checkMax = brokerController.getBrokerConfig().getTransactionCheckMax();
         long begin = System.currentTimeMillis();
+        //回查prepare消息
         log.info("Begin to check prepare message, begin time:{}", begin);
         this.brokerController.getTransactionalMessageService().check(timeout, checkMax, this.brokerController.getTransactionalMessageCheckListener());
         log.info("End to check prepare message, consumed time:{}", System.currentTimeMillis() - begin);

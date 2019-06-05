@@ -40,6 +40,10 @@ import org.apache.rocketmq.common.protocol.body.KVTable;
 import org.apache.rocketmq.common.protocol.body.TopicConfigSerializeWrapper;
 import org.apache.rocketmq.common.sysflag.TopicSysFlag;
 
+import static org.apache.rocketmq.common.constant.PermName.PERM_INHERIT;
+import static org.apache.rocketmq.common.constant.PermName.PERM_READ;
+import static org.apache.rocketmq.common.constant.PermName.PERM_WRITE;
+
 public class TopicConfigManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long LOCK_TIMEOUT_MILLIS = 3000;
@@ -71,11 +75,9 @@ public class TopicConfigManager extends ConfigManager {
                 String topic = MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC;
                 TopicConfig topicConfig = new TopicConfig(topic);
                 this.systemTopicList.add(topic);
-                topicConfig.setReadQueueNums(this.brokerController.getBrokerConfig()
-                    .getDefaultTopicQueueNums());
-                topicConfig.setWriteQueueNums(this.brokerController.getBrokerConfig()
-                    .getDefaultTopicQueueNums());
-                int perm = PermName.PERM_INHERIT | PermName.PERM_READ | PermName.PERM_WRITE;
+                topicConfig.setReadQueueNums(this.brokerController.getBrokerConfig().getDefaultTopicQueueNums());
+                topicConfig.setWriteQueueNums(this.brokerController.getBrokerConfig().getDefaultTopicQueueNums());
+                int perm = PERM_INHERIT | PERM_READ | PERM_WRITE;
                 topicConfig.setPerm(perm);
                 this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
             }
@@ -94,9 +96,9 @@ public class TopicConfigManager extends ConfigManager {
             String topic = this.brokerController.getBrokerConfig().getBrokerClusterName();
             TopicConfig topicConfig = new TopicConfig(topic);
             this.systemTopicList.add(topic);
-            int perm = PermName.PERM_INHERIT;
+            int perm = PERM_INHERIT;
             if (this.brokerController.getBrokerConfig().isClusterTopicEnable()) {
-                perm |= PermName.PERM_READ | PermName.PERM_WRITE;
+                perm |= PERM_READ | PERM_WRITE;
             }
             topicConfig.setPerm(perm);
             this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
@@ -106,9 +108,9 @@ public class TopicConfigManager extends ConfigManager {
             String topic = this.brokerController.getBrokerConfig().getBrokerName();
             TopicConfig topicConfig = new TopicConfig(topic);
             this.systemTopicList.add(topic);
-            int perm = PermName.PERM_INHERIT;
+            int perm = PERM_INHERIT;
             if (this.brokerController.getBrokerConfig().isBrokerTopicEnable()) {
-                perm |= PermName.PERM_READ | PermName.PERM_WRITE;
+                perm |= PERM_READ | PERM_WRITE;
             }
             topicConfig.setReadQueueNums(1);
             topicConfig.setWriteQueueNums(1);
@@ -168,7 +170,7 @@ public class TopicConfigManager extends ConfigManager {
                     if (defaultTopicConfig != null) {
                         if (defaultTopic.equals(MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC)) {
                             if (!this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) {
-                                defaultTopicConfig.setPerm(PermName.PERM_READ | PermName.PERM_WRITE);
+                                defaultTopicConfig.setPerm(PERM_READ | PERM_WRITE);
                             }
                         }
 
@@ -186,7 +188,7 @@ public class TopicConfigManager extends ConfigManager {
                             topicConfig.setReadQueueNums(queueNums);
                             topicConfig.setWriteQueueNums(queueNums);
                             int perm = defaultTopicConfig.getPerm();
-                            perm &= ~PermName.PERM_INHERIT;
+                            perm &= ~PERM_INHERIT;
                             topicConfig.setPerm(perm);
                             topicConfig.setTopicSysFlag(topicSysFlag);
                             topicConfig.setTopicFilterType(defaultTopicConfig.getTopicFilterType());
@@ -391,20 +393,33 @@ public class TopicConfigManager extends ConfigManager {
         return encode(false);
     }
 
+    /**
+     * 主题配置的配置文件的相关的路径
+     * @return
+     */
     @Override
     public String configFilePath() {
         return BrokerPathConfigHelper.getTopicConfigPath(this.brokerController.getMessageStoreConfig()
             .getStorePathRootDir());
     }
 
+    /**
+     * 解析配置文件，设置相关的topic配置
+     * @param jsonString
+     */
     @Override
     public void decode(String jsonString) {
         if (jsonString != null) {
+            //配置项反序列化，转换为配置model
             TopicConfigSerializeWrapper topicConfigSerializeWrapper =
                 TopicConfigSerializeWrapper.fromJson(jsonString, TopicConfigSerializeWrapper.class);
+            //存在相关的配置文件
             if (topicConfigSerializeWrapper != null) {
+                //topic相关的配置表
                 this.topicConfigTable.putAll(topicConfigSerializeWrapper.getTopicConfigTable());
+                //版本标识
                 this.dataVersion.assignNewOne(topicConfigSerializeWrapper.getDataVersion());
+                //简单的打印一下
                 this.printLoadDataWhenFirstBoot(topicConfigSerializeWrapper);
             }
         }

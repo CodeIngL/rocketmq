@@ -42,6 +42,11 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
+
+/**
+ * 客户端管理操作器，提供了对客户端的管理
+ */
 public class ClientManageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
@@ -112,7 +117,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             if (changed) {
                 log.info("registerConsumer info changed {} {}",
                     data.toString(),
-                    RemotingHelper.parseChannelRemoteAddr(ctx.channel())
+                    parseChannelRemoteAddr(ctx.channel())
                 );
             }
         }
@@ -126,6 +131,13 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    /**
+     * 注销客户端
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     public RemotingCommand unregisterClient(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
         final RemotingCommand response =

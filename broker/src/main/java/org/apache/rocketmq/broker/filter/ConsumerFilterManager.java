@@ -39,6 +39,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Consumer filter data manager.Just manage the consumers use expression filter.
+ * <p>
+ *     消费者过滤数据管理器。只需管理消费者使用表达式过滤。
+ * </p>
  */
 public class ConsumerFilterManager extends ConfigManager {
 
@@ -227,17 +230,23 @@ public class ConsumerFilterManager extends ConfigManager {
 
     @Override
     public void decode(final String jsonString) {
+        //配置项反序列化
         ConsumerFilterManager load = RemotingSerializable.fromJson(jsonString, ConsumerFilterManager.class);
+        //存在filterDataByTopic相关配置
         if (load != null && load.filterDataByTopic != null) {
             boolean bloomChanged = false;
+            //变量filterDataByTopic配置
             for (String topic : load.filterDataByTopic.keySet()) {
+                //获得topic对应的过滤器
                 FilterDataMapByTopic dataMapByTopic = load.filterDataByTopic.get(topic);
                 if (dataMapByTopic == null) {
                     continue;
                 }
 
+                //获得topic下对应group分组
                 for (String group : dataMapByTopic.getGroupFilterData().keySet()) {
 
+                    //group下filter
                     ConsumerFilterData filterData = dataMapByTopic.getGroupFilterData().get(group);
 
                     if (filterData == null) {
@@ -245,6 +254,7 @@ public class ConsumerFilterManager extends ConfigManager {
                     }
 
                     try {
+                        //设置表达式
                         filterData.setCompiledExpression(
                             FilterFactory.INSTANCE.get(filterData.getExpressionType()).compile(filterData.getExpression())
                         );
@@ -254,6 +264,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
                     // check whether bloom filter is changed
                     // if changed, ignore the bit map calculated before.
+                    // Bloom过滤器已更改！因此请忽略所有过滤器数据！
                     if (!this.bloomFilter.isValid(filterData.getBloomFilterData())) {
                         bloomChanged = true;
                         log.info("Bloom filter is changed!So ignore all filter data persisted! {}, {}", this.bloomFilter, filterData.getBloomFilterData());
@@ -264,7 +275,9 @@ public class ConsumerFilterManager extends ConfigManager {
 
                     if (filterData.getDeadTime() == 0) {
                         // we think all consumers are dead when load
+                        // 我们认为所有消费者在装载时都已死亡
                         long deadTime = System.currentTimeMillis() - 30 * 1000;
+                        // 实则dead时间
                         filterData.setDeadTime(
                             deadTime <= filterData.getBornTime() ? filterData.getBornTime() : deadTime
                         );
@@ -272,6 +285,7 @@ public class ConsumerFilterManager extends ConfigManager {
                 }
             }
 
+            //没有改变，进行赋值
             if (!bloomChanged) {
                 this.filterDataByTopic = load.filterDataByTopic;
             }

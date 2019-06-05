@@ -51,6 +51,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentMap;
 
+import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createRequestCommand;
+
+/**
+ * broker作为客户端
+ */
 public class Broker2Client {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
@@ -59,13 +64,20 @@ public class Broker2Client {
         this.brokerController = brokerController;
     }
 
+    /**
+     * 检查生产者事务的状态
+     * @param group
+     * @param channel
+     * @param requestHeader
+     * @param messageExt
+     * @throws Exception
+     */
     public void checkProducerTransactionState(
         final String group,
         final Channel channel,
         final CheckTransactionStateRequestHeader requestHeader,
         final MessageExt messageExt) throws Exception {
-        RemotingCommand request =
-            RemotingCommand.createRequestCommand(RequestCode.CHECK_TRANSACTION_STATE, requestHeader);
+        RemotingCommand request = createRequestCommand(RequestCode.CHECK_TRANSACTION_STATE, requestHeader);
         request.setBody(MessageDecoder.encode(messageExt, false));
         try {
             this.brokerController.getRemotingServer().invokeOneway(channel, request, 10);
@@ -91,7 +103,7 @@ public class Broker2Client {
         NotifyConsumerIdsChangedRequestHeader requestHeader = new NotifyConsumerIdsChangedRequestHeader();
         requestHeader.setConsumerGroup(consumerGroup);
         RemotingCommand request =
-            RemotingCommand.createRequestCommand(RequestCode.NOTIFY_CONSUMER_IDS_CHANGED, requestHeader);
+            createRequestCommand(RequestCode.NOTIFY_CONSUMER_IDS_CHANGED, requestHeader);
 
         try {
             this.brokerController.getRemotingServer().invokeOneway(channel, request, 10);
@@ -157,7 +169,7 @@ public class Broker2Client {
         requestHeader.setGroup(group);
         requestHeader.setTimestamp(timeStamp);
         RemotingCommand request =
-            RemotingCommand.createRequestCommand(RequestCode.RESET_CONSUMER_CLIENT_OFFSET, requestHeader);
+            createRequestCommand(RequestCode.RESET_CONSUMER_CLIENT_OFFSET, requestHeader);
         if (isC) {
             // c++ language
             ResetOffsetBodyForC body = new ResetOffsetBodyForC();
@@ -233,7 +245,7 @@ public class Broker2Client {
         requestHeader.setTopic(topic);
         requestHeader.setGroup(group);
         RemotingCommand request =
-            RemotingCommand.createRequestCommand(RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT,
+            createRequestCommand(RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT,
                 requestHeader);
 
         Map<String, Map<MessageQueue, Long>> consumerStatusTable =

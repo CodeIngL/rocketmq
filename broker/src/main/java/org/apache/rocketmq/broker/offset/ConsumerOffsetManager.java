@@ -33,13 +33,18 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+/**
+ * 也是配置文件对应配置项的model
+ */
 public class ConsumerOffsetManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final String TOPIC_GROUP_SEPARATOR = "@";
 
+    //偏移的表结构
     private ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable =
         new ConcurrentHashMap<String, ConcurrentMap<Integer, Long>>(512);
 
+    //不序列化这个特殊的字段
     private transient BrokerController brokerController;
 
     public ConsumerOffsetManager() {
@@ -164,7 +169,9 @@ public class ConsumerOffsetManager extends ConfigManager {
     @Override
     public void decode(String jsonString) {
         if (jsonString != null) {
+            //配置项反序列化，转换为配置model
             ConsumerOffsetManager obj = RemotingSerializable.fromJson(jsonString, ConsumerOffsetManager.class);
+            //copy对应offset结构数据
             if (obj != null) {
                 this.offsetTable = obj.offsetTable;
             }

@@ -28,13 +28,20 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.netty.RequestTask;
 import org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode;
 
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+
 /**
  * BrokerFastFailure will cover {@link BrokerController#sendThreadPoolQueue} and
  * {@link BrokerController#pullThreadPoolQueue}
+ * <p>
+ *     BrokerFastFailure将涵盖{@link BrokerController#sendThreadPoolQueue} 和{@link BrokerController#pullThreadPoolQueue}
+ * </p>
  */
 public class BrokerFastFailure {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
+    private final ScheduledExecutorService scheduledExecutorService =
+            newSingleThreadScheduledExecutor(
+            new ThreadFactoryImpl(
         "BrokerFastFailureScheduledThread"));
     private final BrokerController brokerController;
 
@@ -97,6 +104,11 @@ public class BrokerFastFailure {
             .brokerController.getBrokerConfig().getWaitTimeMillsInTransactionQueue());
     }
 
+    /**
+     * 清楚队列中的超时的请求
+     * @param blockingQueue
+     * @param maxWaitTimeMillsInQueue
+     */
     void cleanExpiredRequestInQueue(final BlockingQueue<Runnable> blockingQueue, final long maxWaitTimeMillsInQueue) {
         while (true) {
             try {
