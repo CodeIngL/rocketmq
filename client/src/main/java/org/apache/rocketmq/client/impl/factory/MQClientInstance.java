@@ -82,6 +82,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.netty.NettyClientConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.exceptionSimpleDesc;
 
 /**
@@ -115,7 +116,7 @@ public class MQClientInstance {
         new ConcurrentHashMap<String, HashMap<Long, String>>();
     private final ConcurrentMap<String/* Broker Name */, HashMap<String/* address */, Integer>> brokerVersionTable =
         new ConcurrentHashMap<String, HashMap<String, Integer>>();
-    private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(new ThreadFactory() {
         @Override
         public Thread newThread(Runnable r) {
             return new Thread(r, "MQClientFactoryScheduledThread");
