@@ -27,6 +27,8 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+import static org.apache.rocketmq.common.UtilAll.timeMillisToHumanString;
+
 /**
  * 存储检查点
  */
@@ -64,12 +66,9 @@ public class StoreCheckpoint {
             //索引消息时间戳
             this.indexMsgTimestamp = this.mappedByteBuffer.getLong(16);
 
-            log.info("store checkpoint file physicMsgTimestamp " + this.physicMsgTimestamp + ", "
-                + UtilAll.timeMillisToHumanString(this.physicMsgTimestamp));
-            log.info("store checkpoint file logicsMsgTimestamp " + this.logicsMsgTimestamp + ", "
-                + UtilAll.timeMillisToHumanString(this.logicsMsgTimestamp));
-            log.info("store checkpoint file indexMsgTimestamp " + this.indexMsgTimestamp + ", "
-                + UtilAll.timeMillisToHumanString(this.indexMsgTimestamp));
+            log.info("store checkpoint file physicMsgTimestamp " + this.physicMsgTimestamp + ", " + timeMillisToHumanString(this.physicMsgTimestamp));
+            log.info("store checkpoint file logicsMsgTimestamp " + this.logicsMsgTimestamp + ", " + timeMillisToHumanString(this.logicsMsgTimestamp));
+            log.info("store checkpoint file indexMsgTimestamp " + this.indexMsgTimestamp + ", " + timeMillisToHumanString(this.indexMsgTimestamp));
         } else {
             log.info("store checkpoint file not exists, " + scpPath);
         }

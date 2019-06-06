@@ -571,9 +571,11 @@ public class MappedFile extends ReferenceResource {
      * @return
      */
     public SelectMappedBufferResult selectMappedBuffer(int pos) {
+        //当前文件可读位置
         int readPosition = getReadPosition();
+        //小于说明是可读的部分
         if (pos < readPosition && pos >= 0) {
-            if (this.hold()) {
+            if (this.hold()) { //有效
                 //构建新缓存区
                 ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
                 //设置位置

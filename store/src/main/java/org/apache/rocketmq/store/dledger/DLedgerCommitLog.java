@@ -50,6 +50,10 @@ import org.apache.rocketmq.store.SelectMappedBufferResult;
 import org.apache.rocketmq.store.StoreStatsService;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 
+import static org.apache.rocketmq.common.message.MessageDecoder.createMessageId;
+import static org.apache.rocketmq.common.sysflag.MessageSysFlag.*;
+import static org.apache.rocketmq.store.PutMessageStatus.UNKNOWN_ERROR;
+
 /**
  * Store all metadata downtime for recovery, data protection reliability
  */
@@ -384,8 +388,8 @@ public class DLedgerCommitLog extends CommitLog {
 
         //should be consistent with the old version
         final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
-        if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
-            || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
+        if (tranType == TRANSACTION_NOT_TYPE
+            || tranType == TRANSACTION_COMMIT_TYPE) {
             // Delay Delivery
             if (msg.getDelayTimeLevel() > 0) {
                 if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
@@ -430,15 +434,15 @@ public class DLedgerCommitLog extends CommitLog {
             }
             long wroteOffset =  dledgerFuture.getPos() + DLedgerEntry.BODY_OFFSET;
             ByteBuffer buffer = ByteBuffer.allocate(MessageDecoder.MSG_ID_LENGTH);
-            String msgId = MessageDecoder.createMessageId(buffer, msg.getStoreHostBytes(), wroteOffset);
+            String msgId = createMessageId(buffer, msg.getStoreHostBytes(), wroteOffset);
             eclipseTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginTimeInDledgerLock;
             appendResult = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, encodeResult.data.length, msgId, System.currentTimeMillis(), queueOffset, eclipseTimeInLock);
             switch (tranType) {
-                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
-                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
+                case TRANSACTION_PREPARED_TYPE:
+                case TRANSACTION_ROLLBACK_TYPE:
                     break;
-                case MessageSysFlag.TRANSACTION_NOT_TYPE:
-                case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
+                case TRANSACTION_NOT_TYPE:
+                case TRANSACTION_COMMIT_TYPE:
                     // The next update ConsumeQueue information
                     DLedgerCommitLog.this.topicQueueTable.put(encodeResult.queueOffsetKey, queueOffset + 1);
                     break;
@@ -447,7 +451,7 @@ public class DLedgerCommitLog extends CommitLog {
             }
         } catch (Exception e) {
             log.error("Put message error", e);
-            return new PutMessageResult(PutMessageStatus.UNKNOWN_ERROR, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR));
+            return new PutMessageResult(UNKNOWN_ERROR, new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR));
         } finally {
             beginTimeInDledgerLock = 0;
             putMessageLock.unlock();
@@ -457,7 +461,7 @@ public class DLedgerCommitLog extends CommitLog {
             log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", eclipseTimeInLock, msg.getBody().length, appendResult);
         }
 
-        PutMessageStatus putMessageStatus = PutMessageStatus.UNKNOWN_ERROR;
+        PutMessageStatus putMessageStatus = UNKNOWN_ERROR;
         try {
             AppendEntryResponse appendEntryResponse = dledgerFuture.get(3, TimeUnit.SECONDS);
             switch (DLedgerResponseCode.valueOf(appendEntryResponse.getCode())) {
@@ -621,12 +625,12 @@ public class DLedgerCommitLog extends CommitLog {
             switch (tranType) {
                 // Prepared and Rollback message is not consumed, will not enter the
                 // consumer queuec
-                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
-                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
+                case TRANSACTION_PREPARED_TYPE:
+                case TRANSACTION_ROLLBACK_TYPE:
                     queueOffset = 0L;
                     break;
-                case MessageSysFlag.TRANSACTION_NOT_TYPE:
-                case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
+                case TRANSACTION_NOT_TYPE:
+                case TRANSACTION_COMMIT_TYPE:
                 default:
                     break;
             }

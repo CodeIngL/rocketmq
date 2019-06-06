@@ -20,12 +20,16 @@ import java.nio.ByteBuffer;
 
 public class SelectMappedBufferResult {
 
+    //开始的offset(绝对量)
     private final long startOffset;
 
+    //有些的buffer从(offset开始，到有效readpos-pos转换为limit）
     private final ByteBuffer byteBuffer;
 
+    //上述limit值
     private int size;
 
+    //所属的映射文件
     private MappedFile mappedFile;
 
     public SelectMappedBufferResult(long startOffset, ByteBuffer byteBuffer, int size, MappedFile mappedFile) {

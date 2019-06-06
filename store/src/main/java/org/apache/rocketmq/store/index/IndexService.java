@@ -33,6 +33,9 @@ import org.apache.rocketmq.store.DefaultMessageStore;
 import org.apache.rocketmq.store.DispatchRequest;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
+import static org.apache.rocketmq.common.UtilAll.timeMillisToHumanString;
+import static org.apache.rocketmq.common.sysflag.MessageSysFlag.*;
+
 /**
  * 索引服务，提供了使用key或者时间区段来查询消息的方法
  */
@@ -225,66 +228,74 @@ public class IndexService {
      * @param req
      */
     public void buildIndex(DispatchRequest req) {
+        //获得对应indexFile
         IndexFile indexFile = retryGetAndCreateIndexFile();
-        if (indexFile != null) {
-            long endPhyOffset = indexFile.getEndPhyOffset();
-            DispatchRequest msg = req;
-            String topic = msg.getTopic();
-            String keys = msg.getKeys();
-            if (msg.getCommitLogOffset() < endPhyOffset) {
+        if (indexFile == null){
+            log.error("build index error, stop building index");
+            return;
+        }
+        long endPhyOffset = indexFile.getEndPhyOffset();
+        DispatchRequest msg = req;
+        String topic = msg.getTopic();
+        String keys = msg.getKeys();
+        if (msg.getCommitLogOffset() < endPhyOffset) {
+            return;
+        }
+
+        //事务类型
+        final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+        switch (tranType) {
+            case TRANSACTION_NOT_TYPE:
+            case TRANSACTION_PREPARED_TYPE:
+            case TRANSACTION_COMMIT_TYPE:
+                break;
+            case TRANSACTION_ROLLBACK_TYPE:
+                return;
+        }
+
+        //存在唯一键
+        if (req.getUniqKey() != null) {
+            //放置key
+            indexFile = putKey(indexFile, msg, buildKey(topic, req.getUniqKey()));
+            if (indexFile == null) {
+                log.error("putKey error commitlog {} uniqkey {}", req.getCommitLogOffset(), req.getUniqKey());
                 return;
             }
+        }
+        if (keys == null || keys.length() == 0){
+            return;
+        }
 
-            //事务类型
-            final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
-            switch (tranType) {
-                case MessageSysFlag.TRANSACTION_NOT_TYPE:
-                case MessageSysFlag.TRANSACTION_PREPARED_TYPE:
-                case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
-                    break;
-                case MessageSysFlag.TRANSACTION_ROLLBACK_TYPE:
-                    return;
+        //很多key，每一个key进行放置
+        for (String key : keys.split(MessageConst.KEY_SEPARATOR)) {
+            if (key.length() == 0){
+                continue;
             }
-
-            //存在唯一键
-            if (req.getUniqKey() != null) {
-                //放置key
-                indexFile = putKey(indexFile, msg, buildKey(topic, req.getUniqKey()));
-                if (indexFile == null) {
-                    log.error("putKey error commitlog {} uniqkey {}", req.getCommitLogOffset(), req.getUniqKey());
-                    return;
-                }
+            indexFile = putKey(indexFile, msg, buildKey(topic, key));
+            if (indexFile == null) {
+                log.error("putKey error commitlog {} uniqkey {}", req.getCommitLogOffset(), req.getUniqKey());
+                return;
             }
-
-            //很多key，每一个key进行放置
-            if (keys != null && keys.length() > 0) {
-                String[] keyset = keys.split(MessageConst.KEY_SEPARATOR);
-                for (int i = 0; i < keyset.length; i++) {
-                    String key = keyset[i];
-                    if (key.length() > 0) {
-                        indexFile = putKey(indexFile, msg, buildKey(topic, key));
-                        if (indexFile == null) {
-                            log.error("putKey error commitlog {} uniqkey {}", req.getCommitLogOffset(), req.getUniqKey());
-                            return;
-                        }
-                    }
-                }
-            }
-        } else {
-            log.error("build index error, stop building index");
         }
     }
 
+    /**
+     * 提供了key放置
+     * @param indexFile
+     * @param msg
+     * @param idxKey
+     * @return
+     */
     private IndexFile putKey(IndexFile indexFile, DispatchRequest msg, String idxKey) {
-        for (boolean ok = indexFile.putKey(idxKey, msg.getCommitLogOffset(), msg.getStoreTimestamp()); !ok; ) {
+        long offset = msg.getCommitLogOffset();
+        long timestamp = msg.getStoreTimestamp();
+        for (boolean ok = indexFile.putKey(idxKey, offset, timestamp); !ok; ) {
             log.warn("Index file [" + indexFile.getFileName() + "] is full, trying to create another one");
-
             indexFile = retryGetAndCreateIndexFile();
             if (null == indexFile) {
                 return null;
             }
-
-            ok = indexFile.putKey(idxKey, msg.getCommitLogOffset(), msg.getStoreTimestamp());
+            ok = indexFile.putKey(idxKey, offset, timestamp);
         }
 
         return indexFile;
@@ -352,9 +363,8 @@ public class IndexService {
         //满的，我们尝试创造新文件
         if (indexFile == null) {
             try {
-                String fileName = this.storePath + File.separator + UtilAll.timeMillisToHumanString(System.currentTimeMillis());
-                indexFile = new IndexFile(fileName, this.hashSlotNum, this.indexNum, lastUpdateEndPhyOffset,
-                        lastUpdateIndexTimestamp);
+                String fileName = this.storePath + File.separator + timeMillisToHumanString(System.currentTimeMillis());
+                indexFile = new IndexFile(fileName, this.hashSlotNum, this.indexNum, lastUpdateEndPhyOffset, lastUpdateIndexTimestamp);
                 this.readWriteLock.writeLock().lock();
                 this.indexFileList.add(indexFile);
             } catch (Exception e) {
@@ -365,13 +375,7 @@ public class IndexService {
 
             if (indexFile != null) {
                 final IndexFile flushThisFile = prevIndexFile;
-                Thread flushThread = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        IndexService.this.flush(flushThisFile);
-                    }
-                }, "FlushIndexFileThread");
-
+                Thread flushThread = new Thread(() -> IndexService.this.flush(flushThisFile), "FlushIndexFileThread");
                 flushThread.setDaemon(true);
                 flushThread.start();
             }

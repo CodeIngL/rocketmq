@@ -23,6 +23,9 @@ public interface MessageFilter {
     /**
      * match by tags code or filter bit map which is calculated when message received
      * and stored in consume queue ext.
+     * <p>
+     *     通过标签代码匹配或过滤位图，该位图是在消息接收并存储在消耗队列ext中时计算的。
+     * </p>
      *
      * @param tagsCode tagsCode
      * @param cqExtUnit extend unit of consume queue
@@ -34,6 +37,9 @@ public interface MessageFilter {
      * match by message content which are stored in commit log.
      * <br>{@code msgBuffer} and {@code properties} are not all null.If invoked in store,
      * {@code properties} is null;If invoked in {@code PullRequestHoldService}, {@code msgBuffer} is null.
+     * <p>
+     *     匹配存储在提交日志中的消息内容。 msgBuffer和属性都不是null。如果在store中调用，则属性为null;如果在PullRequestHoldService中调用，则msgBuffer为null
+     * </p>
      *
      * @param msgBuffer message buffer in commit log, may be null if not invoked in store.
      * @param properties message properties, should decode from buffer if null by yourself.

@@ -461,8 +461,11 @@ public class ConsumeQueue {
 
         this.byteBufferIndex.flip();
         this.byteBufferIndex.limit(CQ_STORE_UNIT_SIZE);
+        //commitlog offset
         this.byteBufferIndex.putLong(offset);
+        //msg size
         this.byteBufferIndex.putInt(size);
+        //tags hashcode
         this.byteBufferIndex.putLong(tagsCode);
 
         final long expectLogicOffset = cqOffset * CQ_STORE_UNIT_SIZE;
@@ -475,8 +478,7 @@ public class ConsumeQueue {
                 this.mappedFileQueue.setFlushedWhere(expectLogicOffset);
                 this.mappedFileQueue.setCommittedWhere(expectLogicOffset);
                 this.fillPreBlank(mappedFile, expectLogicOffset);
-                log.info("fill pre blank space " + mappedFile.getFileName() + " " + expectLogicOffset + " "
-                    + mappedFile.getWrotePosition());
+                log.info("fill pre blank space " + mappedFile.getFileName() + " " + expectLogicOffset + " " + mappedFile.getWrotePosition());
             }
 
             if (cqOffset != 0) {
@@ -489,8 +491,7 @@ public class ConsumeQueue {
                 }
 
                 if (expectLogicOffset != currentLogicOffset) {
-                    LOG_ERROR.warn(
-                        "[BUG]logic queue order maybe wrong, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
+                    LOG_ERROR.warn("[BUG]logic queue order maybe wrong, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
                         expectLogicOffset,
                         currentLogicOffset,
                         this.topic,

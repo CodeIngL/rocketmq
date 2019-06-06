@@ -111,17 +111,16 @@ public class IndexFile {
      * @return
      */
     public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
-        if (this.indexHeader.getIndexCount() < this.indexNum) {
+        if (this.indexHeader.getIndexCount() < this.indexNum) { //索引数量要少于2KW个
             int keyHash = indexKeyHashMethod(key);
-            int slotPos = keyHash % this.hashSlotNum;
-            int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
+            int slotPos = keyHash % this.hashSlotNum; //槽
+            int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize; //相对槽
 
             FileLock fileLock = null;
 
             try {
 
-                // fileLock = this.fileChannel.lock(absSlotPos, hashSlotSize,
-                // false);
+                // fileLock = this.fileChannel.lock(absSlotPos, hashSlotSize, false);
                 int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
                 if (slotValue <= invalidIndex || slotValue > this.indexHeader.getIndexCount()) {
                     slotValue = invalidIndex;
@@ -139,15 +138,17 @@ public class IndexFile {
                     timeDiff = 0;
                 }
 
-                int absIndexPos =
-                    IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
-                        + this.indexHeader.getIndexCount() * indexSize;
+                int absIndexPos = IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize + this.indexHeader.getIndexCount() * indexSize;
 
+                //keyhash
                 this.mappedByteBuffer.putInt(absIndexPos, keyHash);
+                //offset
                 this.mappedByteBuffer.putLong(absIndexPos + 4, phyOffset);
+                //time
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8, (int) timeDiff);
+                //slotValue
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8 + 4, slotValue);
-
+                //count
                 this.mappedByteBuffer.putInt(absSlotPos, this.indexHeader.getIndexCount());
 
                 if (this.indexHeader.getIndexCount() <= 1) {
@@ -180,6 +181,11 @@ public class IndexFile {
         return false;
     }
 
+    /**
+     * hash
+     * @param key
+     * @return
+     */
     public int indexKeyHashMethod(final String key) {
         int keyHash = key.hashCode();
         int keyHashPositive = Math.abs(keyHash);
