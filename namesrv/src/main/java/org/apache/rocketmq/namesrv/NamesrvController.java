@@ -38,6 +38,10 @@ import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.netty.TlsSystemConfig;
 import org.apache.rocketmq.srvutil.FileWatchService;
 
+import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.tlsServerCertPath;
+import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.tlsServerKeyPath;
+import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.tlsServerTrustCertPath;
+
 
 /**
  * nameserver的核心控制器
@@ -111,23 +115,20 @@ public class NamesrvController {
             // Register a listener to reload SslContext
             try {
                 fileWatchService = new FileWatchService(
-                    new String[] {
-                        TlsSystemConfig.tlsServerCertPath,
-                        TlsSystemConfig.tlsServerKeyPath,
-                        TlsSystemConfig.tlsServerTrustCertPath
+                    new String[] {tlsServerCertPath, tlsServerKeyPath, tlsServerTrustCertPath
                     },
                     new FileWatchService.Listener() {
                         boolean certChanged, keyChanged = false;
                         @Override
                         public void onChanged(String path) {
-                            if (path.equals(TlsSystemConfig.tlsServerTrustCertPath)) {
+                            if (path.equals(tlsServerTrustCertPath)) {
                                 log.info("The trust certificate changed, reload the ssl context");
                                 reloadServerSslContext();
                             }
-                            if (path.equals(TlsSystemConfig.tlsServerCertPath)) {
+                            if (path.equals(tlsServerCertPath)) {
                                 certChanged = true;
                             }
-                            if (path.equals(TlsSystemConfig.tlsServerKeyPath)) {
+                            if (path.equals(tlsServerKeyPath)) {
                                 keyChanged = true;
                             }
                             if (certChanged && keyChanged) {
