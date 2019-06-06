@@ -39,10 +39,9 @@ import org.apache.rocketmq.store.MessageExtBrokerInner;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.config.BrokerRole;
 
-import static org.apache.rocketmq.common.sysflag.MessageSysFlag.TRANSACTION_COMMIT_TYPE;
-import static org.apache.rocketmq.common.sysflag.MessageSysFlag.TRANSACTION_NOT_TYPE;
-import static org.apache.rocketmq.common.sysflag.MessageSysFlag.TRANSACTION_ROLLBACK_TYPE;
+import static org.apache.rocketmq.common.sysflag.MessageSysFlag.*;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
+import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCCESS;
 
 /**
  * EndTransaction processor: process commit and rollback message
@@ -59,55 +58,54 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
     }
 
     @Override
-    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request) throws
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req) throws
         RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        final EndTransactionRequestHeader requestHeader = (EndTransactionRequestHeader)request.decodeCommandCustomHeader(EndTransactionRequestHeader.class);
-        LOGGER.info("Transaction request:{}", requestHeader);
+        final RemotingCommand resp = RemotingCommand.createResponseCommand(null);
+        final EndTransactionRequestHeader reqHeader = (EndTransactionRequestHeader)req.decodeCommandCustomHeader(EndTransactionRequestHeader.class);
+        LOGGER.info("Transaction request:{}", reqHeader);
         //slave节点禁止处理事务消息
         if (BrokerRole.SLAVE == brokerController.getMessageStoreConfig().getBrokerRole()) {
-            response.setCode(ResponseCode.SLAVE_NOT_AVAILABLE);
+            resp.setCode(ResponseCode.SLAVE_NOT_AVAILABLE);
             LOGGER.warn("Message store is slave mode, so end transaction is forbidden. ");
-            return response;
+            return resp;
         }
 
-        if (requestHeader.getFromTransactionCheck()) {
-            switch (requestHeader.getCommitOrRollback()) {
+        Integer transactionType = reqHeader.getCommitOrRollback();
+
+        if (reqHeader.getFromTransactionCheck()) {
+            switch (transactionType) {
                 case TRANSACTION_NOT_TYPE: { //不是事务消息
                     LOGGER.warn("Check producer[{}] transaction state, but it's pending status.RequestHeader: {} Remark: {}",
-                        parseChannelRemoteAddr(ctx.channel()), requestHeader.toString(), request.getRemark());
+                        parseChannelRemoteAddr(ctx.channel()), reqHeader.toString(), req.getRemark());
                     return null;
                 }
 
                 case TRANSACTION_COMMIT_TYPE: {
                     LOGGER.warn("Check producer[{}] transaction state, the producer commit the message.RequestHeader: {} Remark: {}",
-                        parseChannelRemoteAddr(ctx.channel()), requestHeader.toString(), request.getRemark());
+                        parseChannelRemoteAddr(ctx.channel()), reqHeader.toString(), req.getRemark());
                     break;
                 }
 
                 case TRANSACTION_ROLLBACK_TYPE: {
                     LOGGER.warn("Check producer[{}] transaction state, the producer rollback the message.RequestHeader: {} Remark: {}",
-                        parseChannelRemoteAddr(ctx.channel()), requestHeader.toString(), request.getRemark());
+                        parseChannelRemoteAddr(ctx.channel()), reqHeader.toString(), req.getRemark());
                     break;
                 }
                 default:
                     return null;
             }
         } else {
-            switch (requestHeader.getCommitOrRollback()) {
+            switch (transactionType) {
                 case TRANSACTION_NOT_TYPE: {
                     LOGGER.warn("The producer[{}] end transaction in sending message,  and it's pending status.RequestHeader: {} Remark: {}",
-                        parseChannelRemoteAddr(ctx.channel()), requestHeader.toString(), request.getRemark());
+                        parseChannelRemoteAddr(ctx.channel()), reqHeader.toString(), req.getRemark());
                     return null;
                 }
-
-                case TRANSACTION_COMMIT_TYPE: {
+                case TRANSACTION_COMMIT_TYPE:
                     break;
-                }
-
                 case TRANSACTION_ROLLBACK_TYPE: {
                     LOGGER.warn("The producer[{}] end transaction in sending message, rollback the message.RequestHeader: {} Remark: {}",
-                        parseChannelRemoteAddr(ctx.channel()), requestHeader.toString(), request.getRemark());
+                        parseChannelRemoteAddr(ctx.channel()), reqHeader.toString(), req.getRemark());
                     break;
                 }
                 default:
@@ -117,37 +115,37 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
         //操作结果
         OperationResult result = new OperationResult();
         TransactionalMessageService transactionalService = this.brokerController.getTransactionalMessageService();
-        if (TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) { //事务提交
-            result = transactionalService.commitMessage(requestHeader);
-            if (result.getResponseCode() == ResponseCode.SUCCESS) {
-                RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
-                if (res.getCode() == ResponseCode.SUCCESS) {
+        if (TRANSACTION_COMMIT_TYPE == transactionType) { //事务提交
+            result = transactionalService.commitMessage(reqHeader);
+            if (result.getResponseCode() == SUCCESS) {
+                RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), reqHeader);
+                if (res.getCode() == SUCCESS) {
                     MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage());
-                    msgInner.setSysFlag(MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), requestHeader.getCommitOrRollback()));
-                    msgInner.setQueueOffset(requestHeader.getTranStateTableOffset());
-                    msgInner.setPreparedTransactionOffset(requestHeader.getCommitLogOffset());
+                    msgInner.setSysFlag(resetTransactionValue(msgInner.getSysFlag(), reqHeader.getCommitOrRollback()));
+                    msgInner.setQueueOffset(reqHeader.getTranStateTableOffset());
+                    msgInner.setPreparedTransactionOffset(reqHeader.getCommitLogOffset());
                     msgInner.setStoreTimestamp(result.getPrepareMessage().getStoreTimestamp());
                     RemotingCommand sendResult = sendFinalMessage(msgInner);
-                    if (sendResult.getCode() == ResponseCode.SUCCESS) {
+                    if (sendResult.getCode() == SUCCESS) {
                         transactionalService.deletePrepareMessage(result.getPrepareMessage());
                     }
                     return sendResult;
                 }
                 return res;
             }
-        } else if (TRANSACTION_ROLLBACK_TYPE == requestHeader.getCommitOrRollback()) { //事务回滚
-            result = transactionalService.rollbackMessage(requestHeader);
-            if (result.getResponseCode() == ResponseCode.SUCCESS) {
-                RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
-                if (res.getCode() == ResponseCode.SUCCESS) {
+        } else if (TRANSACTION_ROLLBACK_TYPE == transactionType) { //事务回滚
+            result = transactionalService.rollbackMessage(reqHeader);
+            if (result.getResponseCode() == SUCCESS) {
+                RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), reqHeader);
+                if (res.getCode() == SUCCESS) {
                     transactionalService.deletePrepareMessage(result.getPrepareMessage());
                 }
                 return res;
             }
         }
-        response.setCode(result.getResponseCode());
-        response.setRemark(result.getResponseRemark());
-        return response;
+        resp.setCode(result.getResponseCode());
+        resp.setRemark(result.getResponseRemark());
+        return resp;
     }
 
     @Override
@@ -187,7 +185,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
             response.setRemark("Find prepared transaction message failed");
             return response;
         }
-        response.setCode(ResponseCode.SUCCESS);
+        response.setCode(SUCCESS);
         return response;
     }
 
@@ -226,7 +224,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
                 case FLUSH_DISK_TIMEOUT:
                 case FLUSH_SLAVE_TIMEOUT:
                 case SLAVE_NOT_AVAILABLE:
-                    response.setCode(ResponseCode.SUCCESS);
+                    response.setCode(SUCCESS);
                     response.setRemark(null);
                     break;
                 // Failed

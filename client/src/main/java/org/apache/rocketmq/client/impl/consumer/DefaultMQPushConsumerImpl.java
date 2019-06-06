@@ -79,6 +79,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import static org.apache.rocketmq.common.ServiceState.START_FAILED;
 import static org.apache.rocketmq.common.filter.FilterAPI.buildSubscriptionData;
 import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTERING;
+import static org.apache.rocketmq.common.sysflag.PullSysFlag.buildSysFlag;
 
 public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     /**
@@ -417,12 +418,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             classFilter = sd.isClassFilterMode();
         }
 
-        int sysFlag = PullSysFlag.buildSysFlag(
-            commitOffsetEnable, // commitOffset
-            true, // suspend
-            subExpression != null, // subscription
-            classFilter // class filter
-        );
+        /* commitOffset*//* suspend*/ /* subscription*//* class filter*/
+        int sysFlag = buildSysFlag(commitOffsetEnable, true, subExpression != null, classFilter);
         try {
             this.pullAPIWrapper.pullKernelImpl(
                 pullRequest.getMessageQueue(),

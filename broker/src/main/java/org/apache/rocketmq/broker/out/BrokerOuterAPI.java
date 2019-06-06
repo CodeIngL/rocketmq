@@ -175,15 +175,9 @@ public class BrokerOuterAPI {
         return registerBrokerResultList;
     }
 
-    private RegisterBrokerResult registerBroker(
-        final String namesrvAddr,
-        final boolean oneway,
-        final int timeoutMills,
-        final RegisterBrokerRequestHeader requestHeader,
-        final byte[] body
-    ) throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException,
-        InterruptedException {
-        RemotingCommand request = createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
+    private RegisterBrokerResult registerBroker(final String namesrvAddr, final boolean oneway, final int timeoutMills, final RegisterBrokerRequestHeader reqHeader, final byte[] body)
+            throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
+        RemotingCommand request = createRequestCommand(RequestCode.REGISTER_BROKER, reqHeader);
         request.setBody(body);
 
         if (oneway) {

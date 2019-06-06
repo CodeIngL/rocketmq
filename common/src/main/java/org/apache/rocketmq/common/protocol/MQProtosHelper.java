@@ -24,6 +24,8 @@ import org.apache.rocketmq.common.protocol.header.namesrv.RegisterBrokerRequestH
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createRequestCommand;
+
 public class MQProtosHelper {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
@@ -32,8 +34,7 @@ public class MQProtosHelper {
         RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
         requestHeader.setBrokerAddr(brokerAddr);
 
-        RemotingCommand request =
-            RemotingCommand.createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
+        RemotingCommand request = createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
 
         try {
             RemotingCommand response = RemotingHelper.invokeSync(nsaddr, request, timeoutMillis);

@@ -83,6 +83,11 @@ public class UtilAll {
         return sb.toString();
     }
 
+    /**
+     * 根据偏移量来生成文件名
+     * @param offset
+     * @return
+     */
     public static String offset2FileName(final long offset) {
         final NumberFormat nf = NumberFormat.getInstance();
         nf.setMinimumIntegerDigits(20);

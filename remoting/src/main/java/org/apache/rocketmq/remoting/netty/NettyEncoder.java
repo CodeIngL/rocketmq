@@ -26,6 +26,9 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * 编码器
+ */
 public class NettyEncoder extends MessageToByteEncoder<RemotingCommand> {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
 

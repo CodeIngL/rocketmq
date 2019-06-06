@@ -27,6 +27,12 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 public interface RemotingServer extends RemotingService {
 
+    /**
+     * 注册相应的处理器
+     * @param requestCode
+     * @param processor
+     * @param executor
+     */
     void registerProcessor(final int requestCode, final NettyRequestProcessor processor,
         final ExecutorService executor);
 

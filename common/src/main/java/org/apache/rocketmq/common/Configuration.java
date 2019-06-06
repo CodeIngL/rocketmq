@@ -28,6 +28,9 @@ import java.util.Properties;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * 配置集合
+ */
 public class Configuration {
 
     private final InternalLogger log;

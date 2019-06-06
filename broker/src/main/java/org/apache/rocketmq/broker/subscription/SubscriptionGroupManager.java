@@ -31,6 +31,8 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.subscription.SubscriptionGroupConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+import static org.apache.rocketmq.common.MixAll.isSysConsumerGroup;
+
 public class SubscriptionGroupManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
@@ -118,21 +120,21 @@ public class SubscriptionGroupManager extends ConfigManager {
     }
 
     public SubscriptionGroupConfig findSubscriptionGroupConfig(final String group) {
-        SubscriptionGroupConfig subscriptionGroupConfig = this.subscriptionGroupTable.get(group);
-        if (null == subscriptionGroupConfig) {
-            if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || MixAll.isSysConsumerGroup(group)) {
-                subscriptionGroupConfig = new SubscriptionGroupConfig();
-                subscriptionGroupConfig.setGroupName(group);
-                SubscriptionGroupConfig preConfig = this.subscriptionGroupTable.putIfAbsent(group, subscriptionGroupConfig);
+        SubscriptionGroupConfig config = this.subscriptionGroupTable.get(group);
+        if (null == config) {
+            if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || isSysConsumerGroup(group)) {
+                config = new SubscriptionGroupConfig();
+                config.setGroupName(group);
+                SubscriptionGroupConfig preConfig = this.subscriptionGroupTable.putIfAbsent(group, config);
                 if (null == preConfig) {
-                    log.info("auto create a subscription group, {}", subscriptionGroupConfig.toString());
+                    log.info("auto create a subscription group, {}", config.toString());
                 }
                 this.dataVersion.nextVersion();
                 this.persist();
             }
         }
 
-        return subscriptionGroupConfig;
+        return config;
     }
 
     @Override

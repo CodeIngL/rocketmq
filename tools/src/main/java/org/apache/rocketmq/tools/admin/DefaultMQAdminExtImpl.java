@@ -410,9 +410,20 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
         this.mqClientInstance.getMQClientAPIImpl().deleteKVConfigValue(namespace, key, timeoutMillis);
     }
 
+    /**
+     * 回溯消息
+     * @param consumerGroup
+     * @param topic
+     * @param timestamp
+     * @param force
+     * @return
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     * @throws MQClientException
+     */
     @Override
-    public List<RollbackStats> resetOffsetByTimestampOld(String consumerGroup, String topic, long timestamp,
-        boolean force)
+    public List<RollbackStats> resetOffsetByTimestampOld(String consumerGroup, String topic, long timestamp, boolean force)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         TopicRouteData topicRouteData = this.examineTopicRouteInfo(topic);
         List<RollbackStats> rollbackStatsList = new ArrayList<RollbackStats>();
@@ -504,12 +515,9 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
         long timestamp, boolean force) throws RemotingException, InterruptedException, MQBrokerException {
         long resetOffset;
         if (timestamp == -1) {
-
             resetOffset = this.mqClientInstance.getMQClientAPIImpl().getMaxOffset(brokerAddr, queue.getTopic(), queue.getQueueId(), timeoutMillis);
         } else {
-            resetOffset =
-                this.mqClientInstance.getMQClientAPIImpl().searchOffset(brokerAddr, queue.getTopic(), queue.getQueueId(), timestamp,
-                    timeoutMillis);
+            resetOffset = this.mqClientInstance.getMQClientAPIImpl().searchOffset(brokerAddr, queue.getTopic(), queue.getQueueId(), timestamp, timeoutMillis);
         }
 
         RollbackStats rollbackStats = new RollbackStats();

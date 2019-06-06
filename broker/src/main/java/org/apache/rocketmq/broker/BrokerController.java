@@ -942,8 +942,7 @@ public class BrokerController {
         TopicConfig registerTopicConfig = topicConfig;
         if (!isWriteable(this.getBrokerConfig().getBrokerPermission())
             || !isReadable(this.getBrokerConfig().getBrokerPermission())) {
-            registerTopicConfig =
-                new TopicConfig(topicConfig.getTopicName(), topicConfig.getReadQueueNums(), topicConfig.getWriteQueueNums(),
+            registerTopicConfig = new TopicConfig(topicConfig.getTopicName(), topicConfig.getReadQueueNums(), topicConfig.getWriteQueueNums(),
                     this.brokerConfig.getBrokerPermission());
         }
 

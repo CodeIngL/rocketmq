@@ -61,7 +61,9 @@ public class MessageDecoder {
         input.flip();
         input.limit(MessageDecoder.MSG_ID_LENGTH);
 
+        //地址
         input.put(addr);
+        //offset
         input.putLong(offset);
 
         return UtilAll.bytes2string(input.array());
@@ -239,13 +241,11 @@ public class MessageDecoder {
         return byteBuffer.array();
     }
 
-    public static MessageExt decode(
-        java.nio.ByteBuffer byteBuffer, final boolean readBody, final boolean deCompressBody) {
+    public static MessageExt decode(java.nio.ByteBuffer byteBuffer, final boolean readBody, final boolean deCompressBody) {
         return decode(byteBuffer, readBody, deCompressBody, false);
     }
 
-    public static MessageExt decode(
-        java.nio.ByteBuffer byteBuffer, final boolean readBody, final boolean deCompressBody, final boolean isClient) {
+    public static MessageExt decode(java.nio.ByteBuffer byteBuffer, final boolean readBody, final boolean deCompressBody, final boolean isClient) {
         try {
 
             MessageExt msgExt;

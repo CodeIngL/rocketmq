@@ -232,12 +232,23 @@ public class MixAll {
         return null;
     }
 
+    /**
+     * 将object的相关信息，通过日志输出
+     * @param logger 日志
+     * @param object 待输出的对象
+     */
     public static void printObjectProperties(final InternalLogger logger, final Object object) {
         printObjectProperties(logger, object, false);
     }
 
-    public static void printObjectProperties(final InternalLogger logger, final Object object,
-        final boolean onlyImportantField) {
+
+    /**
+     * 将object的相关信息，通过日志输出，忽略字段名为this开始的字段
+     * @param logger 日志
+     * @param object
+     * @param onlyImportantField 是否只输出被ImportantField注解打印字段
+     */
+    public static void printObjectProperties(final InternalLogger logger, final Object object, final boolean onlyImportantField) {
         Field[] fields = object.getClass().getDeclaredFields();
         for (Field field : fields) {
             if (!Modifier.isStatic(field.getModifiers())) {
@@ -270,6 +281,11 @@ public class MixAll {
         }
     }
 
+    /**
+     * Properties对象转String
+     * @param properties
+     * @return
+     */
     public static String properties2String(final Properties properties) {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<Object, Object> entry : properties.entrySet()) {
@@ -280,6 +296,11 @@ public class MixAll {
         return sb.toString();
     }
 
+    /**
+     * String对象转Properties
+     * @param str
+     * @return
+     */
     public static Properties string2Properties(final String str) {
         Properties properties = new Properties();
         try {
@@ -293,6 +314,11 @@ public class MixAll {
         return properties;
     }
 
+    /**
+     * 提取对象中的属性转换为Properties
+     * @param object
+     * @return
+     */
     public static Properties object2Properties(final Object object) {
         Properties properties = new Properties();
 
@@ -319,42 +345,57 @@ public class MixAll {
         return properties;
     }
 
+    /**
+     * 完成待注入的目标的对象的某些属性注入
+     * <p>
+     *     我们使用set进行匹配方法来完成
+     * </p>
+     * <p>
+     *     注入的属性总是一些基本属性，ex:int,String
+     * </p>
+     *
+     * @param p 属性源
+     * @param object 待注入的目标的对象
+     */
     public static void properties2Object(final Properties p, final Object object) {
         Method[] methods = object.getClass().getMethods();
         for (Method method : methods) {
             String mn = method.getName();
-            if (mn.startsWith("set")) {
-                try {
-                    String tmp = mn.substring(4);
-                    String first = mn.substring(3, 4);
+            if (!mn.startsWith("set"))
+                continue;
+            try {
+                String tmp = mn.substring(4);
+                String first = mn.substring(3, 4);
 
-                    String key = first.toLowerCase() + tmp;
-                    String property = p.getProperty(key);
-                    if (property != null) {
-                        Class<?>[] pt = method.getParameterTypes();
-                        if (pt != null && pt.length > 0) {
-                            String cn = pt[0].getSimpleName();
-                            Object arg = null;
-                            if (cn.equals("int") || cn.equals("Integer")) {
-                                arg = Integer.parseInt(property);
-                            } else if (cn.equals("long") || cn.equals("Long")) {
-                                arg = Long.parseLong(property);
-                            } else if (cn.equals("double") || cn.equals("Double")) {
-                                arg = Double.parseDouble(property);
-                            } else if (cn.equals("boolean") || cn.equals("Boolean")) {
-                                arg = Boolean.parseBoolean(property);
-                            } else if (cn.equals("float") || cn.equals("Float")) {
-                                arg = Float.parseFloat(property);
-                            } else if (cn.equals("String")) {
-                                arg = property;
-                            } else {
-                                continue;
-                            }
-                            method.invoke(object, arg);
-                        }
-                    }
-                } catch (Throwable ignored) {
+                //setAge，name=age
+                String key = first.toLowerCase() + tmp;
+                String property = p.getProperty(key);
+                if (property == null){
+                    continue;
                 }
+                //参数类型，一个值实际上是这样的
+                Class<?>[] pt = method.getParameterTypes();
+                if (pt.length > 0) {
+                    String cn = pt[0].getSimpleName();//参数类型
+                    Object arg = null;
+                    if (cn.equals("int") || cn.equals("Integer")) {
+                        arg = Integer.parseInt(property);
+                    } else if (cn.equals("long") || cn.equals("Long")) {
+                        arg = Long.parseLong(property);
+                    } else if (cn.equals("double") || cn.equals("Double")) {
+                        arg = Double.parseDouble(property);
+                    } else if (cn.equals("boolean") || cn.equals("Boolean")) {
+                        arg = Boolean.parseBoolean(property);
+                    } else if (cn.equals("float") || cn.equals("Float")) {
+                        arg = Float.parseFloat(property);
+                    } else if (cn.equals("String")) {
+                        arg = property;
+                    } else {
+                        continue;
+                    }
+                    method.invoke(object, arg);
+                }
+            } catch (Throwable ignored) {
             }
         }
     }

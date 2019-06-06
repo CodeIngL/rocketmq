@@ -22,8 +22,7 @@ public class PullSysFlag {
     private final static int FLAG_SUBSCRIPTION = 0x1 << 2;
     private final static int FLAG_CLASS_FILTER = 0x1 << 3;
 
-    public static int buildSysFlag(final boolean commitOffset, final boolean suspend,
-        final boolean subscription, final boolean classFilter) {
+    public static int buildSysFlag(final boolean commitOffset, final boolean suspend, final boolean subscription, final boolean classFilter) {
         int flag = 0;
 
         if (commitOffset) {

@@ -22,13 +22,23 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.rocketmq.common.message.MessageConst.*;
+
+/**
+ * 消息，一般来说用户直接打交道是这个消息，在broker内部将会转换为内部处理的相关子类消息
+ */
 public class Message implements Serializable {
     private static final long serialVersionUID = 8445773977080406428L;
 
+    //主题
     private String topic;
+    //标记
     private int flag;
+    //属性，包括最为重要的tag
     private Map<String, String> properties;
+    //消息主体
     private byte[] body;
+    //事务id
     private String transactionId;
 
     public Message() {
@@ -61,7 +71,7 @@ public class Message implements Serializable {
     }
 
     public void setKeys(String keys) {
-        this.putProperty(MessageConst.PROPERTY_KEYS, keys);
+        this.putProperty(PROPERTY_KEYS, keys);
     }
 
     void putProperty(final String name, final String value) {
@@ -115,29 +125,29 @@ public class Message implements Serializable {
     }
 
     public String getTags() {
-        return this.getProperty(MessageConst.PROPERTY_TAGS);
+        return this.getProperty(PROPERTY_TAGS);
     }
 
     public void setTags(String tags) {
-        this.putProperty(MessageConst.PROPERTY_TAGS, tags);
+        this.putProperty(PROPERTY_TAGS, tags);
     }
 
     public String getKeys() {
-        return this.getProperty(MessageConst.PROPERTY_KEYS);
+        return this.getProperty(PROPERTY_KEYS);
     }
 
     public void setKeys(Collection<String> keys) {
         StringBuffer sb = new StringBuffer();
         for (String k : keys) {
             sb.append(k);
-            sb.append(MessageConst.KEY_SEPARATOR);
+            sb.append(KEY_SEPARATOR);
         }
 
         this.setKeys(sb.toString().trim());
     }
 
     public int getDelayTimeLevel() {
-        String t = this.getProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL);
+        String t = this.getProperty(PROPERTY_DELAY_TIME_LEVEL);
         if (t != null) {
             return Integer.parseInt(t);
         }
@@ -146,11 +156,11 @@ public class Message implements Serializable {
     }
 
     public void setDelayTimeLevel(int level) {
-        this.putProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL, String.valueOf(level));
+        this.putProperty(PROPERTY_DELAY_TIME_LEVEL, String.valueOf(level));
     }
 
     public boolean isWaitStoreMsgOK() {
-        String result = this.getProperty(MessageConst.PROPERTY_WAIT_STORE_MSG_OK);
+        String result = this.getProperty(PROPERTY_WAIT_STORE_MSG_OK);
         if (null == result)
             return true;
 
@@ -158,7 +168,7 @@ public class Message implements Serializable {
     }
 
     public void setWaitStoreMsgOK(boolean waitStoreMsgOK) {
-        this.putProperty(MessageConst.PROPERTY_WAIT_STORE_MSG_OK, Boolean.toString(waitStoreMsgOK));
+        this.putProperty(PROPERTY_WAIT_STORE_MSG_OK, Boolean.toString(waitStoreMsgOK));
     }
 
     public int getFlag() {

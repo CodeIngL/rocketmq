@@ -33,6 +33,9 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+/**
+ * 文件监控配置
+ */
 public class FileWatchService extends ServiceThread {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
@@ -42,12 +45,10 @@ public class FileWatchService extends ServiceThread {
     private static final int WATCH_INTERVAL = 500;
     private MessageDigest md = MessageDigest.getInstance("MD5");
 
-    public FileWatchService(final String[] watchFiles,
-        final Listener listener) throws Exception {
+    public FileWatchService(final String[] watchFiles, final Listener listener) throws Exception {
         this.listener = listener;
         this.watchFiles = new ArrayList<>();
         this.fileCurrentHash = new ArrayList<>();
-
         for (int i = 0; i < watchFiles.length; i++) {
             if (!Strings.isNullOrEmpty(watchFiles[i]) && new File(watchFiles[i]).exists()) {
                 this.watchFiles.add(watchFiles[i]);

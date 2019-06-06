@@ -68,6 +68,8 @@ import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
+
 public class NettyRemotingClient extends NettyRemotingAbstract implements RemotingClient {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
 
@@ -161,6 +163,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 }
             });
 
+        /**
+         * 添加消息
+         */
         Bootstrap handler = this.bootstrap.group(this.eventLoopGroupWorker).channel(NioSocketChannel.class)
             .option(ChannelOption.TCP_NODELAY, true)
             .option(ChannelOption.SO_KEEPALIVE, false)
@@ -242,7 +247,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         if (null == channel)
             return;
 
-        final String addrRemote = null == addr ? RemotingHelper.parseChannelRemoteAddr(channel) : addr;
+        final String addrRemote = null == addr ? parseChannelRemoteAddr(channel) : addr;
 
         try {
             if (this.lockChannelTables.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
@@ -359,7 +364,17 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     }
 
 
-
+    /**
+     * 发送处理命令到broker代理
+     * @param addr
+     * @param request
+     * @param timeoutMillis
+     * @return
+     * @throws InterruptedException
+     * @throws RemotingConnectException
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     */
     @Override
     public RemotingCommand invokeSync(String addr, final RemotingCommand request, long timeoutMillis)
         throws InterruptedException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException {
@@ -373,7 +388,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                     throw new RemotingTimeoutException("invokeSync call timeout");
                 }
                 RemotingCommand response = this.invokeSyncImpl(channel, request, timeoutMillis - costTime);
-                doAfterRpcHooks(RemotingHelper.parseChannelRemoteAddr(channel), request, response);
+                doAfterRpcHooks(parseChannelRemoteAddr(channel), request, response);
                 return response;
             } catch (RemotingSendRequestException e) {
                 log.warn("invokeSync: send request exception, so close the channel[{}]", addr);
@@ -393,11 +408,18 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 获得地址对应的网络channel
+     * @param addr
+     * @return
+     * @throws InterruptedException
+     */
     private Channel getAndCreateChannel(final String addr) throws InterruptedException {
         if (null == addr) {
             return getAndCreateNameserverChannel();
         }
 
+        //内部存储结构
         ChannelWrapper cw = this.channelTables.get(addr);
         if (cw != null && cw.isOK()) {
             return cw.getChannel();
@@ -453,13 +475,21 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         return null;
     }
 
+    /**
+     * 构建channel
+     * @param addr
+     * @return
+     * @throws InterruptedException
+     */
     private Channel createChannel(final String addr) throws InterruptedException {
+        //地址
         ChannelWrapper cw = this.channelTables.get(addr);
         if (cw != null && cw.isOK()) {
             cw.getChannel().close();
             channelTables.remove(addr);
         }
 
+        //
         if (this.lockChannelTables.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
             try {
                 boolean createNewConnection;
@@ -481,6 +511,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 }
 
                 if (createNewConnection) {
+                    //连接
                     ChannelFuture channelFuture = this.bootstrap.connect(RemotingHelper.string2SocketAddress(addr));
                     log.info("createChannel: begin to connect remote host[{}] asynchronously", addr);
                     cw = new ChannelWrapper(channelFuture);
@@ -513,10 +544,21 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         return null;
     }
 
+    /**
+     * 异步调用
+     * @param addr
+     * @param request
+     * @param timeoutMillis
+     * @param invokeCallback
+     * @throws InterruptedException
+     * @throws RemotingConnectException
+     * @throws RemotingTooMuchRequestException
+     * @throws RemotingTimeoutException
+     * @throws RemotingSendRequestException
+     */
     @Override
     public void invokeAsync(String addr, RemotingCommand request, long timeoutMillis, InvokeCallback invokeCallback)
-        throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException, RemotingTimeoutException,
-        RemotingSendRequestException {
+        throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException {
         long beginStartTime = System.currentTimeMillis();
         final Channel channel = this.getAndCreateChannel(addr);
         if (channel != null && channel.isActive()) {
@@ -622,6 +664,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 客户端相关的handler
+     */
     class NettyClientHandler extends SimpleChannelInboundHandler<RemotingCommand> {
 
         @Override
@@ -647,7 +692,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
         @Override
         public void disconnect(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
-            final String remoteAddress = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
+            final String remoteAddress = parseChannelRemoteAddr(ctx.channel());
             log.info("NETTY CLIENT PIPELINE: DISCONNECT {}", remoteAddress);
             closeChannel(ctx.channel());
             super.disconnect(ctx, promise);
@@ -659,7 +704,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
         @Override
         public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
-            final String remoteAddress = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
+            final String remoteAddress = parseChannelRemoteAddr(ctx.channel());
             log.info("NETTY CLIENT PIPELINE: CLOSE {}", remoteAddress);
             closeChannel(ctx.channel());
             super.close(ctx, promise);
@@ -674,7 +719,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             if (evt instanceof IdleStateEvent) {
                 IdleStateEvent event = (IdleStateEvent) evt;
                 if (event.state().equals(IdleState.ALL_IDLE)) {
-                    final String remoteAddress = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
+                    final String remoteAddress = parseChannelRemoteAddr(ctx.channel());
                     log.warn("NETTY CLIENT PIPELINE: IDLE exception [{}]", remoteAddress);
                     closeChannel(ctx.channel());
                     if (NettyRemotingClient.this.channelEventListener != null) {
@@ -689,7 +734,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            final String remoteAddress = RemotingHelper.parseChannelRemoteAddr(ctx.channel());
+            final String remoteAddress = parseChannelRemoteAddr(ctx.channel());
             log.warn("NETTY CLIENT PIPELINE: exceptionCaught {}", remoteAddress);
             log.warn("NETTY CLIENT PIPELINE: exceptionCaught exception.", cause);
             closeChannel(ctx.channel());

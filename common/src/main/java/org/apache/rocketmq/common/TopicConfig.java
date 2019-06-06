@@ -18,6 +18,9 @@ package org.apache.rocketmq.common;
 
 import org.apache.rocketmq.common.constant.PermName;
 
+/**
+ * 配置文件中关于topic部分的配置类model
+ */
 public class TopicConfig {
     private static final String SEPARATOR = " ";
     public static int defaultReadQueueNums = 16;

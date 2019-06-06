@@ -22,6 +22,10 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+/**
+ * 支持运行服务的线程，对各种在线程中运行的服务进行简单的基于线程的管理
+ * 支持运行服务的线程，对各种在线程中运行的服务进行简单的基于线程的管理
+ */
 public abstract class ServiceThread implements Runnable {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
@@ -126,6 +130,10 @@ public abstract class ServiceThread implements Runnable {
         }
     }
 
+    /**
+     * 等待运行，interval
+     * @param interval
+     */
     protected void waitForRunning(long interval) {
         if (hasNotified.compareAndSet(true, false)) {
             this.onWaitEnd();

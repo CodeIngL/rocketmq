@@ -25,7 +25,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.rocketmq.client.consumer.PullCallback;
 import org.apache.rocketmq.client.consumer.PullResult;
-import org.apache.rocketmq.client.consumer.PullStatus;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.hook.FilterMessageContext;
@@ -50,17 +49,20 @@ import org.apache.rocketmq.common.sysflag.PullSysFlag;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
 import static org.apache.rocketmq.client.consumer.PullStatus.FOUND;
+import static org.apache.rocketmq.common.message.MessageAccessor.putProperty;
+import static org.apache.rocketmq.common.message.MessageConst.*;
+import static org.apache.rocketmq.common.sysflag.PullSysFlag.hasClassFilterFlag;
 
 /**
- * 拉模式的核心处理逻辑
+ * 拉模式的核心处理逻辑,无论是push还是pull
  */
 public class PullAPIWrapper {
     private final InternalLogger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
     private final String consumerGroup;
     private final boolean unitMode;
-    private ConcurrentMap<MessageQueue, AtomicLong/* brokerId */> pullFromWhichNodeTable =
-        new ConcurrentHashMap<MessageQueue, AtomicLong>(32);
+    //消息应该从哪个队列拉取
+    private ConcurrentMap<MessageQueue, AtomicLong/* brokerId */> pullFromWhichNodeTable = new ConcurrentHashMap<MessageQueue, AtomicLong>(32);
     private volatile boolean connectBrokerByUser = false;
     private volatile long defaultBrokerId = MixAll.MASTER_ID;
     private Random random = new Random(System.currentTimeMillis());
@@ -85,14 +87,14 @@ public class PullAPIWrapper {
         //更新拉取的消息来自哪个节点
         this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
         if (FOUND == pullResult.getPullStatus()) { //有消息
-            ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
-            List<MessageExt> msgList = MessageDecoder.decodes(byteBuffer);
+            //解码成消息
+            List<MessageExt> msgList = MessageDecoder.decodes(ByteBuffer.wrap(pullResultExt.getMessageBinary()));
 
             //过滤的消息
             List<MessageExt> msgListFilterAgain = msgList;
             //存在tag，要匹配tag
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
-                msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
+                msgListFilterAgain = new ArrayList<>(msgList.size());
                 for (MessageExt msg : msgList) {
                     if (msg.getTags() != null) {
                         if (subscriptionData.getTagsSet().contains(msg.getTags())) {
@@ -113,12 +115,12 @@ public class PullAPIWrapper {
             //
             for (MessageExt msg : msgListFilterAgain) {
                 //事务消息
-                String traFlag = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+                String traFlag = msg.getProperty(PROPERTY_TRANSACTION_PREPARED);
                 if (traFlag != null && Boolean.parseBoolean(traFlag)) {
-                    msg.setTransactionId(msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
+                    msg.setTransactionId(msg.getProperty(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
                 }
-                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MIN_OFFSET, Long.toString(pullResult.getMinOffset()));
-                MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MAX_OFFSET, Long.toString(pullResult.getMaxOffset()));
+                putProperty(msg, PROPERTY_MIN_OFFSET, Long.toString(pullResult.getMinOffset()));
+                putProperty(msg, PROPERTY_MAX_OFFSET, Long.toString(pullResult.getMaxOffset()));
             }
 
             //拉取结果可以匹配消息
@@ -130,6 +132,11 @@ public class PullAPIWrapper {
         return pullResult;
     }
 
+    /**
+     * 跟新消息应该从哪个broker中拉取
+     * @param mq
+     * @param brokerId
+     */
     public void updatePullFromWhichNode(final MessageQueue mq, final long brokerId) {
         AtomicLong suggest = this.pullFromWhichNodeTable.get(mq);
         if (null == suggest) {
@@ -173,14 +180,10 @@ public class PullAPIWrapper {
         final CommunicationMode communicationMode,
         final PullCallback pullCallback
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-        FindBrokerResult findBrokerResult =
-            this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(),
-                this.recalculatePullFromWhichNode(mq), false);
+        FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
         if (null == findBrokerResult) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
-            findBrokerResult =
-                this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(),
-                    this.recalculatePullFromWhichNode(mq), false);
+            findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
         }
 
         if (findBrokerResult != null) {
@@ -212,7 +215,7 @@ public class PullAPIWrapper {
             requestHeader.setExpressionType(expressionType);
 
             String brokerAddr = findBrokerResult.getBrokerAddr();
-            if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) {
+            if (hasClassFilterFlag(sysFlagInner)) {
                 brokerAddr = computPullFromWhichFilterServer(mq.getTopic(), brokerAddr);
             }
 

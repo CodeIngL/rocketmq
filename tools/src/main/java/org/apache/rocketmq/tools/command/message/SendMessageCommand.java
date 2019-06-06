@@ -28,6 +28,9 @@ import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.tools.command.SubCommand;
 import org.apache.rocketmq.tools.command.SubCommandException;
 
+/**
+ * 发送消息的命令行
+ */
 public class SendMessageCommand implements SubCommand {
 
     private DefaultMQProducer producer;

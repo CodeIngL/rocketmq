@@ -31,6 +31,9 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
+/**
+ * 交互的命令，节点之间交互全部使用命令，包括消息
+ */
 public class RemotingCommand {
     public static final String SERIALIZE_TYPE_PROPERTY = "rocketmq.serialize.type";
     public static final String SERIALIZE_TYPE_ENV = "ROCKETMQ_SERIALIZE_TYPE";
@@ -72,6 +75,7 @@ public class RemotingCommand {
     private int code;
     private LanguageCode language = LanguageCode.JAVA;
     private int version = 0;
+    //请求id，在同一个连接上的不同请求标识码，与响应消息中的相对应 | 应答不做修改直接返回
     private int opaque = requestId.getAndIncrement();
     private int flag = 0;
     private String remark;
@@ -136,21 +140,35 @@ public class RemotingCommand {
         return createResponseCommand(code, remark, null);
     }
 
+    /**
+     * 解码一个数组为远程调用的命令
+     * @param array
+     * @return
+     */
     public static RemotingCommand decode(final byte[] array) {
         ByteBuffer byteBuffer = ByteBuffer.wrap(array);
         return decode(byteBuffer);
     }
 
+    /**
+     * 解码byteBuffer为一个远程调用的命令
+     * @param byteBuffer
+     * @return
+     */
     public static RemotingCommand decode(final ByteBuffer byteBuffer) {
         int length = byteBuffer.limit();
         int oriHeaderLen = byteBuffer.getInt();
+        //头部长
         int headerLength = getHeaderLength(oriHeaderLen);
 
         byte[] headerData = new byte[headerLength];
+        //头部数据
         byteBuffer.get(headerData);
 
+        //尝试解码头部
         RemotingCommand cmd = headerDecode(headerData, getProtocolType(oriHeaderLen));
 
+        //身体长度
         int bodyLength = length - 4 - headerLength;
         byte[] bodyData = null;
         if (bodyLength > 0) {
@@ -166,17 +184,23 @@ public class RemotingCommand {
         return length & 0xFFFFFF;
     }
 
+    /**
+     * 解码头部数据
+     * @param headerData
+     * @param type
+     * @return
+     */
     private static RemotingCommand headerDecode(byte[] headerData, SerializeType type) {
         switch (type) {
-            case JSON:
+            case JSON: //json
                 RemotingCommand resultJson = RemotingSerializable.decode(headerData, RemotingCommand.class);
                 resultJson.setSerializeTypeCurrentRPC(type);
                 return resultJson;
-            case ROCKETMQ:
+            case ROCKETMQ://rocketmq
                 RemotingCommand resultRMQ = RocketMQSerializable.rocketMQProtocolDecode(headerData);
                 resultRMQ.setSerializeTypeCurrentRPC(type);
                 return resultRMQ;
-            default:
+            default: //其他的情况
                 break;
         }
 

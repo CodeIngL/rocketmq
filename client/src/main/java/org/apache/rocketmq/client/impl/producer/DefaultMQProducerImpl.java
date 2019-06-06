@@ -576,8 +576,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     /**
      * 发送消息到broker
      * @param msg
-     * @param communicationMode
-     * @param sendCallback
+     * @param mode
+     * @param callback
      * @param timeout
      * @return
      * @throws MQClientException
@@ -585,12 +585,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
      * @throws MQBrokerException
      * @throws InterruptedException
      */
-    private SendResult sendDefaultImpl(
-        Message msg,
-        final CommunicationMode communicationMode,
-        final SendCallback sendCallback,
-        final long timeout
-    ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+    private SendResult sendDefaultImpl(Message msg, final CommunicationMode mode, final SendCallback callback, final long timeout)
+            throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         this.makeSureStateOK();
         Validators.checkMessage(msg, this.defaultMQProducer);
 
@@ -607,7 +603,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             Exception exception = null;
             SendResult sendResult = null;
             //总共的次数
-            int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
+            int timesTotal = mode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
             String[] brokersSent = new String[timesTotal];
             for (; times < timesTotal; times++) {
@@ -625,10 +621,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         }
 
                         //发送
-                        sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
+                        sendResult = this.sendKernelImpl(msg, mq, mode, callback, topicPublishInfo, timeout - costTime);
                         endTimestamp = System.currentTimeMillis();
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
-                        switch (communicationMode) {
+                        switch (mode) {
                             //异步直接返回
                             case ASYNC:
                                 return null;

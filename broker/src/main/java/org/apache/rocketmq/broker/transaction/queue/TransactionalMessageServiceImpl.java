@@ -47,6 +47,7 @@ import static org.apache.rocketmq.broker.transaction.queue.TransactionalMessageU
 import static org.apache.rocketmq.client.consumer.PullStatus.NO_MATCHED_MSG;
 import static org.apache.rocketmq.client.consumer.PullStatus.NO_NEW_MSG;
 import static org.apache.rocketmq.client.consumer.PullStatus.OFFSET_ILLEGAL;
+import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCCESS;
 import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SYSTEM_ERROR;
 
 public class TransactionalMessageServiceImpl implements TransactionalMessageService {
@@ -467,16 +468,16 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
      * @return
      */
     private OperationResult getHalfMessageByOffset(long commitLogOffset) {
-        OperationResult response = new OperationResult();
+        OperationResult resp = new OperationResult();
         MessageExt messageExt = this.transactionalMessageBridge.lookMessageByOffset(commitLogOffset);
         if (messageExt != null) {
-            response.setPrepareMessage(messageExt);
-            response.setResponseCode(ResponseCode.SUCCESS);
+            resp.setResponseCode(SUCCESS);
+            resp.setPrepareMessage(messageExt);
         } else {
-            response.setResponseCode(SYSTEM_ERROR);
-            response.setResponseRemark("Find prepared transaction message failed");
+            resp.setResponseCode(SYSTEM_ERROR);
+            resp.setResponseRemark("Find prepared transaction message failed");
         }
-        return response;
+        return resp;
     }
 
     /**

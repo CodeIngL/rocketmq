@@ -26,15 +26,24 @@ public abstract class ConfigManager {
 
     public abstract String encode();
 
+    /**
+     * 关于管理器开始加载，任何子类，通过实现相关的protect方法来实现相关自定义处理逻辑
+     *
+     * @return
+     */
     public boolean load() {
         String fileName = null;
         try {
+            //配置文件
             fileName = this.configFilePath();
+            //读取配置文件，里面的配置都是json格式的
             String jsonString = MixAll.file2String(fileName);
 
+            //不存在相关的配置，尝试读取相关的备份，备份是加了尾缀.bak
             if (null == jsonString || jsonString.length() == 0) {
                 return this.loadBak();
             } else {
+                //进行解码
                 this.decode(jsonString);
                 log.info("load " + fileName + " OK");
                 return true;
@@ -45,8 +54,17 @@ public abstract class ConfigManager {
         }
     }
 
+    /**
+     * 获取配置文件的路径
+     * @return 配置文件的路径
+     */
     public abstract String configFilePath();
 
+
+    /**
+     * 读取备份的配置文件
+     * @return
+     */
     private boolean loadBak() {
         String fileName = null;
         try {
@@ -65,8 +83,15 @@ public abstract class ConfigManager {
         return true;
     }
 
+    /**
+     *由子类进行从配置文件中加载出来的相关的字符串
+     * @param jsonString
+     */
     public abstract void decode(final String jsonString);
 
+    /**
+     * 持久化，持久化内存的中的配置项到实际的文件中，由子类负责加密
+     */
     public synchronized void persist() {
         String jsonString = this.encode(true);
         if (jsonString != null) {

@@ -34,8 +34,7 @@ public final class MessageStoreFactory {
      * @return
      * @throws IOException
      */
-    public final static MessageStore build(MessageStorePluginContext context, MessageStore messageStore)
-        throws IOException {
+    public final static MessageStore build(MessageStorePluginContext context, MessageStore messageStore) throws IOException {
         //存储插件，获得插件配置，进行构建插件，来wrapper存储，，号切割插件
         String plugin = context.getBrokerConfig().getMessageStorePlugIn();
         if (plugin != null && plugin.trim().length() != 0) {
