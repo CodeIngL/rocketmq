@@ -566,41 +566,34 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         }
     }
 
-    public void executeRequestWhenWakeup(final Channel channel,
-        final RemotingCommand request) throws RemotingCommandException {
-        Runnable run = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    final RemotingCommand response = PullMessageProcessor.this.processRequest(channel, request, false);
+    public void executeRequestWhenWakeup(final Channel channel, final RemotingCommand req) throws RemotingCommandException {
+        Runnable run = () -> {
+            try {
+                final RemotingCommand resp = PullMessageProcessor.this.processRequest(channel, req, false);
 
-                    if (response != null) {
-                        response.setOpaque(request.getOpaque());
-                        response.markResponseType();
-                        try {
-                            channel.writeAndFlush(response).addListener(new ChannelFutureListener() {
-                                @Override
-                                public void operationComplete(ChannelFuture future) throws Exception {
-                                    if (!future.isSuccess()) {
-                                        log.error("processRequestWrapper response to {} failed",
-                                            future.channel().remoteAddress(), future.cause());
-                                        log.error(request.toString());
-                                        log.error(response.toString());
-                                    }
-                                }
-                            });
-                        } catch (Throwable e) {
-                            log.error("processRequestWrapper process request over, but response failed", e);
-                            log.error(request.toString());
-                            log.error(response.toString());
-                        }
+                if (resp != null) {
+                    resp.setOpaque(req.getOpaque());
+                    resp.markResponseType();
+                    try {
+                        channel.writeAndFlush(resp).addListener((ChannelFutureListener) future -> {
+                            if (!future.isSuccess()) {
+                                log.error("processRequestWrapper response to {} failed",
+                                    future.channel().remoteAddress(), future.cause());
+                                log.error(req.toString());
+                                log.error(resp.toString());
+                            }
+                        });
+                    } catch (Throwable e) {
+                        log.error("processRequestWrapper process request over, but response failed", e);
+                        log.error(req.toString());
+                        log.error(resp.toString());
                     }
-                } catch (RemotingCommandException e1) {
-                    log.error("excuteRequestWhenWakeup run", e1);
                 }
+            } catch (RemotingCommandException e1) {
+                log.error("excuteRequestWhenWakeup run", e1);
             }
         };
-        this.brokerController.getPullMessageExecutor().submit(new RequestTask(run, channel, request));
+        this.brokerController.getPullMessageExecutor().submit(new RequestTask(run, channel, req));
     }
 
     public void registerConsumeMessageHook(List<ConsumeMessageHook> sendMessageHookList) {

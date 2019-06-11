@@ -39,6 +39,7 @@ import org.apache.rocketmq.store.MessageExtBrokerInner;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.config.BrokerRole;
 
+import static org.apache.rocketmq.common.protocol.ResponseCode.SLAVE_NOT_AVAILABLE;
 import static org.apache.rocketmq.common.sysflag.MessageSysFlag.*;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
 import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCCESS;
@@ -63,9 +64,8 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
         final RemotingCommand resp = RemotingCommand.createResponseCommand(null);
         final EndTransactionRequestHeader reqHeader = (EndTransactionRequestHeader)req.decodeCommandCustomHeader(EndTransactionRequestHeader.class);
         LOGGER.info("Transaction request:{}", reqHeader);
-        //slave节点禁止处理事务消息
-        if (BrokerRole.SLAVE == brokerController.getMessageStoreConfig().getBrokerRole()) {
-            resp.setCode(ResponseCode.SLAVE_NOT_AVAILABLE);
+        if (BrokerRole.SLAVE == brokerController.getMessageStoreConfig().getBrokerRole()) {//slave节点禁止处理事务消息
+            resp.setCode(SLAVE_NOT_AVAILABLE);
             LOGGER.warn("Message store is slave mode, so end transaction is forbidden. ");
             return resp;
         }

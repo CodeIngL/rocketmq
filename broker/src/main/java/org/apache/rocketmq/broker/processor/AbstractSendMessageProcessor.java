@@ -56,6 +56,9 @@ import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_MSG_REGIO
 import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_TRACE_SWITCH;
 import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX;
 import static org.apache.rocketmq.common.message.MessageDecoder.string2messageProperties;
+import static org.apache.rocketmq.common.protocol.RequestCode.SEND_BATCH_MESSAGE;
+import static org.apache.rocketmq.common.protocol.RequestCode.SEND_MESSAGE;
+import static org.apache.rocketmq.common.protocol.RequestCode.SEND_MESSAGE_V2;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
 
 public abstract class AbstractSendMessageProcessor implements NettyRequestProcessor {
@@ -74,32 +77,31 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 .getNettyServerConfig().getListenPort());
     }
 
-    protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx,
-        SendMessageRequestHeader requestHeader) {
+    protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx, SendMessageRequestHeader reqHeader) {
         if (!this.hasSendMessageHook()) {
             return null;
         }
-        SendMessageContext mqtraceContext;
-        mqtraceContext = new SendMessageContext();
-        mqtraceContext.setProducerGroup(requestHeader.getProducerGroup());
-        mqtraceContext.setTopic(requestHeader.getTopic());
-        mqtraceContext.setMsgProps(requestHeader.getProperties());
-        mqtraceContext.setBornHost(parseChannelRemoteAddr(ctx.channel()));
-        mqtraceContext.setBrokerAddr(this.brokerController.getBrokerAddr());
-        mqtraceContext.setBrokerRegionId(this.brokerController.getBrokerConfig().getRegionId());
-        mqtraceContext.setBornTimeStamp(requestHeader.getBornTimestamp());
+        SendMessageContext context;
+        context = new SendMessageContext();
+        context.setProducerGroup(reqHeader.getProducerGroup());
+        context.setTopic(reqHeader.getTopic());
+        context.setMsgProps(reqHeader.getProperties());
+        context.setBornHost(parseChannelRemoteAddr(ctx.channel()));
+        context.setBrokerAddr(this.brokerController.getBrokerAddr());
+        context.setBrokerRegionId(this.brokerController.getBrokerConfig().getRegionId());
+        context.setBornTimeStamp(reqHeader.getBornTimestamp());
 
-        Map<String, String> properties = string2messageProperties(requestHeader.getProperties());
+        Map<String, String> properties = string2messageProperties(reqHeader.getProperties());
         String uniqueKey = properties.get(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
         properties.put(PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
         properties.put(PROPERTY_TRACE_SWITCH, String.valueOf(this.brokerController.getBrokerConfig().isTraceOn()));
-        requestHeader.setProperties(MessageDecoder.messageProperties2String(properties));
+        reqHeader.setProperties(MessageDecoder.messageProperties2String(properties));
 
         if (uniqueKey == null) {
             uniqueKey = "";
         }
-        mqtraceContext.setMsgUniqueKey(uniqueKey);
-        return mqtraceContext;
+        context.setMsgUniqueKey(uniqueKey);
+        return context;
     }
 
     public boolean hasSendMessageHook() {
@@ -168,69 +170,69 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
     /**
      * 消息检查
      * @param ctx
-     * @param requestHeader
-     * @param response
+     * @param reqHeader
+     * @param resp
      * @return
      */
     protected RemotingCommand msgCheck(final ChannelHandlerContext ctx,
-        final SendMessageRequestHeader requestHeader, final RemotingCommand response) {
+        final SendMessageRequestHeader reqHeader, final RemotingCommand resp) {
         //broker节点的权限，不同broker节点的权限可能是不同
         if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission())
-            && this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
+            && this.brokerController.getTopicConfigManager().isOrderTopic(reqHeader.getTopic())) {
             //该broker不具备写入能力
-            response.setCode(ResponseCode.NO_PERMISSION);
-            response.setRemark("the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1()
+            resp.setCode(ResponseCode.NO_PERMISSION);
+            resp.setRemark("the broker[" + this.brokerController.getBrokerConfig().getBrokerIP1()
                 + "] sending message is forbidden");
-            return response;
+            return resp;
         }
         //检查一下配置
-        if (!this.brokerController.getTopicConfigManager().isTopicCanSendMessage(requestHeader.getTopic())) {
-            String errorMsg = "the topic[" + requestHeader.getTopic() + "] is conflict with system reserved words.";
+        if (!this.brokerController.getTopicConfigManager().isTopicCanSendMessage(reqHeader.getTopic())) {
+            String errorMsg = "the topic[" + reqHeader.getTopic() + "] is conflict with system reserved words.";
             log.warn(errorMsg);
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark(errorMsg);
-            return response;
+            resp.setCode(ResponseCode.SYSTEM_ERROR);
+            resp.setRemark(errorMsg);
+            return resp;
         }
 
         //获得消息对应的topic的配置
         TopicConfig topicConfig =
-            this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
+            this.brokerController.getTopicConfigManager().selectTopicConfig(reqHeader.getTopic());
         if (null == topicConfig) {
             int topicSysFlag = 0;
-            if (requestHeader.isUnitMode()) {
-                if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+            if (reqHeader.isUnitMode()) {
+                if (reqHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 } else {
                     topicSysFlag = TopicSysFlag.buildSysFlag(true, false);
                 }
             }
 
-            log.warn("the topic {} not exist, producer: {}", requestHeader.getTopic(), ctx.channel().remoteAddress());
+            log.warn("the topic {} not exist, producer: {}", reqHeader.getTopic(), ctx.channel().remoteAddress());
             topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageMethod(
-                requestHeader.getTopic(),
-                requestHeader.getDefaultTopic(),
+                reqHeader.getTopic(),
+                reqHeader.getDefaultTopic(),
                 parseChannelRemoteAddr(ctx.channel()),
-                requestHeader.getDefaultTopicQueueNums(), topicSysFlag);
+                reqHeader.getDefaultTopicQueueNums(), topicSysFlag);
 
             if (null == topicConfig) {
-                if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                if (reqHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     topicConfig =
                         this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
-                            requestHeader.getTopic(), 1, PermName.PERM_WRITE | PermName.PERM_READ,
+                            reqHeader.getTopic(), 1, PermName.PERM_WRITE | PermName.PERM_READ,
                             topicSysFlag);
                 }
             }
 
             if (null == topicConfig) {
-                response.setCode(ResponseCode.TOPIC_NOT_EXIST);
-                response.setRemark("topic[" + requestHeader.getTopic() + "] not exist, apply first please!"
+                resp.setCode(ResponseCode.TOPIC_NOT_EXIST);
+                resp.setRemark("topic[" + reqHeader.getTopic() + "] not exist, apply first please!"
                     + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
-                return response;
+                return resp;
             }
         }
 
         //获得消息的queueId
-        int queueIdInt = requestHeader.getQueueId();
+        int queueIdInt = reqHeader.getQueueId();
         //校验这个id是否合理
         int idValid = Math.max(topicConfig.getWriteQueueNums(), topicConfig.getReadQueueNums());
         if (queueIdInt >= idValid) {
@@ -240,115 +242,113 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 parseChannelRemoteAddr(ctx.channel()));
 
             log.warn(errorInfo);
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark(errorInfo);
+            resp.setCode(ResponseCode.SYSTEM_ERROR);
+            resp.setRemark(errorInfo);
 
-            return response;
+            return resp;
         }
-        return response;
+        return resp;
     }
 
     public void registerSendMessageHook(List<SendMessageHook> sendMessageHookList) {
         this.sendMessageHookList = sendMessageHookList;
     }
 
-    protected void doResponse(ChannelHandlerContext ctx, RemotingCommand request,
-        final RemotingCommand response) {
-        if (!request.isOnewayRPC()) {
+    protected void doResponse(ChannelHandlerContext ctx, RemotingCommand req, final RemotingCommand resp) {
+        if (!req.isOnewayRPC()) {
             try {
-                ctx.writeAndFlush(response);
+                ctx.writeAndFlush(resp);
             } catch (Throwable e) {
                 log.error("SendMessageProcessor process request over, but response failed", e);
-                log.error(request.toString());
-                log.error(response.toString());
+                log.error(req.toString());
+                log.error(resp.toString());
             }
         }
     }
 
-    public void executeSendMessageHookBefore(final ChannelHandlerContext ctx, final RemotingCommand request,
-        SendMessageContext context) {
+    public void executeSendMessageHookBefore(final ChannelHandlerContext ctx, final RemotingCommand req, SendMessageContext context) {
+        if (!hasSendMessageHook()) {
+            return;
+        }
         //存在hook钩子
-        if (hasSendMessageHook()) {
-            //遍历钩子处理
-            for (SendMessageHook hook : this.sendMessageHookList) {
-                try {
-                    //请求头
-                    final SendMessageRequestHeader requestHeader = parseRequestHeader(request);
+        for (SendMessageHook hook : this.sendMessageHookList) {
+            try {
+                //请求头
+                final SendMessageRequestHeader reqHeader = parseRequestHeader(req);
 
-                    if (null != requestHeader) {
-                        //设置发送组
-                        context.setProducerGroup(requestHeader.getProducerGroup());
-                        //设置主题
-                        context.setTopic(requestHeader.getTopic());
-                        //设置消息体长
-                        context.setBodyLength(request.getBody().length);
-                        //设置消息相关的属性
-                        context.setMsgProps(requestHeader.getProperties());
-                        //设置
-                        context.setBornHost(parseChannelRemoteAddr(ctx.channel()));
-                        //设置broker的地址
-                        context.setBrokerAddr(this.brokerController.getBrokerAddr());
-                        //设置队列的id
-                        context.setQueueId(requestHeader.getQueueId());
-                    }
-
-                    //执行钩子
-                    hook.sendMessageBefore(context);
-                    if (requestHeader != null) {
-                        //将上下文的消息属性写入请求头中
-                        requestHeader.setProperties(context.getMsgProps());
-                    }
-                } catch (Throwable e) {
-                    // Ignore
+                if (null != reqHeader) {
+                    //设置发送组
+                    context.setProducerGroup(reqHeader.getProducerGroup());
+                    //设置主题
+                    context.setTopic(reqHeader.getTopic());
+                    //设置消息体长
+                    context.setBodyLength(req.getBody().length);
+                    //设置消息相关的属性
+                    context.setMsgProps(reqHeader.getProperties());
+                    //设置
+                    context.setBornHost(parseChannelRemoteAddr(ctx.channel()));
+                    //设置broker的地址
+                    context.setBrokerAddr(this.brokerController.getBrokerAddr());
+                    //设置队列的id
+                    context.setQueueId(reqHeader.getQueueId());
                 }
+
+                //执行钩子
+                hook.sendMessageBefore(context);
+                if (reqHeader != null) {
+                    //将上下文的消息属性写入请求头中
+                    reqHeader.setProperties(context.getMsgProps());
+                }
+            } catch (Throwable e) {
+                // Ignore
             }
         }
     }
 
     /**
-     * producer发送消息的处理
-     * @param request
+     * 提取发送消息的相关头部
+     * note: this operation 总是返回一个新的header，这是存在相关的问题的
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
-    protected SendMessageRequestHeader parseRequestHeader(RemotingCommand request)
-        throws RemotingCommandException {
+    protected SendMessageRequestHeader parseRequestHeader(RemotingCommand req) throws RemotingCommandException {
 
-        SendMessageRequestHeaderV2 requestHeaderV2 = null;
-        SendMessageRequestHeader requestHeader = null;
-        switch (request.getCode()) {
-            case RequestCode.SEND_BATCH_MESSAGE:
-            case RequestCode.SEND_MESSAGE_V2: //批量发送，v2版本
-                requestHeaderV2 = (SendMessageRequestHeaderV2) request.decodeCommandCustomHeader(SendMessageRequestHeaderV2.class);
-            case RequestCode.SEND_MESSAGE: //单个发送
-                if (null == requestHeaderV2) {//版本不是v2，直接操作
-                    requestHeader = (SendMessageRequestHeader) request.decodeCommandCustomHeader(SendMessageRequestHeader.class);
+        SendMessageRequestHeaderV2 reqHeaderV2 = null;
+        SendMessageRequestHeader reqHeader = null;
+        switch (req.getCode()) {
+            case SEND_BATCH_MESSAGE:
+            case SEND_MESSAGE_V2: //批量发送，v2版本
+                reqHeaderV2 = (SendMessageRequestHeaderV2) req.decodeCommandCustomHeader(SendMessageRequestHeaderV2.class);
+            case SEND_MESSAGE: //单个发送
+                if (null == reqHeaderV2) {//版本不是v2，直接操作
+                    reqHeader = (SendMessageRequestHeader) req.decodeCommandCustomHeader(SendMessageRequestHeader.class);
                 } else {//版本是v2转换以前的版本
-                    requestHeader = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV1(requestHeaderV2);
+                    reqHeader = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV1(reqHeaderV2);
                 }
             default:
                 break;
         }
-        return requestHeader;
+        return reqHeader;
     }
 
-    public void executeSendMessageHookAfter(final RemotingCommand response, final SendMessageContext context) {
-        if (hasSendMessageHook()) {
-            for (SendMessageHook hook : this.sendMessageHookList) {
-                try {
-                    if (response != null) {
-                        final SendMessageResponseHeader responseHeader =
-                            (SendMessageResponseHeader) response.readCustomHeader();
-                        context.setMsgId(responseHeader.getMsgId());
-                        context.setQueueId(responseHeader.getQueueId());
-                        context.setQueueOffset(responseHeader.getQueueOffset());
-                        context.setCode(response.getCode());
-                        context.setErrorMsg(response.getRemark());
-                    }
-                    hook.sendMessageAfter(context);
-                } catch (Throwable e) {
-                    // Ignore
+    public void executeSendMessageHookAfter(final RemotingCommand resp, final SendMessageContext context) {
+        if (!hasSendMessageHook()){
+            return;
+        }
+        for (SendMessageHook hook : this.sendMessageHookList) {
+            try {
+                if (resp != null) {
+                    final SendMessageResponseHeader respHeader = (SendMessageResponseHeader) resp.readCustomHeader();
+                    context.setMsgId(respHeader.getMsgId());
+                    context.setQueueId(respHeader.getQueueId());
+                    context.setQueueOffset(respHeader.getQueueOffset());
+                    context.setCode(resp.getCode());
+                    context.setErrorMsg(resp.getRemark());
                 }
+                hook.sendMessageAfter(context);
+            } catch (Throwable e) {
+                // Ignore
             }
         }
     }
