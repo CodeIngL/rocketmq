@@ -84,6 +84,11 @@ public abstract class AbstractPluginMessageStore implements MessageStore {
         next.destroy();
     }
 
+    /**
+     * 插件filter，用于在投递进存储引擎时，进行相关的filter操作，实现用户的一些自定义操作
+     * @param msg Message instance to store
+     * @return
+     */
     @Override
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
         return next.putMessage(msg);
