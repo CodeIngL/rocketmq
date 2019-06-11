@@ -159,6 +159,10 @@ public class Message implements Serializable {
         this.putProperty(PROPERTY_DELAY_TIME_LEVEL, String.valueOf(level));
     }
 
+    /**
+     * 是否等待消息写入磁盘存储成功
+     * @return
+     */
     public boolean isWaitStoreMsgOK() {
         String result = this.getProperty(PROPERTY_WAIT_STORE_MSG_OK);
         if (null == result)

@@ -255,11 +255,10 @@ public class RemotingCommand {
         this.customHeader = customHeader;
     }
 
-    public CommandCustomHeader decodeCommandCustomHeader(
-        Class<? extends CommandCustomHeader> classHeader) throws RemotingCommandException {
+    public CommandCustomHeader decodeCommandCustomHeader(Class<? extends CommandCustomHeader> clsHeader) throws RemotingCommandException {
         CommandCustomHeader objectHeader;
         try {
-            objectHeader = classHeader.newInstance();
+            objectHeader = clsHeader.newInstance();
         } catch (InstantiationException e) {
             return null;
         } catch (IllegalAccessException e) {
@@ -268,43 +267,44 @@ public class RemotingCommand {
 
         if (this.extFields != null) {
 
-            Field[] fields = getClazzFields(classHeader);
+            Field[] fields = getClazzFields(clsHeader);
             for (Field field : fields) {
-                if (!Modifier.isStatic(field.getModifiers())) {
-                    String fieldName = field.getName();
-                    if (!fieldName.startsWith("this")) {
-                        try {
-                            String value = this.extFields.get(fieldName);
-                            if (null == value) {
-                                if (!isFieldNullable(field)) {
-                                    throw new RemotingCommandException("the custom field <" + fieldName + "> is null");
-                                }
-                                continue;
+                if (Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
+                String fieldName = field.getName();
+                if (!fieldName.startsWith("this")) {
+                    try {
+                        String value = this.extFields.get(fieldName);
+                        if (null == value) {
+                            if (!isFieldNullable(field)) {
+                                throw new RemotingCommandException("the custom field <" + fieldName + "> is null");
                             }
-
-                            field.setAccessible(true);
-                            String type = getCanonicalName(field.getType());
-                            Object valueParsed;
-
-                            if (type.equals(STRING_CANONICAL_NAME)) {
-                                valueParsed = value;
-                            } else if (type.equals(INTEGER_CANONICAL_NAME_1) || type.equals(INTEGER_CANONICAL_NAME_2)) {
-                                valueParsed = Integer.parseInt(value);
-                            } else if (type.equals(LONG_CANONICAL_NAME_1) || type.equals(LONG_CANONICAL_NAME_2)) {
-                                valueParsed = Long.parseLong(value);
-                            } else if (type.equals(BOOLEAN_CANONICAL_NAME_1) || type.equals(BOOLEAN_CANONICAL_NAME_2)) {
-                                valueParsed = Boolean.parseBoolean(value);
-                            } else if (type.equals(DOUBLE_CANONICAL_NAME_1) || type.equals(DOUBLE_CANONICAL_NAME_2)) {
-                                valueParsed = Double.parseDouble(value);
-                            } else {
-                                throw new RemotingCommandException("the custom field <" + fieldName + "> type is not supported");
-                            }
-
-                            field.set(objectHeader, valueParsed);
-
-                        } catch (Throwable e) {
-                            log.error("Failed field [{}] decoding", fieldName, e);
+                            continue;
                         }
+
+                        field.setAccessible(true);
+                        String type = getCanonicalName(field.getType());
+                        Object valueParsed;
+
+                        if (type.equals(STRING_CANONICAL_NAME)) {
+                            valueParsed = value;
+                        } else if (type.equals(INTEGER_CANONICAL_NAME_1) || type.equals(INTEGER_CANONICAL_NAME_2)) {
+                            valueParsed = Integer.parseInt(value);
+                        } else if (type.equals(LONG_CANONICAL_NAME_1) || type.equals(LONG_CANONICAL_NAME_2)) {
+                            valueParsed = Long.parseLong(value);
+                        } else if (type.equals(BOOLEAN_CANONICAL_NAME_1) || type.equals(BOOLEAN_CANONICAL_NAME_2)) {
+                            valueParsed = Boolean.parseBoolean(value);
+                        } else if (type.equals(DOUBLE_CANONICAL_NAME_1) || type.equals(DOUBLE_CANONICAL_NAME_2)) {
+                            valueParsed = Double.parseDouble(value);
+                        } else {
+                            throw new RemotingCommandException("the custom field <" + fieldName + "> type is not supported");
+                        }
+
+                        field.set(objectHeader, valueParsed);
+
+                    } catch (Throwable e) {
+                        log.error("Failed field [{}] decoding", fieldName, e);
                     }
                 }
             }
