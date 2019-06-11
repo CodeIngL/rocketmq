@@ -48,6 +48,7 @@ public class MessageStoreConfig {
 
     // Only used if TransientStorePool enabled
     // flush data to FileChannel
+    // 仅在TransientStorePool启用刷新数据到FileChannel时使用
     @ImportantField
     private int commitIntervalCommitLog = 200;
 

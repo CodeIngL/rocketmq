@@ -398,36 +398,36 @@ public class ConsumeQueue {
 
     /**
      * 消费队列投递分发的请求
-     * @param request
+     * @param req
      */
-    public void putMessagePositionInfoWrapper(DispatchRequest request) {
+    public void putMessagePositionInfoWrapper(DispatchRequest req) {
         final int maxRetries = 30;
         //是否可写
         boolean canWrite = this.defaultMessageStore.getRunningFlags().isCQWriteable();
         for (int i = 0; i < maxRetries && canWrite; i++) {
-            long tagsCode = request.getTagsCode(); //tag
+            long tagsCode = req.getTagsCode(); //tag
             if (isExtWriteEnable()) { //可写
                 ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit(); //扩展信息
-                cqExtUnit.setFilterBitMap(request.getBitMap()); //位图信息
-                cqExtUnit.setMsgStoreTime(request.getStoreTimestamp()); //存储时间
-                cqExtUnit.setTagsCode(request.getTagsCode()); //tag码
+                cqExtUnit.setFilterBitMap(req.getBitMap()); //位图信息
+                cqExtUnit.setMsgStoreTime(req.getStoreTimestamp()); //存储时间
+                cqExtUnit.setTagsCode(req.getTagsCode()); //tag码
 
                 long extAddr = this.consumeQueueExt.put(cqExtUnit); //扩展信息的投递，返回地址
                 if (isExtAddr(extAddr)) {
                     tagsCode = extAddr;
                 } else {
                     log.warn("Save consume queue extend fail, So just save tagsCode! {}, topic:{}, queueId:{}, offset:{}", cqExtUnit,
-                        topic, queueId, request.getCommitLogOffset());
+                        topic, queueId, req.getCommitLogOffset());
                 }
             }
             //consumer进行投递
-            boolean result = this.putMessagePositionInfo(request.getCommitLogOffset(), request.getMsgSize(), tagsCode, request.getConsumeQueueOffset());
+            boolean result = this.putMessagePositionInfo(req.getCommitLogOffset(), req.getMsgSize(), tagsCode, req.getConsumeQueueOffset());
             if (result) {
-                this.defaultMessageStore.getStoreCheckpoint().setLogicsMsgTimestamp(request.getStoreTimestamp());
+                this.defaultMessageStore.getStoreCheckpoint().setLogicsMsgTimestamp(req.getStoreTimestamp());
                 return;
             } else {
                 // XXX: warn and notify me
-                log.warn("[BUG]put commit log position info to " + topic + ":" + queueId + " " + request.getCommitLogOffset()
+                log.warn("[BUG]put commit log position info to " + topic + ":" + queueId + " " + req.getCommitLogOffset()
                     + " failed, retry " + i + " times");
 
                 try {
@@ -518,9 +518,14 @@ public class ConsumeQueue {
         }
     }
 
+    /**
+     * 获得index对应的
+     * @param startIndex
+     * @return
+     */
     public SelectMappedBufferResult getIndexBuffer(final long startIndex) {
         int mappedFileSize = this.mappedFileSize;
-        long offset = startIndex * CQ_STORE_UNIT_SIZE;
+        long offset = startIndex * CQ_STORE_UNIT_SIZE; //偏移位置
         if (offset >= this.getMinLogicOffset()) {
             MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
             if (mappedFile != null) {

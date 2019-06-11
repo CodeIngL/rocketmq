@@ -293,7 +293,7 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
-     * 内部的追加写入消息
+     * 内部的追加写入消息，核心的逻辑委托会cb进行处理
      * @param messageExt
      * @param cb
      * @return
@@ -302,7 +302,7 @@ public class MappedFile extends ReferenceResource {
         assert messageExt != null;
         assert cb != null;
 
-        //当前写的位置
+        //当前mmf写的位置
         int currentPos = this.wrotePosition.get();
 
         //小于最大值(文件大小)还是可以写
@@ -317,10 +317,8 @@ public class MappedFile extends ReferenceResource {
             } else {
                 return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
             }
-            //修改写位置的坐标
-            this.wrotePosition.addAndGet(result.getWroteBytes());
-            //存储时间戳
-            this.storeTimestamp = result.getStoreTimestamp();
+            this.wrotePosition.addAndGet(result.getWroteBytes());//跟新写坐标
+            this.storeTimestamp = result.getStoreTimestamp();//跟新时间戳
             return result;
         }
         log.error("MappedFile.appendMessage return null, wrotePosition: {} fileSize: {}", currentPos, this.fileSize);
@@ -419,7 +417,7 @@ public class MappedFile extends ReferenceResource {
     /**
      * 消息刷盘操作
      * @param commitLeastPages 提交至少的页数
-     * @return
+     * @return 返回新的位置
      */
     public int commit(final int commitLeastPages) {
         if (writeBuffer == null) {
@@ -427,7 +425,7 @@ public class MappedFile extends ReferenceResource {
             // 无需将数据提交到file channel，因此只需将writePosition视为committedPosition。
             return this.wrotePosition.get();
         }
-        //可以提交
+        // 可以提交
         if (this.isAbleToCommit(commitLeastPages)) {
             if (this.hold()) {
                 commit0(commitLeastPages);
@@ -448,7 +446,7 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
-     * 提交已经写
+     * 提交已经写，从writerBuffer提交到fileChannel中
      * @param commitLeastPages
      */
     protected void commit0(final int commitLeastPages) {
