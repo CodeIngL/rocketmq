@@ -246,6 +246,11 @@ public abstract class RebalanceImpl {
         return subscriptionInner;
     }
 
+    /**
+     * 根据topic进行负载均衡
+     * @param topic
+     * @param isOrder 是否有序
+     */
     private void rebalanceByTopic(final String topic, final boolean isOrder) {
         switch (messageModel) {
             case BROADCASTING: { //广播
@@ -262,8 +267,8 @@ public abstract class RebalanceImpl {
                 break;
             }
             case CLUSTERING: { //集群
-                Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
-                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup);
+                Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic); //找到topic对应的消费队列
+                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup); //找到远程的consumerId
                 if (null == mqSet) {
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
@@ -281,32 +286,28 @@ public abstract class RebalanceImpl {
                     Collections.sort(mqAll);
                     Collections.sort(cidAll);
 
-                    AllocateMessageQueueStrategy strategy = this.allocateMessageQueueStrategy;
+                    AllocateMessageQueueStrategy strategy = this.allocateMessageQueueStrategy; //分配策略
 
                     List<MessageQueue> allocateResult = null;
                     try {
-                        allocateResult = strategy.allocate(
-                            this.consumerGroup,
-                            this.mQClientFactory.getClientId(),
-                            mqAll,
-                            cidAll);
+                        allocateResult = strategy.allocate(this.consumerGroup, this.mQClientFactory.getClientId(), mqAll, cidAll); //分配结果
                     } catch (Throwable e) {
                         log.error("AllocateMessageQueueStrategy.allocate Exception. allocateMessageQueueStrategyName={}", strategy.getName(),
                             e);
                         return;
                     }
 
-                    Set<MessageQueue> allocateResultSet = new HashSet<MessageQueue>();
+                    Set<MessageQueue> allocateResultSet = new HashSet<MessageQueue>(); //分配结果去重
                     if (allocateResult != null) {
                         allocateResultSet.addAll(allocateResult);
                     }
 
-                    boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
+                    boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder); //是否有变更
                     if (changed) {
                         log.info("rebalanced result changed. allocateMessageQueueStrategyName={}, group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, rebalanceResultSize={}, rebalanceResultSet={}",
                             strategy.getName(), consumerGroup, topic, this.mQClientFactory.getClientId(), mqSet.size(), cidAll.size(),
                             allocateResultSet.size(), allocateResultSet);
-                        this.messageQueueChanged(topic, mqSet, allocateResultSet);
+                        this.messageQueueChanged(topic, mqSet, allocateResultSet); //有变更进行通知
                     }
                 }
                 break;
@@ -331,10 +332,17 @@ public abstract class RebalanceImpl {
         }
     }
 
-    private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet,
-        final boolean isOrder) {
+    /**
+     * 更新重平衡结果
+     * @param topic
+     * @param mqSet
+     * @param isOrder
+     * @return
+     */
+    private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet, final boolean isOrder) {
         boolean changed = false;
 
+        //消息队列和处理队列
         Iterator<Entry<MessageQueue, ProcessQueue>> it = this.processQueueTable.entrySet().iterator();
         while (it.hasNext()) {
             Entry<MessageQueue, ProcessQueue> next = it.next();
@@ -349,17 +357,16 @@ public abstract class RebalanceImpl {
                         changed = true;
                         log.info("doRebalance, {}, remove unnecessary mq, {}", consumerGroup, mq);
                     }
-                } else if (pq.isPullExpired()) {
-                    switch (this.consumeType()) {
+                } else if (pq.isPullExpired()) { //超时
+                    switch (this.consumeType()) { //类型
                         case CONSUME_ACTIVELY:
                             break;
                         case CONSUME_PASSIVELY:
-                            pq.setDropped(true);
+                            pq.setDropped(true); //丢弃
                             if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                                 it.remove();
                                 changed = true;
-                                log.error("[BUG]doRebalance, {}, remove unnecessary mq, {}, because pull is pause, so try to fixed it",
-                                    consumerGroup, mq);
+                                log.error("[BUG]doRebalance, {}, remove unnecessary mq, {}, because pull is pause, so try to fixed it", consumerGroup, mq);
                             }
                             break;
                         default:
@@ -369,7 +376,7 @@ public abstract class RebalanceImpl {
             }
         }
 
-        List<PullRequest> pullRequestList = new ArrayList<PullRequest>();
+        List<PullRequest> pullRequestList = new ArrayList<>();
         for (MessageQueue mq : mqSet) {
             if (!this.processQueueTable.containsKey(mq)) {
                 if (isOrder && !this.lock(mq)) {

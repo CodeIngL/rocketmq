@@ -152,6 +152,8 @@ import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+import static org.apache.rocketmq.common.protocol.RequestCode.CONSUMER_SEND_MSG_BACK;
+import static org.apache.rocketmq.common.protocol.RequestCode.LOCK_BATCH_MQ;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createRequestCommand;
 
 public class MQClientAPIImpl {
@@ -1085,6 +1087,18 @@ public class MQClientAPIImpl {
         return response.getCode() == ResponseCode.SUCCESS;
     }
 
+    /**
+     * 消息重发，由消费端使用
+     * @param addr
+     * @param msg
+     * @param consumerGroup
+     * @param delayLevel
+     * @param timeoutMillis
+     * @param maxConsumeRetryTimes
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     public void consumerSendMessageBack(
         final String addr,
         final MessageExt msg,
@@ -1093,20 +1107,20 @@ public class MQClientAPIImpl {
         final long timeoutMillis,
         final int maxConsumeRetryTimes
     ) throws RemotingException, MQBrokerException, InterruptedException {
-        ConsumerSendMsgBackRequestHeader requestHeader = new ConsumerSendMsgBackRequestHeader();
-        RemotingCommand request = createRequestCommand(RequestCode.CONSUMER_SEND_MSG_BACK, requestHeader);
+        ConsumerSendMsgBackRequestHeader reqHeader = new ConsumerSendMsgBackRequestHeader();
+        RemotingCommand req = createRequestCommand(CONSUMER_SEND_MSG_BACK, reqHeader);
 
-        requestHeader.setGroup(consumerGroup);
-        requestHeader.setOriginTopic(msg.getTopic());
-        requestHeader.setOffset(msg.getCommitLogOffset());
-        requestHeader.setDelayLevel(delayLevel);
-        requestHeader.setOriginMsgId(msg.getMsgId());
-        requestHeader.setMaxReconsumeTimes(maxConsumeRetryTimes);
+        reqHeader.setGroup(consumerGroup);
+        reqHeader.setOriginTopic(msg.getTopic());
+        reqHeader.setOffset(msg.getCommitLogOffset());
+        reqHeader.setDelayLevel(delayLevel);
+        reqHeader.setOriginMsgId(msg.getMsgId());
+        reqHeader.setMaxReconsumeTimes(maxConsumeRetryTimes);
 
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-            request, timeoutMillis);
-        assert response != null;
-        switch (response.getCode()) {
+        RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
+            req, timeoutMillis);
+        assert resp != null;
+        switch (resp.getCode()) {
             case ResponseCode.SUCCESS: {
                 return;
             }
@@ -1114,21 +1128,21 @@ public class MQClientAPIImpl {
                 break;
         }
 
-        throw new MQBrokerException(response.getCode(), response.getRemark());
+        throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
     public Set<MessageQueue> lockBatchMQ(
         final String addr,
-        final LockBatchRequestBody requestBody,
+        final LockBatchRequestBody reqBody,
         final long timeoutMillis) throws RemotingException, MQBrokerException, InterruptedException {
-        RemotingCommand request = createRequestCommand(RequestCode.LOCK_BATCH_MQ, null);
+        RemotingCommand req = createRequestCommand(LOCK_BATCH_MQ, null);
 
-        request.setBody(requestBody.encode());
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-            request, timeoutMillis);
-        switch (response.getCode()) {
+        req.setBody(reqBody.encode());
+        RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
+            req, timeoutMillis);
+        switch (resp.getCode()) {
             case ResponseCode.SUCCESS: {
-                LockBatchResponseBody responseBody = LockBatchResponseBody.decode(response.getBody(), LockBatchResponseBody.class);
+                LockBatchResponseBody responseBody = LockBatchResponseBody.decode(resp.getBody(), LockBatchResponseBody.class);
                 Set<MessageQueue> messageQueues = responseBody.getLockOKMQSet();
                 return messageQueues;
             }
@@ -1136,7 +1150,7 @@ public class MQClientAPIImpl {
                 break;
         }
 
-        throw new MQBrokerException(response.getCode(), response.getRemark());
+        throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
     public void unlockBatchMQ(

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.rocketmq.client.consumer.AllocateMessageQueueStrategy;
+import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.store.OffsetStore;
 import org.apache.rocketmq.client.consumer.store.ReadOffsetType;
 import org.apache.rocketmq.client.exception.MQClientException;
@@ -52,6 +53,9 @@ public class RebalancePushImpl extends RebalanceImpl {
         /**
          * When rebalance result changed, should update subscription's version to notify broker.
          * Fix: inconsistency subscription may lead to consumer miss messages.
+         * <p>
+         *     重新平衡结果更改时，应更新订阅的版本以通知代理。 修复:不一致订阅可能会导致消费者错过消息
+         * </p>
          */
         SubscriptionData subscriptionData = this.subscriptionInner.get(topic);
         long newVersion = System.currentTimeMillis();
@@ -59,21 +63,20 @@ public class RebalancePushImpl extends RebalanceImpl {
         subscriptionData.setSubVersion(newVersion);
 
         int currentQueueCount = this.processQueueTable.size();
+        DefaultMQPushConsumer pushConsumer =  this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer();
         if (currentQueueCount != 0) {
-            int pullThresholdForTopic = this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer().getPullThresholdForTopic();
+            int pullThresholdForTopic = pushConsumer.getPullThresholdForTopic();
             if (pullThresholdForTopic != -1) {
                 int newVal = Math.max(1, pullThresholdForTopic / currentQueueCount);
-                log.info("The pullThresholdForQueue is changed from {} to {}",
-                    this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer().getPullThresholdForQueue(), newVal);
-                this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer().setPullThresholdForQueue(newVal);
+                log.info("The pullThresholdForQueue is changed from {} to {}", pushConsumer.getPullThresholdForQueue(), newVal);
+                pushConsumer.setPullThresholdForQueue(newVal);
             }
 
-            int pullThresholdSizeForTopic = this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer().getPullThresholdSizeForTopic();
+            int pullThresholdSizeForTopic = pushConsumer.getPullThresholdSizeForTopic();
             if (pullThresholdSizeForTopic != -1) {
                 int newVal = Math.max(1, pullThresholdSizeForTopic / currentQueueCount);
-                log.info("The pullThresholdSizeForQueue is changed from {} to {}",
-                    this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer().getPullThresholdSizeForQueue(), newVal);
-                this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer().setPullThresholdSizeForQueue(newVal);
+                log.info("The pullThresholdSizeForQueue is changed from {} to {}", pushConsumer.getPullThresholdSizeForQueue(), newVal);
+                pushConsumer.setPullThresholdSizeForQueue(newVal);
             }
         }
 
@@ -85,8 +88,7 @@ public class RebalancePushImpl extends RebalanceImpl {
     public boolean removeUnnecessaryMessageQueue(MessageQueue mq, ProcessQueue pq) {
         this.defaultMQPushConsumerImpl.getOffsetStore().persist(mq);
         this.defaultMQPushConsumerImpl.getOffsetStore().removeOffset(mq);
-        if (this.defaultMQPushConsumerImpl.isConsumeOrderly()
-            && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
+        if (this.defaultMQPushConsumerImpl.isConsumeOrderly() && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
                 if (pq.getLockConsume().tryLock(1000, TimeUnit.MILLISECONDS)) {
                     try {
