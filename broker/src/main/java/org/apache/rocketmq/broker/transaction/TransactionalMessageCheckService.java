@@ -52,6 +52,7 @@ public class TransactionalMessageCheckService extends ServiceThread {
 
     /**
      * 等待结束
+     * @see #run()
      */
     @Override
     protected void onWaitEnd() {

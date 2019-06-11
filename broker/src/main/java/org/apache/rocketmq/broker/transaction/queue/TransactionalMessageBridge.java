@@ -39,6 +39,7 @@ import org.apache.rocketmq.store.MessageExtBrokerInner;
 import org.apache.rocketmq.store.MessageStore;
 import org.apache.rocketmq.store.PutMessageResult;
 import org.apache.rocketmq.store.PutMessageStatus;
+import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -60,9 +61,14 @@ import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_TRANSACTI
 import static org.apache.rocketmq.common.message.MessageDecoder.messageProperties2String;
 import static org.apache.rocketmq.common.sysflag.MessageSysFlag.TRANSACTION_NOT_TYPE;
 import static org.apache.rocketmq.common.sysflag.MessageSysFlag.resetTransactionValue;
+import static org.apache.rocketmq.remoting.common.RemotingHelper.parseSocketAddressAddr;
 import static org.apache.rocketmq.store.MessageExtBrokerInner.tagsString2tagsCode;
 
+/**
+ * 事务消息处理的核心类
+ */
 public class TransactionalMessageBridge {
+
     private static final InternalLogger LOGGER = InnerLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
     private final ConcurrentHashMap<MessageQueue, MessageQueue> opQueueMap = new ConcurrentHashMap<>();
@@ -84,10 +90,15 @@ public class TransactionalMessageBridge {
 
     }
 
+    /**
+     * 找到该queue对应的最小的offset
+     * @param mq
+     * @return
+     */
     public long fetchConsumeOffset(MessageQueue mq) {
         long offset = brokerController.getConsumerOffsetManager().queryOffset(buildConsumerGroup(), mq.getTopic(), mq.getQueueId());
         if (offset == -1) {
-            offset = store.getMinOffsetInQueue(mq.getTopic(), mq.getQueueId());
+            offset = store.getMinOffsetInQueue(mq.getTopic(), mq.getQueueId()); //最小的offset
         }
         return offset;
     }
@@ -109,8 +120,7 @@ public class TransactionalMessageBridge {
 
     public void updateConsumeOffset(MessageQueue mq, long offset) {
         this.brokerController.getConsumerOffsetManager().commitOffset(
-            RemotingHelper.parseSocketAddressAddr(this.storeHost), buildConsumerGroup(), mq.getTopic(),
-            mq.getQueueId(), offset);
+                parseSocketAddressAddr(this.storeHost), buildConsumerGroup(), mq.getTopic(), mq.getQueueId(), offset);
     }
 
     public PullResult getHalfMessage(int queueId, long offset, int nums) {
@@ -127,59 +137,63 @@ public class TransactionalMessageBridge {
         return getMessage(group, topic, queueId, offset, nums, sub);
     }
 
-    private PullResult getMessage(String group, String topic, int queueId, long offset, int nums,
-        SubscriptionData sub) {
-        GetMessageResult getMessageResult = store.getMessage(group, topic, queueId, offset, nums, null);
-
-        if (getMessageResult != null) {
-            PullStatus pullStatus = PullStatus.NO_NEW_MSG;
-            List<MessageExt> foundList = null;
-            switch (getMessageResult.getStatus()) {
-                case FOUND:
-                    pullStatus = PullStatus.FOUND;
-                    foundList = decodeMsgList(getMessageResult);
-                    this.brokerController.getBrokerStatsManager().incGroupGetNums(group, topic,
-                        getMessageResult.getMessageCount());
-                    this.brokerController.getBrokerStatsManager().incGroupGetSize(group, topic,
-                        getMessageResult.getBufferTotalSize());
-                    this.brokerController.getBrokerStatsManager().incBrokerGetNums(getMessageResult.getMessageCount());
-                    this.brokerController.getBrokerStatsManager().recordDiskFallBehindTime(group, topic, queueId,
-                        this.brokerController.getMessageStore().now() - foundList.get(foundList.size() - 1)
-                            .getStoreTimestamp());
-                    break;
-                case NO_MATCHED_MESSAGE:
-                    pullStatus = PullStatus.NO_MATCHED_MSG;
-                    LOGGER.warn("No matched message. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}",
-                        getMessageResult.getStatus(), topic, group, offset);
-                    break;
-                case NO_MESSAGE_IN_QUEUE:
-                    pullStatus = PullStatus.NO_NEW_MSG;
-                    LOGGER.warn("No new message. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}",
-                        getMessageResult.getStatus(), topic, group, offset);
-                    break;
-                case MESSAGE_WAS_REMOVING:
-                case NO_MATCHED_LOGIC_QUEUE:
-                case OFFSET_FOUND_NULL:
-                case OFFSET_OVERFLOW_BADLY:
-                case OFFSET_OVERFLOW_ONE:
-                case OFFSET_TOO_SMALL:
-                    pullStatus = PullStatus.OFFSET_ILLEGAL;
-                    LOGGER.warn("Offset illegal. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}",
-                        getMessageResult.getStatus(), topic, group, offset);
-                    break;
-                default:
-                    assert false;
-                    break;
-            }
-
-            return new PullResult(pullStatus, getMessageResult.getNextBeginOffset(), getMessageResult.getMinOffset(),
-                getMessageResult.getMaxOffset(), foundList);
-
-        } else {
-            LOGGER.error("Get message from store return null. topic={}, groupId={}, requestOffset={}", topic, group,
-                offset);
+    /**
+     * 拉取消息
+     * @param group
+     * @param topic
+     * @param queueId
+     * @param offset
+     * @param nums
+     * @param sub
+     * @return
+     */
+    private PullResult getMessage(String group, String topic, int queueId, long offset, int nums, SubscriptionData sub) {
+        GetMessageResult getResult = store.getMessage(group, topic, queueId, offset, nums, null);
+        if(getResult == null){
+            LOGGER.error("Get message from store return null. topic={}, groupId={}, requestOffset={}", topic, group, offset);
             return null;
         }
+
+        PullStatus status = PullStatus.NO_NEW_MSG;
+        List<MessageExt> foundList = null;
+        BrokerStatsManager statsManager = brokerController.getBrokerStatsManager();
+        switch (getResult.getStatus()) {
+            case FOUND:
+                status = PullStatus.FOUND;
+                foundList = decodeMsgList(getResult);
+                statsManager.incGroupGetNums(group, topic, getResult.getMessageCount());
+                statsManager.incGroupGetSize(group, topic, getResult.getBufferTotalSize());
+                statsManager.incBrokerGetNums(getResult.getMessageCount());
+                statsManager.recordDiskFallBehindTime(group, topic, queueId,
+                        this.brokerController.getMessageStore().now() - foundList.get(foundList.size() - 1).getStoreTimestamp());
+                break;
+            case NO_MATCHED_MESSAGE:
+                status = PullStatus.NO_MATCHED_MSG;
+                LOGGER.warn("No matched message. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}",
+                        getResult.getStatus(), topic, group, offset);
+                break;
+            case NO_MESSAGE_IN_QUEUE:
+                status = PullStatus.NO_NEW_MSG;
+                LOGGER.warn("No new message. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}",
+                        getResult.getStatus(), topic, group, offset);
+                break;
+            case MESSAGE_WAS_REMOVING:
+            case NO_MATCHED_LOGIC_QUEUE:
+            case OFFSET_FOUND_NULL:
+            case OFFSET_OVERFLOW_BADLY:
+            case OFFSET_OVERFLOW_ONE:
+            case OFFSET_TOO_SMALL:
+                status = PullStatus.OFFSET_ILLEGAL;
+                LOGGER.warn("Offset illegal. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}",
+                        getResult.getStatus(), topic, group, offset);
+                break;
+            default:
+                assert false;
+                break;
+        }
+
+        return new PullResult(status, getResult.getNextBeginOffset(), getResult.getMinOffset(), getResult.getMaxOffset(), foundList);
+
     }
 
     private List<MessageExt> decodeMsgList(GetMessageResult getMessageResult) {
@@ -198,39 +212,44 @@ public class TransactionalMessageBridge {
         return foundList;
     }
 
-    public PutMessageResult putHalfMessage(MessageExtBrokerInner messageInner) {
-        return store.putMessage(parseHalfMessageInner(messageInner));
+    /**
+     * 投递事务的half消息
+     * @param msgInner
+     * @return
+     */
+    public PutMessageResult putHalfMessage(MessageExtBrokerInner msgInner) {
+        return store.putMessage(parseHalfMessageInner(msgInner));
     }
 
     /**
      * 构建half消息一阶段消息
-     * @param msgInner
+     * @param msg
      * @return
      */
-    private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {
+    private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msg) {
         //真实的topic
-        putProperty(msgInner, PROPERTY_REAL_TOPIC, msgInner.getTopic());
-        //真实的queueid
-        putProperty(msgInner, PROPERTY_REAL_QUEUE_ID, valueOf(msgInner.getQueueId()));
-        msgInner.setSysFlag(resetTransactionValue(msgInner.getSysFlag(), TRANSACTION_NOT_TYPE));
+        putProperty(msg, PROPERTY_REAL_TOPIC, msg.getTopic());
+        //真实的queueId
+        putProperty(msg, PROPERTY_REAL_QUEUE_ID, valueOf(msg.getQueueId()));
+        msg.setSysFlag(resetTransactionValue(msg.getSysFlag(), TRANSACTION_NOT_TYPE));
         //一阶段事务topic
-        msgInner.setTopic(buildHalfTopic());
-        msgInner.setQueueId(0);
-        msgInner.setPropertiesString(messageProperties2String(msgInner.getProperties()));
-        return msgInner;
+        msg.setTopic(buildHalfTopic());
+        msg.setQueueId(0);
+        msg.setPropertiesString(messageProperties2String(msg.getProperties()));
+        return msg;
     }
 
     /**
      * 放置op消息
-     * @param messageExt
+     * @param msg
      * @param opType
      * @return
      */
-    public boolean putOpMessage(MessageExt messageExt, String opType) {
-        MessageQueue messageQueue = new MessageQueue(messageExt.getTopic(), this.brokerController.getBrokerConfig().getBrokerName(), messageExt.getQueueId());
+    public boolean putOpMessage(MessageExt msg, String opType) {
+        MessageQueue mq = new MessageQueue(msg.getTopic(), this.brokerController.getBrokerConfig().getBrokerName(), msg.getQueueId());
         //删除
         if (REMOVETAG.equals(opType)) {
-            return addRemoveTagInTransactionOp(messageExt, messageQueue);
+            return addRemoveTagInTransactionOp(msg, mq);
         }
         return true;
     }
@@ -242,15 +261,15 @@ public class TransactionalMessageBridge {
 
     /**
      * 投递消息
-     * @param messageInner
+     * @param msgInner
      * @return
      */
-    public boolean putMessage(MessageExtBrokerInner messageInner) {
-        PutMessageResult putMessageResult = store.putMessage(messageInner);
-        if (putMessageResult != null && putMessageResult.getPutMessageStatus() == PutMessageStatus.PUT_OK) {
+    public boolean putMessage(MessageExtBrokerInner msgInner) {
+        PutMessageResult result = store.putMessage(msgInner);
+        if (result != null && result.getPutMessageStatus() == PutMessageStatus.PUT_OK) {
             return true;
         } else {
-            LOGGER.error("Put message failed, topic: {}, queueId: {}, msgId: {}", messageInner.getTopic(), messageInner.getQueueId(), messageInner.getMsgId());
+            LOGGER.error("Put message failed, topic: {}, queueId: {}, msgId: {}", msgInner.getTopic(), msgInner.getQueueId(), msgInner.getMsgId());
             return false;
         }
     }
@@ -289,20 +308,20 @@ public class TransactionalMessageBridge {
 
     /**
      * 构建内部的op消息
-     * @param message
-     * @param messageQueue
+     * @param msg
+     * @param mq
      * @return
      */
-    private MessageExtBrokerInner makeOpMessageInner(Message message, MessageQueue messageQueue) {
+    private MessageExtBrokerInner makeOpMessageInner(Message msg, MessageQueue mq) {
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
-        msgInner.setTopic(message.getTopic());
-        msgInner.setBody(message.getBody());
-        msgInner.setQueueId(messageQueue.getQueueId());
-        msgInner.setTags(message.getTags());
+        msgInner.setTopic(msg.getTopic());
+        msgInner.setBody(msg.getBody());
+        msgInner.setQueueId(mq.getQueueId());
+        msgInner.setTags(msg.getTags());
         msgInner.setTagsCode(tagsString2tagsCode(msgInner.getTags()));
         msgInner.setSysFlag(0);
-        MessageAccessor.setProperties(msgInner, message.getProperties());
-        msgInner.setPropertiesString(messageProperties2String(message.getProperties()));
+        MessageAccessor.setProperties(msgInner, msg.getProperties());
+        msgInner.setPropertiesString(messageProperties2String(msg.getProperties()));
         msgInner.setBornTimestamp(currentTimeMillis());
         msgInner.setBornHost(this.storeHost);
         msgInner.setStoreHost(this.storeHost);
