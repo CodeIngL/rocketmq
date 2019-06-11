@@ -28,6 +28,7 @@ import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.ConsumeQueueExt;
+import org.apache.rocketmq.store.MessageFilter;
 
 /**
  * consumer 拉取消息如果还没有消息，则可以阻塞一定的时间直到有新的消息或超时。
@@ -38,14 +39,19 @@ public class PullRequestHoldService extends ServiceThread {
     private static final String TOPIC_QUEUEID_SEPARATOR = "@";
     private final BrokerController brokerController;
     private final SystemClock systemClock = new SystemClock();
-    private ConcurrentMap<String/* topic@queueId */, ManyPullRequest> pullRequestTable =
-        new ConcurrentHashMap<String, ManyPullRequest>(1024);
+    private ConcurrentMap<String/* topic@queueId */, ManyPullRequest> pullRequestTable = new ConcurrentHashMap<String, ManyPullRequest>(1024);
 
     public PullRequestHoldService(final BrokerController brokerController) {
         this.brokerController = brokerController;
     }
 
-    public void suspendPullRequest(final String topic, final int queueId, final PullRequest pullRequest) {
+    /**
+     * 暂停拉取请求
+     * @param topic
+     * @param queueId
+     * @param req
+     */
+    public void suspendPullRequest(final String topic, final int queueId, final PullRequest req) {
         String key = this.buildKey(topic, queueId);
         ManyPullRequest mpr = this.pullRequestTable.get(key);
         if (null == mpr) {
@@ -56,20 +62,21 @@ public class PullRequestHoldService extends ServiceThread {
             }
         }
 
-        mpr.addPullRequest(pullRequest);
+        mpr.addPullRequest(req);
     }
 
     private String buildKey(final String topic, final int queueId) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(topic);
-        sb.append(TOPIC_QUEUEID_SEPARATOR);
-        sb.append(queueId);
-        return sb.toString();
+        return new StringBuilder()
+                .append(topic)
+                .append(TOPIC_QUEUEID_SEPARATOR)
+                .append(queueId)
+                .toString();
     }
 
     @Override
     public void run() {
-        log.info("{} service started", this.getServiceName());
+        String name = getServiceName();
+        log.info("{} service started", name);
         while (!this.isStopped()) {
             try {
                 if (this.brokerController.getBrokerConfig().isLongPollingEnable()) {
@@ -85,11 +92,11 @@ public class PullRequestHoldService extends ServiceThread {
                     log.info("[NOTIFYME] check hold request cost {} ms.", costTime);
                 }
             } catch (Throwable e) {
-                log.warn(this.getServiceName() + " service has exception. ", e);
+                log.warn(name + " service has exception. ", e);
             }
         }
 
-        log.info("{} service end", this.getServiceName());
+        log.info("{} service end", name);
     }
 
     @Override
@@ -117,57 +124,66 @@ public class PullRequestHoldService extends ServiceThread {
         notifyMessageArriving(topic, queueId, maxOffset, null, 0, null, null);
     }
 
+    /**
+     * 通知消息到达
+     * @param topic
+     * @param queueId
+     * @param maxOffset
+     * @param tagsCode
+     * @param msgStoreTime
+     * @param filterBitMap
+     * @param properties
+     */
     public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset, final Long tagsCode,
         long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {
-        String key = this.buildKey(topic, queueId);
-        ManyPullRequest mpr = this.pullRequestTable.get(key);
-        if (mpr != null) {
-            List<PullRequest> requestList = mpr.cloneListAndClear();
-            if (requestList != null) {
-                List<PullRequest> replayList = new ArrayList<PullRequest>();
+        ManyPullRequest mpr = this.pullRequestTable.get(buildKey(topic, queueId));
+        if (mpr == null) {
+            return;
+        }
+        List<PullRequest> reqs = mpr.cloneListAndClear();
+        if (reqs == null){
+            return;
+        }
+        List<PullRequest> replayList = new ArrayList<PullRequest>();
 
-                for (PullRequest request : requestList) {
-                    long newestOffset = maxOffset;
-                    if (newestOffset <= request.getPullFromThisOffset()) {
-                        newestOffset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
-                    }
+        for (PullRequest req : reqs) {
+            long newestOffset = maxOffset;
+            if (newestOffset <= req.getPullFromThisOffset()) {
+                newestOffset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
+            }
 
-                    if (newestOffset > request.getPullFromThisOffset()) {
-                        boolean match = request.getMessageFilter().isMatchedByConsumeQueue(tagsCode,
-                            new ConsumeQueueExt.CqExtUnit(tagsCode, msgStoreTime, filterBitMap));
-                        // match by bit map, need eval again when properties is not null.
-                        if (match && properties != null) {
-                            match = request.getMessageFilter().isMatchedByCommitLog(null, properties);
-                        }
-
-                        if (match) {
-                            try {
-                                this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(request.getClientChannel(),
-                                    request.getRequestCommand());
-                            } catch (Throwable e) {
-                                log.error("execute request when wakeup failed.", e);
-                            }
-                            continue;
-                        }
-                    }
-
-                    if (System.currentTimeMillis() >= (request.getSuspendTimestamp() + request.getTimeoutMillis())) {
-                        try {
-                            this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(request.getClientChannel(),
-                                request.getRequestCommand());
-                        } catch (Throwable e) {
-                            log.error("execute request when wakeup failed.", e);
-                        }
-                        continue;
-                    }
-
-                    replayList.add(request);
+            if (newestOffset > req.getPullFromThisOffset()) {
+                MessageFilter filter = req.getMessageFilter();
+                boolean match = filter.isMatchedByConsumeQueue(tagsCode, new ConsumeQueueExt.CqExtUnit(tagsCode, msgStoreTime, filterBitMap));
+                if (match && properties != null) { // 按位图匹配，当属性不为null时需要再次使用eval。match by bit map, need eval again when properties is not null.
+                    match = filter.isMatchedByCommitLog(null, properties);
                 }
 
-                if (!replayList.isEmpty()) {
-                    mpr.addPullRequest(replayList);
+                //匹配
+                if (match) {
+                    try {
+                        this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(req.getClientChannel(), req.getRequestCommand());
+                    } catch (Throwable e) {
+                        log.error("execute request when wakeup failed.", e);
+                    }
+                    continue;
                 }
             }
+
+            if (System.currentTimeMillis() >= (req.getSuspendTimestamp() + req.getTimeoutMillis())) {
+                try {
+                    this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(req.getClientChannel(), req.getRequestCommand());
+                } catch (Throwable e) {
+                    log.error("execute request when wakeup failed.", e);
+                }
+                continue;
+            }
+
+            replayList.add(req);
+        }
+
+        if (!replayList.isEmpty()) {
+            mpr.addPullRequest(replayList);
         }
     }
 }
