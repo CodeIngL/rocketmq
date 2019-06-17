@@ -16,10 +16,8 @@
  */
 package org.apache.rocketmq.client.impl.consumer;
 
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import org.apache.rocketmq.client.impl.factory.MQClientInstance;
 import org.apache.rocketmq.client.log.ClientLogger;
@@ -29,34 +27,39 @@ import org.apache.rocketmq.common.utils.ThreadUtils;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
+/**
+ * 拉取消息的服务
+ */
 public class PullMessageService extends ServiceThread {
     private final InternalLogger log = ClientLogger.getLog();
-    private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
+    //拉取请求队列
+    private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<>();
+    //网络客户端
     private final MQClientInstance mQClientFactory;
-    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                return new Thread(r, "PullMessageServiceScheduledThread");
-            }
-        });
+    //调度服务
+    private final ScheduledExecutorService scheduledService = newSingleThreadScheduledExecutor(r -> new Thread(r, "PullMessageServiceScheduledThread"));
 
     public PullMessageService(MQClientInstance mQClientFactory) {
         this.mQClientFactory = mQClientFactory;
     }
 
+    /**
+     * 延迟拉取，通过在中间抽象一层，将构造的请求先由调度的服务进行调度，然后在调用立即的发起的额请求
+     * @param pullRequest
+     * @param timeDelay
+     */
     public void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
         if (!isStopped()) {
-            this.scheduledExecutorService.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    PullMessageService.this.executePullRequestImmediately(pullRequest);
-                }
-            }, timeDelay, TimeUnit.MILLISECONDS);
+            this.scheduledService.schedule(() -> PullMessageService.this.executePullRequestImmediately(pullRequest), timeDelay, TimeUnit.MILLISECONDS);
         } else {
             log.warn("PullMessageServiceScheduledThread has shutdown");
         }
     }
 
+    /**
+     * 立即请求拉取，通过构建请求置于请求的队列中，然后由统一拉取服务进行处理
+     * @param pullRequest
+     */
     public void executePullRequestImmediately(final PullRequest pullRequest) {
         try {
             this.pullRequestQueue.put(pullRequest);
@@ -67,7 +70,7 @@ public class PullMessageService extends ServiceThread {
 
     public void executeTaskLater(final Runnable r, final long timeDelay) {
         if (!isStopped()) {
-            this.scheduledExecutorService.schedule(r, timeDelay, TimeUnit.MILLISECONDS);
+            this.scheduledService.schedule(r, timeDelay, TimeUnit.MILLISECONDS);
         } else {
             log.warn("PullMessageServiceScheduledThread has shutdown");
         }
@@ -102,7 +105,7 @@ public class PullMessageService extends ServiceThread {
     @Override
     public void shutdown(boolean interrupt) {
         super.shutdown(interrupt);
-        ThreadUtils.shutdownGracefully(this.scheduledExecutorService, 1000, TimeUnit.MILLISECONDS);
+        ThreadUtils.shutdownGracefully(this.scheduledService, 1000, TimeUnit.MILLISECONDS);
     }
 
     @Override

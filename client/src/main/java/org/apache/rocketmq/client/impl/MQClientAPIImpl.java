@@ -865,31 +865,28 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
-    public List<String> getConsumerIdListByGroup(
-        final String addr,
-        final String consumerGroup,
+    public List<String> getConsumerIdListByGroup(final String addr, final String consumerGroup,
         final long timeoutMillis) throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException,
         MQBrokerException, InterruptedException {
-        GetConsumerListByGroupRequestHeader requestHeader = new GetConsumerListByGroupRequestHeader();
-        requestHeader.setConsumerGroup(consumerGroup);
-        RemotingCommand request = createRequestCommand(RequestCode.GET_CONSUMER_LIST_BY_GROUP, requestHeader);
 
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-            request, timeoutMillis);
-        assert response != null;
-        switch (response.getCode()) {
+        GetConsumerListByGroupRequestHeader reqHeader = new GetConsumerListByGroupRequestHeader();
+        reqHeader.setConsumerGroup(consumerGroup);
+        RemotingCommand req = createRequestCommand(RequestCode.GET_CONSUMER_LIST_BY_GROUP, reqHeader);
+
+        RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
+            req, timeoutMillis);
+        assert resp != null;
+        switch (resp.getCode()) {
             case ResponseCode.SUCCESS: {
-                if (response.getBody() != null) {
-                    GetConsumerListByGroupResponseBody body =
-                        GetConsumerListByGroupResponseBody.decode(response.getBody(), GetConsumerListByGroupResponseBody.class);
+                if (resp.getBody() != null) {
+                    GetConsumerListByGroupResponseBody body = GetConsumerListByGroupResponseBody.decode(resp.getBody(), GetConsumerListByGroupResponseBody.class);
                     return body.getConsumerIdList();
                 }
             }
             default:
                 break;
         }
-
-        throw new MQBrokerException(response.getCode(), response.getRemark());
+        throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
     public long getMinOffset(final String addr, final String topic, final int queueId, final long timeoutMillis)

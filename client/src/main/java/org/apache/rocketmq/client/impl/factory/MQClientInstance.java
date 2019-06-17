@@ -1113,36 +1113,47 @@ public class MQClientInstance {
         return 0;
     }
 
+    /**
+     * 获得对应consumerId
+     * @param topic
+     * @param group
+     * @return
+     */
     public List<String> findConsumerIdList(final String topic, final String group) {
         String brokerAddr = this.findBrokerAddrByTopic(topic);
-        if (null == brokerAddr) {
+        if (null == brokerAddr) { //地址为空，
             this.updateTopicRouteInfoFromNameServer(topic);
             brokerAddr = this.findBrokerAddrByTopic(topic);
         }
-
-        if (null != brokerAddr) {
-            try {
-                return this.mQClientAPIImpl.getConsumerIdListByGroup(brokerAddr, group, 3000);
-            } catch (Exception e) {
-                log.warn("getConsumerIdListByGroup exception, " + brokerAddr + " " + group, e);
-            }
+        if (null == brokerAddr){
+            return null;
         }
-
+        try {
+            return this.mQClientAPIImpl.getConsumerIdListByGroup(brokerAddr, group, 3000);
+        } catch (Exception e) {
+            log.warn("getConsumerIdListByGroup exception, " + brokerAddr + " " + group, e);
+        }
         return null;
     }
 
+    /**
+     * 根据topic查找相关的broker
+     * @param topic
+     * @return
+     */
     public String findBrokerAddrByTopic(final String topic) {
         TopicRouteData topicRouteData = this.topicRouteTable.get(topic);
-        if (topicRouteData != null) {
-            List<BrokerData> brokers = topicRouteData.getBrokerDatas();
-            if (!brokers.isEmpty()) {
-                int index = random.nextInt(brokers.size());
-                BrokerData bd = brokers.get(index % brokers.size());
-                return bd.selectBrokerAddr();
-            }
+        if (topicRouteData == null){
+            return null;
         }
-
-        return null;
+        List<BrokerData> brokers = topicRouteData.getBrokerDatas();
+        if (brokers.isEmpty()) {
+            return null;
+        }
+        //随机进行获得
+        int index = random.nextInt(brokers.size());
+        BrokerData bd = brokers.get(index % brokers.size());
+        return bd.selectBrokerAddr();
     }
 
     public void resetOffset(String topic, String group, Map<MessageQueue, Long> offsetTable) {

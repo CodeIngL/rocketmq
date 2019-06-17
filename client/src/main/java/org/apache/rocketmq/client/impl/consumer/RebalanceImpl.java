@@ -292,8 +292,7 @@ public abstract class RebalanceImpl {
                     try {
                         allocateResult = strategy.allocate(this.consumerGroup, this.mQClientFactory.getClientId(), mqAll, cidAll); //分配结果
                     } catch (Throwable e) {
-                        log.error("AllocateMessageQueueStrategy.allocate Exception. allocateMessageQueueStrategyName={}", strategy.getName(),
-                            e);
+                        log.error("AllocateMessageQueueStrategy.allocate Exception. allocateMessageQueueStrategyName={}", strategy.getName(), e);
                         return;
                     }
 
@@ -305,8 +304,7 @@ public abstract class RebalanceImpl {
                     boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder); //是否有变更
                     if (changed) {
                         log.info("rebalanced result changed. allocateMessageQueueStrategyName={}, group={}, topic={}, clientId={}, mqAllSize={}, cidAllSize={}, rebalanceResultSize={}, rebalanceResultSet={}",
-                            strategy.getName(), consumerGroup, topic, this.mQClientFactory.getClientId(), mqSet.size(), cidAll.size(),
-                            allocateResultSet.size(), allocateResultSet);
+                            strategy.getName(), consumerGroup, topic, this.mQClientFactory.getClientId(), mqSet.size(), cidAll.size(), allocateResultSet.size(), allocateResultSet);
                         this.messageQueueChanged(topic, mqSet, allocateResultSet); //有变更进行通知
                     }
                 }
@@ -343,7 +341,7 @@ public abstract class RebalanceImpl {
         boolean changed = false;
 
         //消息队列和处理队列
-        Iterator<Entry<MessageQueue, ProcessQueue>> it = this.processQueueTable.entrySet().iterator();
+        Iterator<Entry<MessageQueue, ProcessQueue>> it = this.processQueueTable.entrySet().iterator(); //本地存储
         while (it.hasNext()) {
             Entry<MessageQueue, ProcessQueue> next = it.next();
             MessageQueue mq = next.getKey();
@@ -376,42 +374,54 @@ public abstract class RebalanceImpl {
             }
         }
 
+        //结果
         List<PullRequest> pullRequestList = new ArrayList<>();
+        //遍历
         for (MessageQueue mq : mqSet) {
-            if (!this.processQueueTable.containsKey(mq)) {
-                if (isOrder && !this.lock(mq)) {
-                    log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
-                    continue;
-                }
+            if(this.processQueueTable.containsKey(mq)){
+                continue;
+            }
+            if (isOrder && !this.lock(mq)) {
+                log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
+                continue;
+            }
 
-                this.removeDirtyOffset(mq);
-                ProcessQueue pq = new ProcessQueue();
-                long nextOffset = this.computePullFromWhere(mq);
-                if (nextOffset >= 0) {
-                    ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq);
-                    if (pre != null) {
-                        log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
-                    } else {
-                        log.info("doRebalance, {}, add a new mq, {}", consumerGroup, mq);
-                        PullRequest pullRequest = new PullRequest();
-                        pullRequest.setConsumerGroup(consumerGroup);
-                        pullRequest.setNextOffset(nextOffset);
-                        pullRequest.setMessageQueue(mq);
-                        pullRequest.setProcessQueue(pq);
-                        pullRequestList.add(pullRequest);
-                        changed = true;
-                    }
+            this.removeDirtyOffset(mq);
+            ProcessQueue pq = new ProcessQueue();
+            long nextOffset = this.computePullFromWhere(mq);
+            if (nextOffset >= 0) {
+                ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq);
+                if (pre != null) {
+                    log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
                 } else {
-                    log.warn("doRebalance, {}, add new mq failed, {}", consumerGroup, mq);
+                    log.info("doRebalance, {}, add a new mq, {}", consumerGroup, mq);
+                    PullRequest pullRequest = new PullRequest();
+                    pullRequest.setConsumerGroup(consumerGroup);
+                    pullRequest.setNextOffset(nextOffset);
+                    pullRequest.setMessageQueue(mq);
+                    pullRequest.setProcessQueue(pq);
+                    pullRequestList.add(pullRequest);
+                    changed = true;
                 }
+            } else {
+                log.warn("doRebalance, {}, add new mq failed, {}", consumerGroup, mq);
             }
         }
 
+        /**
+         * 分发处理的结果
+         */
         this.dispatchPullRequest(pullRequestList);
 
         return changed;
     }
 
+    /**
+     * rebalance进行切换，有变更的时候，我们进行相关的通知
+     * @param topic
+     * @param mqAll
+     * @param mqDivided
+     */
     public abstract void messageQueueChanged(final String topic, final Set<MessageQueue> mqAll,
         final Set<MessageQueue> mqDivided);
 
