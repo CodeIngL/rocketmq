@@ -39,10 +39,14 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 
+/**
+ * 拉取的方式
+ */
 public class PullConsumerImpl implements PullConsumer {
     private final DefaultMQPullConsumer rocketmqPullConsumer;
     private final KeyValue properties;
     private boolean started = false;
+    //调度服务
     private final MQPullConsumerScheduleService pullConsumerScheduleService;
     private final LocalMessageCache localMessageCache;
     private final ClientConfig clientConfig;
@@ -106,6 +110,10 @@ public class PullConsumerImpl implements PullConsumer {
         return this;
     }
 
+    /**
+     * 获取消息，从一个本地local暂时缓存中进行获取，
+     * @return
+     */
     @Override
     public Message receive() {
         MessageExt rmqMsg = localMessageCache.poll();
@@ -141,34 +149,33 @@ public class PullConsumerImpl implements PullConsumer {
         this.started = true;
     }
 
+    /**
+     * 注册一个调度任务，由这个调度任务不断的进行拉取我们需要的消息
+     * @param targetQueueName
+     */
     private void registerPullTaskCallback(final String targetQueueName) {
-        this.pullConsumerScheduleService.registerPullTaskCallback(targetQueueName, new PullTaskCallback() {
-            @Override
-            public void doPullTask(final MessageQueue mq, final PullTaskContext context) {
-                MQPullConsumer consumer = context.getPullConsumer();
-                try {
-                    long offset = localMessageCache.nextPullOffset(mq);
+        this.pullConsumerScheduleService.registerPullTaskCallback(targetQueueName, (mq, context) -> {
+            MQPullConsumer consumer = context.getPullConsumer();
+            try {
+                long offset = localMessageCache.nextPullOffset(mq);
 
-                    PullResult pullResult = consumer.pull(mq, "*",
-                        offset, localMessageCache.nextPullBatchNums());
-                    ProcessQueue pq = rocketmqPullConsumer.getDefaultMQPullConsumerImpl().getRebalanceImpl()
-                        .getProcessQueueTable().get(mq);
-                    switch (pullResult.getPullStatus()) {
-                        case FOUND:
-                            if (pq != null) {
-                                pq.putMessage(pullResult.getMsgFoundList());
-                                for (final MessageExt messageExt : pullResult.getMsgFoundList()) {
-                                    localMessageCache.submitConsumeRequest(new ConsumeRequest(messageExt, mq, pq));
-                                }
+                PullResult pullResult = consumer.pull(mq, "*", offset, localMessageCache.nextPullBatchNums());
+                ProcessQueue pq = rocketmqPullConsumer.getDefaultMQPullConsumerImpl().getRebalanceImpl().getProcessQueueTable().get(mq);
+                switch (pullResult.getPullStatus()) {
+                    case FOUND:
+                        if (pq != null) {
+                            pq.putMessage(pullResult.getMsgFoundList());
+                            for (final MessageExt messageExt : pullResult.getMsgFoundList()) {
+                                localMessageCache.submitConsumeRequest(new ConsumeRequest(messageExt, mq, pq));
                             }
-                            break;
-                        default:
-                            break;
-                    }
-                    localMessageCache.updatePullOffset(mq, pullResult.getNextBeginOffset());
-                } catch (Exception e) {
-                    log.error("A error occurred in pull message process.", e);
+                        }
+                        break;
+                    default:
+                        break;
                 }
+                localMessageCache.updatePullOffset(mq, pullResult.getNextBeginOffset());
+            } catch (Exception e) {
+                log.error("A error occurred in pull message process.", e);
             }
         });
     }

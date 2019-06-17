@@ -43,6 +43,9 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.utils.ThreadUtils;
 import org.apache.rocketmq.logging.InternalLogger;
 
+/**
+ * 消息缓存
+ */
 class LocalMessageCache implements ServiceLifecycle {
     private final BlockingQueue<ConsumeRequest> consumeRequestCache;
     private final Map<String, ConsumeRequest> consumedRequest;
@@ -117,6 +120,10 @@ class LocalMessageCache implements ServiceLifecycle {
         return null;
     }
 
+    /**
+     * 消费确认
+     * @param messageId
+     */
     void ack(final String messageId) {
         ConsumeRequest consumeRequest = consumedRequest.remove(messageId);
         if (consumeRequest != null) {
