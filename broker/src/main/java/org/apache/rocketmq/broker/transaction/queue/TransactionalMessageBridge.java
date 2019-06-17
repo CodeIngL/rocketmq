@@ -123,6 +123,13 @@ public class TransactionalMessageBridge {
                 parseSocketAddressAddr(this.storeHost), buildConsumerGroup(), mq.getTopic(), mq.getQueueId(), offset);
     }
 
+    /**
+     * 拉取queueid对应的half消息，最多nums数量
+     * @param queueId
+     * @param offset
+     * @param nums
+     * @return
+     */
     public PullResult getHalfMessage(int queueId, long offset, int nums) {
         String group = buildConsumerGroup();
         String topic = buildHalfTopic();
@@ -169,13 +176,11 @@ public class TransactionalMessageBridge {
                 break;
             case NO_MATCHED_MESSAGE:
                 status = PullStatus.NO_MATCHED_MSG;
-                LOGGER.warn("No matched message. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}",
-                        getResult.getStatus(), topic, group, offset);
+                LOGGER.warn("No matched message. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}", getResult.getStatus(), topic, group, offset);
                 break;
             case NO_MESSAGE_IN_QUEUE:
                 status = PullStatus.NO_NEW_MSG;
-                LOGGER.warn("No new message. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}",
-                        getResult.getStatus(), topic, group, offset);
+                LOGGER.warn("No new message. GetMessageStatus={}, topic={}, groupId={}, requestOffset={}", getResult.getStatus(), topic, group, offset);
                 break;
             case MESSAGE_WAS_REMOVING:
             case NO_MATCHED_LOGIC_QUEUE:
@@ -351,6 +356,7 @@ public class TransactionalMessageBridge {
      * @return This method will always return true.
      */
     private boolean addRemoveTagInTransactionOp(MessageExt messageExt, MessageQueue messageQueue) {
+        //构建消息
         Message message = new Message(buildOpTopic(), REMOVETAG, valueOf(messageExt.getQueueOffset()).getBytes(TransactionalMessageUtil.charset));
         writeOp(message, messageQueue);
         return true;

@@ -23,6 +23,7 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
 public class DefaultTransactionalMessageCheckListener extends AbstractTransactionalMessageCheckListener {
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
     public DefaultTransactionalMessageCheckListener() {
