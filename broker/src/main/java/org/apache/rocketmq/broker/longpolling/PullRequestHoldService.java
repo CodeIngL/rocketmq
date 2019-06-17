@@ -53,7 +53,7 @@ public class PullRequestHoldService extends ServiceThread {
      */
     public void suspendPullRequest(final String topic, final int queueId, final PullRequest req) {
         String key = this.buildKey(topic, queueId);
-        ManyPullRequest mpr = this.pullRequestTable.get(key);
+        ManyPullRequest mpr = this.pullRequestTable.get(key); //key对应的请求
         if (null == mpr) {
             mpr = new ManyPullRequest();
             ManyPullRequest prev = this.pullRequestTable.putIfAbsent(key, mpr);
@@ -73,19 +73,24 @@ public class PullRequestHoldService extends ServiceThread {
                 .toString();
     }
 
+    /**
+     * 挂起客户端对broker的拉取消息的请求，超时的时候，尝试调用一下，然后将消息推送给客户端，
+     */
     @Override
     public void run() {
         String name = getServiceName();
         log.info("{} service started", name);
         while (!this.isStopped()) {
             try {
-                if (this.brokerController.getBrokerConfig().isLongPollingEnable()) {
-                    this.waitForRunning(5 * 1000);
+                if (this.brokerController.getBrokerConfig().isLongPollingEnable()) { //支持长轮训
+                    this.waitForRunning(5 * 1000);//5秒中一次
                 } else {
+                    //支持短轮训的方式，超时的时间由我们设置
                     this.waitForRunning(this.brokerController.getBrokerConfig().getShortPollingTimeMills());
                 }
 
                 long beginLockTimestamp = this.systemClock.now();
+                //一旦轮训时间到，我们需要去检查响应的请求
                 this.checkHoldRequest();
                 long costTime = this.systemClock.now() - beginLockTimestamp;
                 if (costTime > 5 * 1000) {
@@ -104,28 +109,39 @@ public class PullRequestHoldService extends ServiceThread {
         return PullRequestHoldService.class.getSimpleName();
     }
 
+    /**
+     * 校验持有的的request
+     */
     private void checkHoldRequest() {
         for (String key : this.pullRequestTable.keySet()) {
             String[] kArray = key.split(TOPIC_QUEUEID_SEPARATOR);
-            if (2 == kArray.length) {
-                String topic = kArray[0];
-                int queueId = Integer.parseInt(kArray[1]);
-                final long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
-                try {
-                    this.notifyMessageArriving(topic, queueId, offset);
-                } catch (Throwable e) {
-                    log.error("check hold request failed. topic={}, queueId={}", topic, queueId, e);
-                }
+            if (2 != kArray.length){
+                return;
+            }
+            String topic = kArray[0];
+            int queueId = Integer.parseInt(kArray[1]);
+            final long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
+            try {
+                //通知消息到达
+                this.notifyMessageArriving(topic, queueId, offset);
+            } catch (Throwable e) {
+                log.error("check hold request failed. topic={}, queueId={}", topic, queueId, e);
             }
         }
     }
 
+    /**
+     * 通知
+     * @param topic
+     * @param queueId
+     * @param maxOffset
+     */
     public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset) {
         notifyMessageArriving(topic, queueId, maxOffset, null, 0, null, null);
     }
 
     /**
-     * 通知消息到达
+     * 通知客户端现在存在消息，消息到达
      * @param topic
      * @param queueId
      * @param maxOffset
@@ -146,6 +162,7 @@ public class PullRequestHoldService extends ServiceThread {
         }
         List<PullRequest> replayList = new ArrayList<PullRequest>();
 
+        //遍历拉取的请求
         for (PullRequest req : reqs) {
             long newestOffset = maxOffset;
             if (newestOffset <= req.getPullFromThisOffset()) {
@@ -170,7 +187,7 @@ public class PullRequestHoldService extends ServiceThread {
                 }
             }
 
-            if (System.currentTimeMillis() >= (req.getSuspendTimestamp() + req.getTimeoutMillis())) {
+            if (System.currentTimeMillis() >= (req.getSuspendTimestamp() + req.getTimeoutMillis())) { //超出时间了，让我们轮训一下，看一下存在的消息是否已经到达我们的消费队列中了。
                 try {
                     this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(req.getClientChannel(), req.getRequestCommand());
                 } catch (Throwable e) {

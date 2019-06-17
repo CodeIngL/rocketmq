@@ -22,20 +22,19 @@ import org.apache.rocketmq.store.MessageArrivingListener;
 import java.util.Map;
 
 /**
- * 消息到达触发
+ * 消息从commitlog中投递的到消费队列的时候进行，到达触发
  */
 public class NotifyMessageArrivingListener implements MessageArrivingListener {
 
-    private final PullRequestHoldService pullRequestHoldService;
+    private final PullRequestHoldService holdService;
 
-    public NotifyMessageArrivingListener(final PullRequestHoldService pullRequestHoldService) {
-        this.pullRequestHoldService = pullRequestHoldService;
+    public NotifyMessageArrivingListener(final PullRequestHoldService holdService) {
+        this.holdService = holdService;
     }
 
     @Override
     public void arriving(String topic, int queueId, long logicOffset, long tagsCode,
         long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {
-        this.pullRequestHoldService.notifyMessageArriving(topic, queueId, logicOffset, tagsCode,
-            msgStoreTime, filterBitMap, properties);
+        this.holdService.notifyMessageArriving(topic, queueId, logicOffset, tagsCode, msgStoreTime, filterBitMap, properties);
     }
 }
