@@ -112,27 +112,29 @@ public class PullMessageProcessor implements NettyRequestProcessor {
     private RemotingCommand processRequest(final Channel channel, RemotingCommand req, boolean brokerAllowSuspend) throws RemotingCommandException {
         //构建相应命令
         RemotingCommand resp = createResponseCommand(PullMessageResponseHeader.class);
-        //构建响应命令的头部
+        //构建拉取消息响应命令的头部
         final PullMessageResponseHeader respHeader = (PullMessageResponseHeader) resp.readCustomHeader();
-        //获得请求的头部
+        //获得拉取消息请求的头部
         final PullMessageRequestHeader reqHeader = (PullMessageRequestHeader) req.decodeCommandCustomHeader(PullMessageRequestHeader.class);
 
+        //设置特征值
         resp.setOpaque(req.getOpaque());
 
         log.debug("receive PullMessage request command, {}", req);
 
         if (checkBrokerPermission(resp)) return resp;
 
+        //消费组概念
         String consumerGroup = reqHeader.getConsumerGroup();
-        //获得订阅组的消息
+        //获得订阅组概念
         SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(consumerGroup);
         if (checkSubscriptionGroupConfig(resp, consumerGroup, subscriptionGroupConfig)) return resp;
 
-        final boolean hasSuspendFlag = hasSuspendFlag(reqHeader.getSysFlag());
-        final boolean hasCommitOffsetFlag = hasCommitOffsetFlag(reqHeader.getSysFlag());
-        final boolean hasSubscriptionFlag = hasSubscriptionFlag(reqHeader.getSysFlag());
+        final boolean hasSuspendFlag = hasSuspendFlag(reqHeader.getSysFlag()); //支持挂起
+        final boolean hasCommitOffsetFlag = hasCommitOffsetFlag(reqHeader.getSysFlag());//支持存在offset
+        final boolean hasSubscriptionFlag = hasSubscriptionFlag(reqHeader.getSysFlag()); //支持订阅描述符
 
-        final long suspendTimeoutMillisLong = hasSuspendFlag ? reqHeader.getSuspendTimeoutMillis() : 0;
+        final long suspendTimeoutMillisLong = hasSuspendFlag ? reqHeader.getSuspendTimeoutMillis() : 0; //如果支持挂起，我们得出挂起的超时时间
 
         //获得topic消息
         String topic =  reqHeader.getTopic();
@@ -390,9 +392,9 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                         resp = null;
                     }
                     break;
-                case PULL_NOT_FOUND:
+                case PULL_NOT_FOUND: //当消息没有的时候，我们通过构造一个被短暂挂起的请求，来让后端的线程进行触发，回写
 
-                    if (brokerAllowSuspend && hasSuspendFlag) {
+                    if (brokerAllowSuspend && hasSuspendFlag) { //broker支持挂起的请求，并且请求明确指出这是一个可以被挂起的请求
                         long pollingTimeMills = suspendTimeoutMillisLong;
                         if (!brokerConfig.isLongPollingEnable()) {
                             pollingTimeMills = brokerConfig.getShortPollingTimeMills();
@@ -566,6 +568,12 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         }
     }
 
+    /**
+     * 执行并返回连接
+     * @param channel
+     * @param req
+     * @throws RemotingCommandException
+     */
     public void executeRequestWhenWakeup(final Channel channel, final RemotingCommand req) throws RemotingCommandException {
         Runnable run = () -> {
             try {
@@ -593,6 +601,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 log.error("excuteRequestWhenWakeup run", e1);
             }
         };
+        //提交任务到线程池中执行
         this.brokerController.getPullMessageExecutor().submit(new RequestTask(run, channel, req));
     }
 
