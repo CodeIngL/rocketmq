@@ -524,16 +524,18 @@ public class ConsumeQueue {
      * @return
      */
     public SelectMappedBufferResult getIndexBuffer(final long startIndex) {
-        int mappedFileSize = this.mappedFileSize;
-        long offset = startIndex * CQ_STORE_UNIT_SIZE; //偏移位置
-        if (offset >= this.getMinLogicOffset()) {
-            MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
-            if (mappedFile != null) {
-                SelectMappedBufferResult result = mappedFile.selectMappedBuffer((int) (offset % mappedFileSize));
-                return result;
-            }
+        int mappedFileSize = this.mappedFileSize; //文件大小
+        long offset = startIndex * CQ_STORE_UNIT_SIZE; //实际的存储偏移位置=index*20
+        if(offset < getMinLogicOffset()){ //非法的offset，返回null
+            return null;
         }
-        return null;
+        //找到实际的对应的映射文件
+        MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
+        if (mappedFile == null){
+            return null;
+        }
+        //找到result
+        return mappedFile.selectMappedBuffer((int) (offset % mappedFileSize));
     }
 
     public ConsumeQueueExt.CqExtUnit getExt(final long offset) {

@@ -572,7 +572,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * 获得消息
+     * 查询获得一批消息
      * @param group Consumer group that launches this query.
      * @param topic Topic to query.
      * @param queueId Queue ID to query.
@@ -605,13 +605,11 @@ public class DefaultMessageStore implements MessageStore {
         //最大偏移量
         final long maxOffsetPy = this.commitLog.getMaxOffset();
 
-        //消费队列
+        //找到对应的消费队列
         ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
         if (consumeQueue != null) {
-            //消费队列维持的最小值
-            minOffset = consumeQueue.getMinOffsetInQueue();
-            //消费队列维持的最大值
-            maxOffset = consumeQueue.getMaxOffsetInQueue();
+            minOffset = consumeQueue.getMinOffsetInQueue();//消费队列维持的最小offset
+            maxOffset = consumeQueue.getMaxOffsetInQueue();//消费队列维持的最大offset
 
             if (maxOffset == 0) { //消费队列没有消息
                 status = NO_MESSAGE_IN_QUEUE;
@@ -630,9 +628,9 @@ public class DefaultMessageStore implements MessageStore {
                     nextBeginOffset = nextOffsetCorrection(offset, maxOffset);//使用最大
                 }
             } else {
-                //获得映射的buffer
+                //获得offset对应的映射buffer
                 SelectMappedBufferResult bufferConsumeQueue = consumeQueue.getIndexBuffer(offset);
-                if (bufferConsumeQueue != null) {
+                if (bufferConsumeQueue != null) { //index索引存在相关
                     try {
                         status = NO_MATCHED_MESSAGE;
 

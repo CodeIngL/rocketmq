@@ -224,21 +224,23 @@ public class IndexService {
     }
 
     /**
-     * 为消息构建索引
+     * 为消息构建index索引
      * @param req
      */
     public void buildIndex(DispatchRequest req) {
-        //获得对应indexFile
+        //获得对应indexFile映射文件
         IndexFile indexFile = retryGetAndCreateIndexFile();
         if (indexFile == null){
             log.error("build index error, stop building index");
             return;
         }
+        //结束的物理位置
         long endPhyOffset = indexFile.getEndPhyOffset();
+        //分发的请求
         DispatchRequest msg = req;
         String topic = msg.getTopic();
         String keys = msg.getKeys();
-        if (msg.getCommitLogOffset() < endPhyOffset) {
+        if (msg.getCommitLogOffset() < endPhyOffset) { //非法的状态，我们直接返回
             return;
         }
 
@@ -249,11 +251,11 @@ public class IndexService {
             case TRANSACTION_PREPARED_TYPE:
             case TRANSACTION_COMMIT_TYPE:
                 break;
-            case TRANSACTION_ROLLBACK_TYPE:
+            case TRANSACTION_ROLLBACK_TYPE: //rollback消息直接返回，不构建index索引，其他都会构建
                 return;
         }
 
-        //存在唯一键
+        //存在唯一键，key
         if (req.getUniqKey() != null) {
             //放置key
             indexFile = putKey(indexFile, msg, buildKey(topic, req.getUniqKey()));
@@ -266,7 +268,7 @@ public class IndexService {
             return;
         }
 
-        //很多key，每一个key进行放置
+        //很多其他key，每一个key进行放置
         for (String key : keys.split(MessageConst.KEY_SEPARATOR)) {
             if (key.length() == 0){
                 continue;
@@ -280,7 +282,7 @@ public class IndexService {
     }
 
     /**
-     * 提供了key放置
+     * 提供了key放置，将索引信息写入index文件中，提供基于key的查找
      * @param indexFile
      * @param msg
      * @param idxKey

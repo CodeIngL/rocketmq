@@ -46,8 +46,7 @@ public class IndexFile {
 
     public IndexFile(final String fileName, final int hashSlotNum, final int indexNum,
         final long endPhyOffset, final long endTimestamp) throws IOException {
-        int fileTotalSize =
-            IndexHeader.INDEX_HEADER_SIZE + (hashSlotNum * hashSlotSize) + (indexNum * indexSize);
+        int fileTotalSize = IndexHeader.INDEX_HEADER_SIZE + (hashSlotNum * hashSlotSize) + (indexNum * indexSize);
         this.mappedFile = new MappedFile(fileName, fileTotalSize);
         this.fileChannel = this.mappedFile.getFileChannel();
         this.mappedByteBuffer = this.mappedFile.getMappedByteBuffer();
@@ -104,15 +103,15 @@ public class IndexFile {
     }
 
     /**
-     * 放置key
-     * @param key
+     * 放置key，放置进索引文件中
+     * @param key topic#用户key
      * @param phyOffset 物理的偏移量
      * @param storeTimestamp 存储时间
      * @return
      */
     public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
         if (this.indexHeader.getIndexCount() < this.indexNum) { //索引数量要少于2KW个
-            int keyHash = indexKeyHashMethod(key);
+            int keyHash = indexKeyHashMethod(key); //key进行hash
             int slotPos = keyHash % this.hashSlotNum; //槽
             int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize; //相对槽
 

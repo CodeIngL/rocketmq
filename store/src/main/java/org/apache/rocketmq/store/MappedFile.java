@@ -179,7 +179,7 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
-     * 找到视图管理的view
+     * 找到视图管理的view,找到最顶端的ByteBuffer，此ByteBuffer是最原始的buffer
      * @param buffer
      * @return
      */
