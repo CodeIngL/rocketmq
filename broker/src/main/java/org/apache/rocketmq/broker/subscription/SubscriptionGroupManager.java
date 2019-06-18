@@ -33,6 +33,9 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 import static org.apache.rocketmq.common.MixAll.isSysConsumerGroup;
 
+/**
+ * 订阅组管理器
+ */
 public class SubscriptionGroupManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
@@ -119,6 +122,11 @@ public class SubscriptionGroupManager extends ConfigManager {
         }
     }
 
+    /**
+     * 查找消费组对应的订阅组
+     * @param group
+     * @return
+     */
     public SubscriptionGroupConfig findSubscriptionGroupConfig(final String group) {
         SubscriptionGroupConfig config = this.subscriptionGroupTable.get(group);
         if (null == config) {
@@ -130,7 +138,7 @@ public class SubscriptionGroupManager extends ConfigManager {
                     log.info("auto create a subscription group, {}", config.toString());
                 }
                 this.dataVersion.nextVersion();
-                this.persist();
+                this.persist(); //持久化
             }
         }
 
