@@ -48,8 +48,12 @@ import org.apache.rocketmq.common.protocol.body.CMResult;
 import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.exceptionSimpleDesc;
 
+/**
+ * 并发的消费消息服务由push来使用
+ */
 public class ConsumeMessageConcurrentlyService implements ConsumeMessageService {
     private static final InternalLogger log = ClientLogger.getLog();
     private final DefaultMQPushConsumerImpl defaultMQPushConsumerImpl;
@@ -79,19 +83,14 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             this.consumeRequestQueue,
             new ThreadFactoryImpl("ConsumeMessageThread_"));
 
-        this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("ConsumeMessageScheduledThread_"));
-        this.cleanExpireMsgExecutors = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("CleanExpireMsgScheduledThread_"));
+        this.scheduledExecutorService = newSingleThreadScheduledExecutor(new ThreadFactoryImpl("ConsumeMessageScheduledThread_"));
+        this.cleanExpireMsgExecutors = newSingleThreadScheduledExecutor(new ThreadFactoryImpl("CleanExpireMsgScheduledThread_"));
     }
 
     public void start() {
-        this.cleanExpireMsgExecutors.scheduleAtFixedRate(new Runnable() {
-
-            @Override
-            public void run() {
-                cleanExpireMsg();
-            }
-
-        }, this.defaultMQPushConsumer.getConsumeTimeout(), this.defaultMQPushConsumer.getConsumeTimeout(), TimeUnit.MINUTES);
+        this.cleanExpireMsgExecutors.scheduleAtFixedRate(() -> cleanExpireMsg(),
+                this.defaultMQPushConsumer.getConsumeTimeout(),
+                this.defaultMQPushConsumer.getConsumeTimeout(), TimeUnit.MINUTES);
     }
 
     public void shutdown() {
@@ -244,9 +243,11 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         }
     }
 
+    /**
+     * 定时清理过期消息
+     */
     private void cleanExpireMsg() {
-        Iterator<Map.Entry<MessageQueue, ProcessQueue>> it =
-            this.defaultMQPushConsumerImpl.getRebalanceImpl().getProcessQueueTable().entrySet().iterator();
+        Iterator<Map.Entry<MessageQueue, ProcessQueue>> it = this.defaultMQPushConsumerImpl.getRebalanceImpl().getProcessQueueTable().entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<MessageQueue, ProcessQueue> next = it.next();
             ProcessQueue pq = next.getValue();

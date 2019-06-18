@@ -96,13 +96,18 @@ import static org.apache.rocketmq.common.sysflag.MessageSysFlag.COMPRESSED_FLAG;
 import static org.apache.rocketmq.common.sysflag.MessageSysFlag.TRANSACTION_PREPARED_TYPE;
 import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SYSTEM_ERROR;
 
+/**
+ * 默认的发送实现，发送则是通过DefaultMQProducer来进行的，这是其中的委托。
+ * 构建的时候，通过传递，它又进行持有了委托者对象和一些基于rpc的调用钩子
+ */
 public class DefaultMQProducerImpl implements MQProducerInner {
     private final InternalLogger log = ClientLogger.getLog();
     private final Random random = new Random();
+    //绑定的发送者
     private final DefaultMQProducer defaultMQProducer;
-    private final ConcurrentMap<String/* topic */, TopicPublishInfo> topicPublishInfoTable =
-        new ConcurrentHashMap<String, TopicPublishInfo>();
+    private final ConcurrentMap<String/* topic */, TopicPublishInfo> topicPublishInfoTable = new ConcurrentHashMap<String, TopicPublishInfo>();
     private final ArrayList<SendMessageHook> sendMessageHookList = new ArrayList<SendMessageHook>();
+    //rpc钩子
     private final RPCHook rpcHook;
     protected BlockingQueue<Runnable> checkRequestQueue;
     protected ExecutorService checkExecutor;
@@ -112,6 +117,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     private ArrayList<CheckForbiddenHook> checkForbiddenHookList = new ArrayList<CheckForbiddenHook>();
     private int zipCompressLevel = Integer.parseInt(System.getProperty(MixAll.MESSAGE_COMPRESS_LEVEL, "5"));
 
+    /**
+     * mq容错机制策略
+     */
     private MQFaultStrategy mqFaultStrategy = new MQFaultStrategy();
 
     private final BlockingQueue<Runnable> asyncSenderThreadPoolQueue;
@@ -565,6 +573,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
 
+    /**
+     * 选择相应的消息队列
+     * @param tpInfo
+     * @param lastBrokerName
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         return this.mqFaultStrategy.selectOneMessageQueue(tpInfo, lastBrokerName);
     }
@@ -602,10 +616,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             MessageQueue mq = null;
             Exception exception = null;
             SendResult sendResult = null;
-            //总共的次数
+            //总共的次数，默认是3次，如果是异步，则是1次
             int timesTotal = mode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
-            String[] brokersSent = new String[timesTotal];
+            String[] brokersSent = new String[timesTotal]; //异步不支持多次发送，同步支持
             for (; times < timesTotal; times++) {
                 String lastBrokerName = null == mq ? null : mq.getBrokerName();
                 MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
@@ -728,25 +742,31 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         //获得nameservers列表
         List<String> nsList = this.getmQClientFactory().getMQClientAPIImpl().getNameServerAddressList();
         if (null == nsList || nsList.isEmpty()) {
-            throw new MQClientException(
-                "No name server address, please set it." + suggestTodo(FAQUrl.NAME_SERVER_ADDR_NOT_EXIST_URL), null).setResponseCode(ClientErrorCode.NO_NAME_SERVER_EXCEPTION);
+            throw new MQClientException("No name server address, please set it." + suggestTodo(FAQUrl.NAME_SERVER_ADDR_NOT_EXIST_URL), null)
+                    .setResponseCode(ClientErrorCode.NO_NAME_SERVER_EXCEPTION);
         }
 
-        throw new MQClientException("No route info of this topic, " + msg.getTopic() + suggestTodo(FAQUrl.NO_TOPIC_ROUTE_INFO),
-            null).setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
+        throw new MQClientException("No route info of this topic, " + msg.getTopic() + suggestTodo(FAQUrl.NO_TOPIC_ROUTE_INFO), null)
+                .setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
     }
 
+    /**
+     * 使用topic找到对应的topic发布的信息。
+     * @param topic
+     * @return
+     */
     private TopicPublishInfo tryToFindTopicPublishInfo(final String topic) {
+        //获得topic的发布信息。
         TopicPublishInfo topicPublishInfo = this.topicPublishInfoTable.get(topic);
-        if (null == topicPublishInfo || !topicPublishInfo.ok()) {
-            this.topicPublishInfoTable.putIfAbsent(topic, new TopicPublishInfo());
-            this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic);
+        if (null == topicPublishInfo || !topicPublishInfo.ok()) { //不存在，或者状态不对
+            this.topicPublishInfoTable.putIfAbsent(topic, new TopicPublishInfo()); //先放置一个
+            this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic);//我们从nameserver中获得相关的东西
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
         }
 
         if (topicPublishInfo.isHaveTopicRouterInfo() || topicPublishInfo.ok()) {
             return topicPublishInfo;
-        } else {
+        } else { //再次更新
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic, true, this.defaultMQProducer);
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
             return topicPublishInfo;
@@ -774,7 +794,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                                       final TopicPublishInfo topicPublishInfo,
                                       final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         long begin = System.currentTimeMillis();
-        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
+        String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName()); //找到对应的broker
         if (null == brokerAddr) {
             tryToFindTopicPublishInfo(mq.getTopic());
             brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
@@ -826,11 +846,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     context.setMq(mq);
                     String isTrans = msg.getProperty(PROPERTY_TRANSACTION_PREPARED);
                     if (isTrans != null && isTrans.equals("true")) {
-                        context.setMsgType(MessageType.Trans_Msg_Half);
+                        context.setMsgType(MessageType.Trans_Msg_Half); //消息类型
                     }
 
                     if (msg.getProperty("__STARTDELIVERTIME") != null || msg.getProperty(MessageConst.PROPERTY_DELAY_TIME_LEVEL) != null) {
-                        context.setMsgType(MessageType.Delay_Msg);
+                        context.setMsgType(MessageType.Delay_Msg); //消息类型
                     }
                     this.executeSendMessageHookBefore(context);
                 }

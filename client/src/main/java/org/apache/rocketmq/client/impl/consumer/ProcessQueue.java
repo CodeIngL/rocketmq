@@ -74,10 +74,11 @@ public class ProcessQueue {
     }
 
     /**
+     * 清理过期消息
      * @param pushConsumer
      */
     public void cleanExpiredMsg(DefaultMQPushConsumer pushConsumer) {
-        if (pushConsumer.getDefaultMQPushConsumerImpl().isConsumeOrderly()) {
+        if (pushConsumer.getDefaultMQPushConsumerImpl().isConsumeOrderly()) { //是顺序小幅，我们不支持清理过期消息
             return;
         }
 
@@ -90,7 +91,6 @@ public class ProcessQueue {
                     if (!msgTreeMap.isEmpty() && System.currentTimeMillis() - Long.parseLong(MessageAccessor.getConsumeStartTimeStamp(msgTreeMap.firstEntry().getValue())) > pushConsumer.getConsumeTimeout() * 60 * 1000) {
                         msg = msgTreeMap.firstEntry().getValue();
                     } else {
-
                         break;
                     }
                 } finally {

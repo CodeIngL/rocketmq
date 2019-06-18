@@ -84,6 +84,10 @@ public class TopicPublishInfo {
         }
     }
 
+    /**
+     * 选择一个消息队列，随机
+     * @return
+     */
     public MessageQueue selectOneMessageQueue() {
         int index = this.sendWhichQueue.getAndIncrement();
         int pos = Math.abs(index) % this.messageQueueList.size();

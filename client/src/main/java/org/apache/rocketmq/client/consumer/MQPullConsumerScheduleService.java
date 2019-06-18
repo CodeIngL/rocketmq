@@ -36,12 +36,10 @@ import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 public class MQPullConsumerScheduleService {
     private final InternalLogger log = ClientLogger.getLog();
     private final MessageQueueListener messageQueueListener = new MessageQueueListenerImpl();
-    private final ConcurrentMap<MessageQueue, PullTaskImpl> taskTable =
-        new ConcurrentHashMap<MessageQueue, PullTaskImpl>();
+    private final ConcurrentMap<MessageQueue, PullTaskImpl> taskTable = new ConcurrentHashMap<MessageQueue, PullTaskImpl>();
     private DefaultMQPullConsumer defaultMQPullConsumer;
     private int pullThreadNums = 20;
-    private ConcurrentMap<String /* topic */, PullTaskCallback> callbackTable =
-        new ConcurrentHashMap<String, PullTaskCallback>();
+    private ConcurrentMap<String /* topic */, PullTaskCallback> callbackTable = new ConcurrentHashMap<String, PullTaskCallback>();
     private ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
 
     public MQPullConsumerScheduleService(final String consumerGroup) {
