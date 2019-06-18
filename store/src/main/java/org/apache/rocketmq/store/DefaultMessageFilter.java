@@ -29,6 +29,12 @@ public class DefaultMessageFilter implements MessageFilter {
         this.subscriptionData = subscriptionData;
     }
 
+    /**
+     * 默认的消息过滤机制
+     * @param tagsCode tagsCode
+     * @param cqExtUnit extend unit of consume queue
+     * @return
+     */
     @Override
     public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
         if (null == tagsCode || null == subscriptionData) {
@@ -39,8 +45,8 @@ public class DefaultMessageFilter implements MessageFilter {
             return true;
         }
 
-        return subscriptionData.getSubString().equals(SubscriptionData.SUB_ALL)
-            || subscriptionData.getCodeSet().contains(tagsCode.intValue());
+        //订阅的数据，订阅的tag
+        return subscriptionData.getSubString().equals(SubscriptionData.SUB_ALL) || subscriptionData.getCodeSet().contains(tagsCode.intValue());
     }
 
     @Override

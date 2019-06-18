@@ -32,7 +32,7 @@ import static java.io.File.separator;
 public class ConsumeQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
-    //存储单元数量默认是20
+    //存储单元大小默认是20
     public static final int CQ_STORE_UNIT_SIZE = 20;
     private static final InternalLogger LOG_ERROR = InternalLoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
@@ -47,6 +47,7 @@ public class ConsumeQueue {
     private final int mappedFileSize;
     private long maxPhysicOffset = -1;
     private volatile long minLogicOffset = 0;
+    //消费队列扩展信息
     private ConsumeQueueExt consumeQueueExt = null;
 
     /**
@@ -397,11 +398,11 @@ public class ConsumeQueue {
     }
 
     /**
-     * 消费队列投递分发的请求
+     * 消费存储投递分发的请求到消费的队列中
      * @param req
      */
     public void putMessagePositionInfoWrapper(DispatchRequest req) {
-        final int maxRetries = 30;
+        final int maxRetries = 30; //最大投递重试的次数
         //是否可写
         boolean canWrite = this.defaultMessageStore.getRunningFlags().isCQWriteable();
         for (int i = 0; i < maxRetries && canWrite; i++) {
@@ -412,8 +413,9 @@ public class ConsumeQueue {
                 cqExtUnit.setMsgStoreTime(req.getStoreTimestamp()); //存储时间
                 cqExtUnit.setTagsCode(req.getTagsCode()); //tag码
 
+                //投递到扩展队列中
                 long extAddr = this.consumeQueueExt.put(cqExtUnit); //扩展信息的投递，返回地址
-                if (isExtAddr(extAddr)) {
+                if (isExtAddr(extAddr)) { //校验是扩展队列对应的地址还是消息的tag的hashcode
                     tagsCode = extAddr;
                 } else {
                     log.warn("Save consume queue extend fail, So just save tagsCode! {}, topic:{}, queueId:{}, offset:{}", cqExtUnit,
@@ -423,6 +425,7 @@ public class ConsumeQueue {
             //consumer进行投递
             boolean result = this.putMessagePositionInfo(req.getCommitLogOffset(), req.getMsgSize(), tagsCode, req.getConsumeQueueOffset());
             if (result) {
+                //成功后我们改写checkpoint进行操作
                 this.defaultMessageStore.getStoreCheckpoint().setLogicsMsgTimestamp(req.getStoreTimestamp());
                 return;
             } else {
@@ -506,6 +509,11 @@ public class ConsumeQueue {
         return false;
     }
 
+    /**
+     * 填充空白
+     * @param mappedFile
+     * @param untilWhere
+     */
     private void fillPreBlank(final MappedFile mappedFile, final long untilWhere) {
         ByteBuffer byteBuffer = ByteBuffer.allocate(CQ_STORE_UNIT_SIZE);
         byteBuffer.putLong(0L);

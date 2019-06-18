@@ -195,23 +195,24 @@ public class ConsumeQueueExt {
      * @return success: < 0: fail: >=0
      */
     public long put(final CqExtUnit cqExtUnit) {
-        final int retryTimes = 3;
+        final int retryTimes = 3; //重试次数3
         try {
-            int size = cqExtUnit.calcUnitSize();
-            if (size > CqExtUnit.MAX_EXT_UNIT_SIZE) {
+            int size = cqExtUnit.calcUnitSize(); //计算大小
+            if (size > CqExtUnit.MAX_EXT_UNIT_SIZE) {//32767
                 log.error("Size of cq ext unit is greater than {}, {}", CqExtUnit.MAX_EXT_UNIT_SIZE, cqExtUnit);
                 return 1;
             }
-            if (this.mappedFileQueue.getMaxOffset() + size > MAX_REAL_OFFSET) {
+            if (this.mappedFileQueue.getMaxOffset() + size > MAX_REAL_OFFSET) { //大小超过
                 log.warn("Capacity of ext is maximum!{}, {}", this.mappedFileQueue.getMaxOffset(), size);
                 return 1;
             }
             // unit size maybe change.but, the same most of the time.
+            // 单位大小可能会改变。但是，大部分时间都是这样。
             if (this.tempContainer == null || this.tempContainer.capacity() < size) {
                 this.tempContainer = ByteBuffer.allocate(size);
             }
 
-            for (int i = 0; i < retryTimes; i++) {
+            for (int i = 0; i < retryTimes; i++) { //重试次数
                 MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
 
                 if (mappedFile == null || mappedFile.isFull()) {
@@ -222,14 +223,13 @@ public class ConsumeQueueExt {
                     log.error("Create mapped file when save consume queue extend, {}", cqExtUnit);
                     continue;
                 }
-                final int wrotePosition = mappedFile.getWrotePosition();
+                final int wrotePosition = mappedFile.getWrotePosition(); //写的位置
                 final int blankSize = this.mappedFileSize - wrotePosition - END_BLANK_DATA_LENGTH;
 
                 // check whether has enough space.
                 if (size > blankSize) {
                     fullFillToEnd(mappedFile, wrotePosition);
-                    log.info("No enough space(need:{}, has:{}) of file {}, so fill to end",
-                        size, blankSize, mappedFile.getFileName());
+                    log.info("No enough space(need:{}, has:{}) of file {}, so fill to end", size, blankSize, mappedFile.getFileName());
                     continue;
                 }
 
@@ -244,6 +244,11 @@ public class ConsumeQueueExt {
         return 1;
     }
 
+    /**
+     * 完全填充到结尾
+     * @param mappedFile
+     * @param wrotePosition
+     */
     protected void fullFillToEnd(final MappedFile mappedFile, final int wrotePosition) {
         ByteBuffer mappedFileBuffer = mappedFile.sliceByteBuffer();
         mappedFileBuffer.position(wrotePosition);

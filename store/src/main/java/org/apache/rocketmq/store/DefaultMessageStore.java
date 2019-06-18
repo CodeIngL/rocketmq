@@ -606,10 +606,10 @@ public class DefaultMessageStore implements MessageStore {
         final long maxOffsetPy = this.commitLog.getMaxOffset();
 
         //找到对应的消费队列
-        ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
-        if (consumeQueue != null) {
-            minOffset = consumeQueue.getMinOffsetInQueue();//消费队列维持的最小offset
-            maxOffset = consumeQueue.getMaxOffsetInQueue();//消费队列维持的最大offset
+        ConsumeQueue cq = findConsumeQueue(topic, queueId);
+        if (cq != null) {
+            minOffset = cq.getMinOffsetInQueue();//消费队列维持的最小offset
+            maxOffset = cq.getMaxOffsetInQueue();//消费队列维持的最大offset
 
             if (maxOffset == 0) { //消费队列没有消息
                 status = NO_MESSAGE_IN_QUEUE;
@@ -629,7 +629,7 @@ public class DefaultMessageStore implements MessageStore {
                 }
             } else {
                 //获得offset对应的映射buffer
-                SelectMappedBufferResult bufferConsumeQueue = consumeQueue.getIndexBuffer(offset);
+                SelectMappedBufferResult bufferConsumeQueue = cq.getIndexBuffer(offset);
                 if (bufferConsumeQueue != null) { //index索引存在相关
                     try {
                         status = NO_MATCHED_MESSAGE;
@@ -666,8 +666,8 @@ public class DefaultMessageStore implements MessageStore {
                             }
 
                             boolean extRet = false, isTagsCodeLegal = true;
-                            if (consumeQueue.isExtAddr(tagsCode)) { //是的地址
-                                extRet = consumeQueue.getExt(tagsCode, cqExtUnit);
+                            if (cq.isExtAddr(tagsCode)) { //是的地址
+                                extRet = cq.getExt(tagsCode, cqExtUnit);
                                 if (extRet) { //是，使用扩展中保存的code
                                     tagsCode = cqExtUnit.getTagsCode();
                                 } else {
@@ -728,7 +728,7 @@ public class DefaultMessageStore implements MessageStore {
                     }
                 } else {
                     status = OFFSET_FOUND_NULL;
-                    nextBeginOffset = nextOffsetCorrection(offset, consumeQueue.rollNextFile(offset));
+                    nextBeginOffset = nextOffsetCorrection(offset, cq.rollNextFile(offset));
                     log.warn("consumer request topic: " + topic + "offset: " + offset + " minOffset: " + minOffset + " maxOffset: " + maxOffset + ", but access logic queue failed.");
                 }
             }

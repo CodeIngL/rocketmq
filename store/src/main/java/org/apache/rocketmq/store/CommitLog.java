@@ -608,7 +608,7 @@ public class CommitLog {
     }
 
     /**
-     * 存储投递过来的消息
+     * 存储投递过来的消息,单条存储，支持任何消息，而批量存储是支持相关的一些特别的消息
      *
      * @param msg
      * @return
@@ -696,6 +696,7 @@ public class CommitLog {
                         beginTimeInLock = 0;
                         return new PutMessageResult(CREATE_MAPEDFILE_FAILED, result);
                     }
+                    //再尝试一下
                     result = mappedFile.appendMessage(msg, this.appendMessageCallback);
                     break;
                 case MESSAGE_SIZE_EXCEEDED://文件大小或者属性超出
@@ -765,10 +766,10 @@ public class CommitLog {
             }
         }
         else {
-            if (!storeConfig.isTransientStorePoolEnable()) { //异步刷盘
+            if (!storeConfig.isTransientStorePoolEnable()) { //异步刷盘，并且不支持内部内存缓冲
                 flushCommitLogService.wakeup(); //唤醒，让后台线程赶紧处理
             } else {
-                commitLogService.wakeup(); //唤醒，让后台线程赶紧处理
+                commitLogService.wakeup(); //启用了内部缓冲，我们唤醒，让后台线程赶紧处理
             }
         }
     }
@@ -782,9 +783,9 @@ public class CommitLog {
      */
     public void handleHA(AppendMessageResult result, PutMessageResult putMessageResult, MessageExt messageExt) {
         if (BrokerRole.SYNC_MASTER == this.defaultMessageStore.getMessageStoreConfig().getBrokerRole()) { //同步master
-            HAService service = this.defaultMessageStore.getHaService();
+            HAService service = this.defaultMessageStore.getHaService(); //获得高可用
             if (messageExt.isWaitStoreMsgOK()) { //等待写入成功
-                // Determine whether to wait
+                // Determine whether to wait //决定是否等待
                 if (service.isSlaveOK(result.getWroteOffset() + result.getWroteBytes())) {
                     GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                     service.putRequest(request);
@@ -796,7 +797,7 @@ public class CommitLog {
                         putMessageResult.setPutMessageStatus(PutMessageStatus.FLUSH_SLAVE_TIMEOUT);
                     }
                 }
-                // Slave problem
+                // Slave problem 备机问题
                 else {
                     // Tell the producer, slave not available
                     putMessageResult.setPutMessageStatus(PutMessageStatus.SLAVE_NOT_AVAILABLE); //slave是不可用的
@@ -806,7 +807,13 @@ public class CommitLog {
 
     }
 
+    /**
+     * 批量投递消息
+     * @param messageExtBatch
+     * @return
+     */
     public PutMessageResult putMessages(final MessageExtBatch messageExtBatch) {
+        //设置存储时间戳
         messageExtBatch.setStoreTimestamp(System.currentTimeMillis());
         AppendMessageResult result;
 
@@ -814,10 +821,10 @@ public class CommitLog {
 
         final int tranType = MessageSysFlag.getTransactionValue(messageExtBatch.getSysFlag());
 
-        if (tranType != TRANSACTION_NOT_TYPE) {
+        if (tranType != TRANSACTION_NOT_TYPE) { //批量消息不支持事务
             return new PutMessageResult(MESSAGE_ILLEGAL);
         }
-        if (messageExtBatch.getDelayTimeLevel() > 0) {
+        if (messageExtBatch.getDelayTimeLevel() > 0) { //批量消息不支持延迟消息
             return new PutMessageResult(MESSAGE_ILLEGAL);
         }
 
@@ -826,6 +833,7 @@ public class CommitLog {
         MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
 
         //fine-grained lock instead of the coarse-grained
+        //细粒度锁而不是粗粒度
         MessageExtBatchEncoder batchEncoder = batchEncoderThreadLocal.get();
 
         messageExtBatch.setEncodedBuff(batchEncoder.encode(messageExtBatch));
@@ -1319,11 +1327,13 @@ public class CommitLog {
     class DefaultAppendMessageCallback implements AppendMessageCallback {
         // File at the end of the minimum fixed length empty
         private static final int END_FILE_MIN_BLANK_LENGTH = 4 + 4;
+        // 存储消息id
         private final ByteBuffer msgIdMemory;
         // Store the message content
         // 存储消息内容
         private final ByteBuffer msgStoreItemMemory;
         // The maximum length of the message
+        // 消息的最大值
         private final int maxMessageSize;
         // Build Message Key
         private final StringBuilder keyBuilder = new StringBuilder();
@@ -1367,7 +1377,7 @@ public class CommitLog {
             String msgId = createMessageId(this.msgIdMemory, msgInner.getStoreHostBytes(hostHolder), wroteOffset);
 
             // 记录对应的ConsumeQueue信息 Record ConsumeQueue information
-            // topic-queueid
+            // topic-queueId
             keyBuilder.setLength(0);
             String key = keyBuilder.append(msgInner.getTopic()).append('-').append(msgInner.getQueueId()).toString();
             //获得queue文件的偏移量
@@ -1433,15 +1443,15 @@ public class CommitLog {
                 this.msgStoreItemMemory.putInt(CommitLog.BLANK_MAGIC_CODE);
                 // 3 The remaining space may be any value Here the length of the specially set maxBlank
                 final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
-                byteBuffer.put(this.msgStoreItemMemory.array(), 0, maxBlank);
+                byteBuffer.put(this.msgStoreItemMemory.array(), 0, maxBlank);// 剩余空间可以是任何值。这里是特别设置的maxBlank的长度
                 return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset, maxBlank, msgId,
                         msgInner.getStoreTimestamp(), queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
             }
 
             // Initialization of storage space
-            // 初始化存储空间
+            // 初始化存储消息的空间
             this.resetByteBuffer(msgStoreItemMemory, msgLen);
-            // 1 TOTALSIZE，totalsize
+            // 1 TOTALSIZE，totalSize
             this.msgStoreItemMemory.putInt(msgLen);
             // 2 MAGICCODE，魔数
             this.msgStoreItemMemory.putInt(CommitLog.MESSAGE_MAGIC_CODE);
@@ -1453,18 +1463,18 @@ public class CommitLog {
             this.msgStoreItemMemory.putInt(msgInner.getFlag());
             // 6 QUEUEOFFSET，queue的offset
             this.msgStoreItemMemory.putLong(queueOffset);
-            // 7 PHYSICALOFFSET，无论的存储路径
+            // 7 PHYSICALOFFSET，物理的存储路径
             this.msgStoreItemMemory.putLong(fileFromOffset + byteBuffer.position());
             // 8 SYSFLAG，sys标记
             this.msgStoreItemMemory.putInt(msgInner.getSysFlag());
             // 9 BORNTIMESTAMP，生成时间
             this.msgStoreItemMemory.putLong(msgInner.getBornTimestamp());
-            // 10 BORNHOST，生成主机地址
+            // 10 BORNHOST，生成消息的来源主机地址
             this.resetByteBuffer(hostHolder, 8);
             this.msgStoreItemMemory.put(msgInner.getBornHostBytes(hostHolder));
             // 11 STORETIMESTAMP，存储的时间
             this.msgStoreItemMemory.putLong(msgInner.getStoreTimestamp());
-            // 12 STOREHOSTADDRESS，存储的主机地址
+            // 12 STOREHOSTADDRESS，存储的broker主机地址
             this.resetByteBuffer(hostHolder, 8);
             this.msgStoreItemMemory.put(msgInner.getStoreHostBytes(hostHolder));
             //this.msgBatchMemory.put(msgInner.getStoreHostBytes());
