@@ -161,11 +161,14 @@ class LocalMessageCache implements ServiceLifecycle {
         ThreadUtils.shutdownGracefully(cleanExpireMsgExecutors, 5000, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 清除过期的消息
+     */
     private void cleanExpireMsg() {
         for (final Map.Entry<MessageQueue, ProcessQueue> next : rocketmqPullConsumer.getDefaultMQPullConsumerImpl()
-            .getRebalanceImpl().getProcessQueueTable().entrySet()) {
-            ProcessQueue pq = next.getValue();
-            MessageQueue mq = next.getKey();
+                .getRebalanceImpl().getProcessQueueTable().entrySet()) {
+            ProcessQueue pq = next.getValue(); //快照
+            MessageQueue mq = next.getKey(); //消息队列
             ReadWriteLock lockTreeMap = getLockInProcessQueue(pq);
             if (lockTreeMap == null) {
                 log.error("Gets tree map lock in process queue error, may be has compatibility issue");
@@ -174,7 +177,7 @@ class LocalMessageCache implements ServiceLifecycle {
 
             TreeMap<Long, MessageExt> msgTreeMap = pq.getMsgTreeMap();
 
-            int loop = msgTreeMap.size();
+            int loop = msgTreeMap.size(); //循环
             for (int i = 0; i < loop; i++) {
                 MessageExt msg = null;
                 try {
@@ -182,13 +185,15 @@ class LocalMessageCache implements ServiceLifecycle {
                     try {
                         if (!msgTreeMap.isEmpty()) {
                             msg = msgTreeMap.firstEntry().getValue();
-                            if (System.currentTimeMillis() - Long.parseLong(MessageAccessor.getConsumeStartTimeStamp(msg))
-                                > clientConfig.getRmqMessageConsumeTimeout() * 60 * 1000) {
+                            //消息重试的时间已经超过默认15分钟，
+                            if (System.currentTimeMillis() - Long.parseLong(MessageAccessor.getConsumeStartTimeStamp(msg)) > clientConfig.getRmqMessageConsumeTimeout() * 60 * 1000) {
                                 //Expired, ack and remove it.
+                                //过期，ack并删除它
                             } else {
                                 break;
                             }
                         } else {
+                            //空的不用操作，
                             break;
                         }
                     } finally {

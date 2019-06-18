@@ -33,6 +33,9 @@ import org.apache.rocketmq.client.producer.SendStatus;
 
 import static io.openmessaging.rocketmq.utils.OMSUtil.msgConvert;
 
+/**
+ * 发送的实现
+ */
 public class ProducerImpl extends AbstractOMSProducer implements Producer {
 
     public ProducerImpl(final KeyValue properties) {
@@ -61,6 +64,12 @@ public class ProducerImpl extends AbstractOMSProducer implements Producer {
         return null;
     }
 
+    /**
+     * 发送消息
+     * @param message 消息
+     * @param timeout 超时时间
+     * @return
+     */
     private SendResult send(final Message message, long timeout) {
         checkMessageType(message);
         org.apache.rocketmq.common.message.Message rmqMessage = msgConvert((BytesMessage) message);
