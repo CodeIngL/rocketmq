@@ -64,8 +64,16 @@ public class FilterAPI {
         return subscriptionData;
     }
 
+    /**
+     * 构建订阅的数据
+     * @param topic
+     * @param subString
+     * @param type
+     * @return
+     * @throws Exception
+     */
     public static SubscriptionData build(final String topic, final String subString, final String type) throws Exception {
-        if (ExpressionType.TAG.equals(type) || type == null) {
+        if (ExpressionType.TAG.equals(type) || type == null) { //有tag 或者type不存在
             return buildSubscriptionData(null, topic, subString);
         }
 
