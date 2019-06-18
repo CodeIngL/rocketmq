@@ -279,6 +279,9 @@ public class HAService {
             this.requestsRead = tmp;
         }
 
+        /**
+         * 等待传输
+         */
         private void doWaitTransfer() {
             synchronized (this.requestsRead) {
                 if (!this.requestsRead.isEmpty()) {
