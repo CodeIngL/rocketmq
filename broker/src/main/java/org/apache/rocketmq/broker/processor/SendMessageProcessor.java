@@ -191,8 +191,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             maxReconsumeTimes = reqHeader.getMaxReconsumeTimes();
         }
 
-        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes
-            || delayLevel < 0) {
+        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes || delayLevel < 0) {
             newTopic = MixAll.getDLQTopic(reqHeader.getGroup());
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
 

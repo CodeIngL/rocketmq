@@ -122,6 +122,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         log.debug("receive PullMessage request command, {}", req);
 
+        //校验不通过返回
         if (checkBrokerPermission(resp)) return resp;
 
         //消费组概念
@@ -156,7 +157,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         if (hasSubscriptionFlag) { //存在订阅标记
             try {
                 subscriptionData = build(topic, subscription, expressionType);
-                if (!isTagType(subscriptionData.getExpressionType())) {
+                if (!isTagType(subscriptionData.getExpressionType())) { //是sql92类型的
                     consumerFilterData = ConsumerFilterManager.build(topic, consumerGroup, subscription, expressionType, subVersion);
                     assert consumerFilterData != null;
                 }
@@ -445,8 +446,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         boolean storeOffsetEnable = brokerAllowSuspend;
         storeOffsetEnable = storeOffsetEnable && hasCommitOffsetFlag;
-        storeOffsetEnable = storeOffsetEnable
-            && this.brokerController.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE;
+        storeOffsetEnable = storeOffsetEnable && this.brokerController.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE;
         if (storeOffsetEnable) {
             this.brokerController.getConsumerOffsetManager().commitOffset(parseChannelRemoteAddr(channel),
                 consumerGroup, topic, queueId, reqHeader.getCommitOffset());

@@ -164,24 +164,20 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
         if (msgExt != null) {
             final String pgroupRead = msgExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP);
             if (!pgroupRead.equals(requestHeader.getProducerGroup())) {
-                response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("The producer group wrong");
                 return response;
             }
 
             if (msgExt.getQueueOffset() != requestHeader.getTranStateTableOffset()) {
-                response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("The transaction state table offset wrong");
                 return response;
             }
 
             if (msgExt.getCommitLogOffset() != requestHeader.getCommitLogOffset()) {
-                response.setCode(ResponseCode.SYSTEM_ERROR);
                 response.setRemark("The commit log offset wrong");
                 return response;
             }
         } else {
-            response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("Find prepared transaction message failed");
             return response;
         }
@@ -214,6 +210,11 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
         return msgInner;
     }
 
+    /**
+     * 发送最终的消息，结束事务后，将真正的消息进行投递
+     * @param msgInner
+     * @return
+     */
     private RemotingCommand sendFinalMessage(MessageExtBrokerInner msgInner) {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
         final PutMessageResult putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
@@ -242,21 +243,17 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
                     response.setRemark("Service not available now.");
                     break;
                 case OS_PAGECACHE_BUSY:
-                    response.setCode(ResponseCode.SYSTEM_ERROR);
                     response.setRemark("OS page cache busy, please try another machine");
                     break;
                 case UNKNOWN_ERROR:
-                    response.setCode(ResponseCode.SYSTEM_ERROR);
                     response.setRemark("UNKNOWN_ERROR");
                     break;
                 default:
-                    response.setCode(ResponseCode.SYSTEM_ERROR);
                     response.setRemark("UNKNOWN_ERROR DEFAULT");
                     break;
             }
             return response;
         } else {
-            response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("store putMessage return null");
         }
         return response;
