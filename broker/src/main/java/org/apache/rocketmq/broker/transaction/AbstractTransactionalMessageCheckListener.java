@@ -31,6 +31,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.rocketmq.common.message.MessageConst.*;
+
 public abstract class AbstractTransactionalMessageCheckListener {
     private static final InternalLogger LOGGER = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
@@ -52,34 +54,36 @@ public abstract class AbstractTransactionalMessageCheckListener {
         this.brokerController = brokerController;
     }
 
-    public void sendCheckMessage(MessageExt msgExt) throws Exception {
-        CheckTransactionStateRequestHeader checkTransactionStateRequestHeader = new CheckTransactionStateRequestHeader();
-        checkTransactionStateRequestHeader.setCommitLogOffset(msgExt.getCommitLogOffset());
-        checkTransactionStateRequestHeader.setOffsetMsgId(msgExt.getMsgId());
-        checkTransactionStateRequestHeader.setMsgId(msgExt.getUserProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
-        checkTransactionStateRequestHeader.setTransactionId(checkTransactionStateRequestHeader.getMsgId());
-        checkTransactionStateRequestHeader.setTranStateTableOffset(msgExt.getQueueOffset());
-        msgExt.setTopic(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_TOPIC));
-        msgExt.setQueueId(Integer.parseInt(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_QUEUE_ID)));
-        msgExt.setStoreSize(0);
-        String groupId = msgExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP);
+    /**
+     * 发送check消息返回客户端，也就是回查客户端的逻辑
+     * @param msg
+     * @throws Exception
+     */
+    public void sendCheckMessage(MessageExt msg) throws Exception {
+        CheckTransactionStateRequestHeader reqHeader = new CheckTransactionStateRequestHeader();
+        reqHeader.setCommitLogOffset(msg.getCommitLogOffset());
+        reqHeader.setOffsetMsgId(msg.getMsgId());
+        reqHeader.setMsgId(msg.getUserProperty(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
+        reqHeader.setTransactionId(reqHeader.getMsgId());
+        reqHeader.setTranStateTableOffset(msg.getQueueOffset());
+        msg.setTopic(msg.getUserProperty(PROPERTY_REAL_TOPIC));
+        msg.setQueueId(Integer.parseInt(msg.getUserProperty(PROPERTY_REAL_QUEUE_ID)));
+        msg.setStoreSize(0);
+        String groupId = msg.getProperty(PROPERTY_PRODUCER_GROUP);
         Channel channel = brokerController.getProducerManager().getAvaliableChannel(groupId);
         if (channel != null) {
-            brokerController.getBroker2Client().checkProducerTransactionState(groupId, channel, checkTransactionStateRequestHeader, msgExt);
+            brokerController.getBroker2Client().checkProducerTransactionState(groupId, channel, reqHeader, msg);
         } else {
             LOGGER.warn("Check transaction failed, channel is null. groupId={}", groupId);
         }
     }
 
     public void resolveHalfMsg(final MessageExt msgExt) {
-        executorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    sendCheckMessage(msgExt);
-                } catch (Exception e) {
-                    LOGGER.error("Send check message error!", e);
-                }
+        executorService.execute(() -> {
+            try {
+                sendCheckMessage(msgExt);
+            } catch (Exception e) {
+                LOGGER.error("Send check message error!", e);
             }
         });
     }
@@ -104,6 +108,12 @@ public abstract class AbstractTransactionalMessageCheckListener {
     /**
      * In order to avoid check back unlimited, we will discard the message that have been checked more than a certain
      * number of times.
+     * <p>
+     *     为了避免无限制地检查，我们将丢弃已经检查超过一定次数的消息。
+     * </p>
+     * <p>
+     *     我们进行通知，这个消息明确被我们要丢弃了
+     * </p>
      *
      * @param msgExt Message to be discarded.
      */

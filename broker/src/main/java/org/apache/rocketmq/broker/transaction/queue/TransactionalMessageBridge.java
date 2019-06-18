@@ -71,8 +71,11 @@ public class TransactionalMessageBridge {
 
     private static final InternalLogger LOGGER = InnerLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
 
+    //op队列映射
     private final ConcurrentHashMap<MessageQueue, MessageQueue> opQueueMap = new ConcurrentHashMap<>();
+    //broker
     private final BrokerController brokerController;
+    //消息存储
     private final MessageStore store;
     private final SocketAddress storeHost;
 
@@ -80,8 +83,7 @@ public class TransactionalMessageBridge {
         try {
             this.brokerController = brokerController;
             this.store = store;
-            this.storeHost =
-                new InetSocketAddress(brokerController.getBrokerConfig().getBrokerIP1(),
+            this.storeHost = new InetSocketAddress(brokerController.getBrokerConfig().getBrokerIP1(),
                     brokerController.getNettyServerConfig().getListenPort());
         } catch (Exception e) {
             LOGGER.error("Init TransactionBridge error", e);
@@ -96,9 +98,11 @@ public class TransactionalMessageBridge {
      * @return
      */
     public long fetchConsumeOffset(MessageQueue mq) {
-        long offset = brokerController.getConsumerOffsetManager().queryOffset(buildConsumerGroup(), mq.getTopic(), mq.getQueueId());
+        String topic = mq.getTopic();
+        int queueId = mq.getQueueId();
+        long offset = brokerController.getConsumerOffsetManager().queryOffset(buildConsumerGroup(), topic, queueId);
         if (offset == -1) {
-            offset = store.getMinOffsetInQueue(mq.getTopic(), mq.getQueueId()); //最小的offset
+            offset = store.getMinOffsetInQueue(topic, queueId); //最小的offset
         }
         return offset;
     }
@@ -281,7 +285,7 @@ public class TransactionalMessageBridge {
 
     public MessageExtBrokerInner renewImmunityHalfMessageInner(MessageExt msgExt) {
         MessageExtBrokerInner msgInner = renewHalfMessageInner(msgExt);
-        String queueOffsetFromPrepare = msgExt.getUserProperty(PROPERTY_TRANSACTION_PREPARED_QUEUE_OFFSET);
+        String queueOffsetFromPrepare = msgExt.getUserProperty(PROPERTY_TRANSACTION_PREPARED_QUEUE_OFFSET); //设置offset
         if (null != queueOffsetFromPrepare) {
             putProperty(msgInner, PROPERTY_TRANSACTION_PREPARED_QUEUE_OFFSET, valueOf(queueOffsetFromPrepare));
         } else {
@@ -336,12 +340,12 @@ public class TransactionalMessageBridge {
     }
 
     private TopicConfig selectTopicConfig(String topic) {
-        TopicConfig topicConfig = brokerController.getTopicConfigManager().selectTopicConfig(topic);
-        if (topicConfig == null) {
-            topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
+        TopicConfig config = brokerController.getTopicConfigManager().selectTopicConfig(topic);
+        if (config == null) {
+            config = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
                 topic, 1, PermName.PERM_WRITE | PermName.PERM_READ, 0);
         }
-        return topicConfig;
+        return config;
     }
 
     /**

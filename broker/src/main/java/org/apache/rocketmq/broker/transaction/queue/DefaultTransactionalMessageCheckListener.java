@@ -30,6 +30,10 @@ public class DefaultTransactionalMessageCheckListener extends AbstractTransactio
         super();
     }
 
+    /**
+     * 消息被丢弃了，在存储中丢弃是非常简单的，我们不需要去做额外的事情，而仅仅是通过记录一些日志就可以了
+     * @param msgExt Message to be discarded.
+     */
     @Override
     public void resolveDiscardMsg(MessageExt msgExt) {
         log.error("MsgExt:{} has been checked too many times, so discard it", msgExt);

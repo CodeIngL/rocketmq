@@ -23,7 +23,7 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
 /**
- * 事务消息检查服务
+ * 事务消息检查服务,我们定时的检查特殊的消息队列，来确定是否有特殊的事务消息没有处理，或者已经被处理。
  */
 public class TransactionalMessageCheckService extends ServiceThread {
 
@@ -63,7 +63,7 @@ public class TransactionalMessageCheckService extends ServiceThread {
         long begin = System.currentTimeMillis();
         //回查prepare消息
         log.info("Begin to check prepare message, begin time:{}", begin);
-        this.brokerController.getTransactionalMessageService().check(timeout, checkMax, this.brokerController.getTransactionalMessageCheckListener());
+        brokerController.getTransactionalMessageService().check(timeout, checkMax, this.brokerController.getTransactionalMessageCheckListener());
         log.info("End to check prepare message, consumed time:{}", System.currentTimeMillis() - begin);
     }
 
