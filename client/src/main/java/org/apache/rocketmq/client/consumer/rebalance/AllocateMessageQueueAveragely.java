@@ -51,7 +51,7 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
             return result;
         }
 
-        int index = cidAll.indexOf(currentCID);
+        int index = cidAll.indexOf(currentCID); //当前id在列表中的位置
         int mod = mqAll.size() % cidAll.size();
         int averageSize =
             mqAll.size() <= cidAll.size() ? 1 : (mod > 0 && index < mod ? mqAll.size() / cidAll.size()
