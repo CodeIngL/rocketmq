@@ -20,21 +20,32 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * indexFile 前40个字节存储
+ */
 public class IndexHeader {
     public static final int INDEX_HEADER_SIZE = 40;
+    //开始时间
     private static int beginTimestampIndex = 0;
+    //结束时间
     private static int endTimestampIndex = 8;
+    //开始的物理位移
     private static int beginPhyoffsetIndex = 16;
+    //当前的结束的物理位移
     private static int endPhyoffsetIndex = 24;
+    //hash槽的数量
     private static int hashSlotcountIndex = 32;
+    //index的数量
     private static int indexCountIndex = 36;
     private final ByteBuffer byteBuffer;
     private AtomicLong beginTimestamp = new AtomicLong(0);
     private AtomicLong endTimestamp = new AtomicLong(0);
     private AtomicLong beginPhyOffset = new AtomicLong(0);
     private AtomicLong endPhyOffset = new AtomicLong(0);
+    //hash槽的数量
     private AtomicInteger hashSlotCount = new AtomicInteger(0);
 
+    //索引的数量
     private AtomicInteger indexCount = new AtomicInteger(1);
 
     public IndexHeader(final ByteBuffer byteBuffer) {

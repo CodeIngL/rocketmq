@@ -179,12 +179,21 @@ public class IndexService {
         }
     }
 
+    /**
+     * 使用key进行查询
+     * @param topic
+     * @param key
+     * @param maxNum
+     * @param begin
+     * @param end
+     * @return
+     */
     public QueryOffsetResult queryOffset(String topic, String key, int maxNum, long begin, long end) {
-        List<Long> phyOffsets = new ArrayList<Long>(maxNum);
+        List<Long> phyOffsets = new ArrayList<>(maxNum);
 
         long indexLastUpdateTimestamp = 0;
         long indexLastUpdatePhyoffset = 0;
-        maxNum = Math.min(maxNum, this.defaultMessageStore.getMessageStoreConfig().getMaxMsgsNumBatch());
+        maxNum = Math.min(maxNum, this.defaultMessageStore.getMessageStoreConfig().getMaxMsgsNumBatch()); //一次查询最大量
         try {
             this.readWriteLock.readLock().lock();
             if (!this.indexFileList.isEmpty()) {
@@ -196,8 +205,7 @@ public class IndexService {
                         indexLastUpdatePhyoffset = f.getEndPhyOffset();
                     }
 
-                    if (f.isTimeMatched(begin, end)) {
-
+                    if (f.isTimeMatched(begin, end)) { //消息时间匹配
                         f.selectPhyOffset(phyOffsets, buildKey(topic, key), maxNum, begin, end, lastFile);
                     }
 
@@ -238,8 +246,8 @@ public class IndexService {
         long endPhyOffset = indexFile.getEndPhyOffset();
         //分发的请求
         DispatchRequest msg = req;
-        String topic = msg.getTopic();
-        String keys = msg.getKeys();
+        String topic = msg.getTopic();//topic
+        String keys = msg.getKeys(); //keys
         if (msg.getCommitLogOffset() < endPhyOffset) { //非法的状态，我们直接返回
             return;
         }
@@ -275,7 +283,7 @@ public class IndexService {
             }
             indexFile = putKey(indexFile, msg, buildKey(topic, key));
             if (indexFile == null) {
-                log.error("putKey error commitlog {} uniqkey {}", req.getCommitLogOffset(), req.getUniqKey());
+                log.error("putKey error commitlog {} uniqkey {} normal keys {} error key {}", req.getCommitLogOffset(), req.getUniqKey(), keys, key);
                 return;
             }
         }
@@ -289,8 +297,8 @@ public class IndexService {
      * @return
      */
     private IndexFile putKey(IndexFile indexFile, DispatchRequest msg, String idxKey) {
-        long offset = msg.getCommitLogOffset();
-        long timestamp = msg.getStoreTimestamp();
+        long offset = msg.getCommitLogOffset(); //消息offset
+        long timestamp = msg.getStoreTimestamp(); //消息存储时间
         for (boolean ok = indexFile.putKey(idxKey, offset, timestamp); !ok; ) {
             log.warn("Index file [" + indexFile.getFileName() + "] is full, trying to create another one");
             indexFile = retryGetAndCreateIndexFile();
