@@ -37,6 +37,9 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.common.protocol.RequestCode.GET_CONSUMER_LIST_BY_GROUP;
+import static org.apache.rocketmq.common.protocol.RequestCode.QUERY_CONSUMER_OFFSET;
+import static org.apache.rocketmq.common.protocol.RequestCode.UPDATE_CONSUMER_OFFSET;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
 
@@ -50,15 +53,14 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
     }
 
     @Override
-    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
-        throws RemotingCommandException {
-        switch (request.getCode()) {
-            case RequestCode.GET_CONSUMER_LIST_BY_GROUP:
-                return this.getConsumerListByGroup(ctx, request);
-            case RequestCode.UPDATE_CONSUMER_OFFSET:
-                return this.updateConsumerOffset(ctx, request);
-            case RequestCode.QUERY_CONSUMER_OFFSET:
-                return this.queryConsumerOffset(ctx, request);
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
+        switch (req.getCode()) {
+            case GET_CONSUMER_LIST_BY_GROUP:
+                return this.getConsumerListByGroup(ctx, req);
+            case UPDATE_CONSUMER_OFFSET:
+                return this.updateConsumerOffset(ctx, req);
+            case QUERY_CONSUMER_OFFSET:
+                return this.queryConsumerOffset(ctx, req);
             default:
                 break;
         }
@@ -70,38 +72,38 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         return false;
     }
 
-    public RemotingCommand getConsumerListByGroup(ChannelHandlerContext ctx, RemotingCommand request)
+    /**
+     * 获得对应的comsumerList
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
+    public RemotingCommand getConsumerListByGroup(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
-        final RemotingCommand response =
-            createResponseCommand(GetConsumerListByGroupResponseHeader.class);
-        final GetConsumerListByGroupRequestHeader requestHeader =
-            (GetConsumerListByGroupRequestHeader) request
-                .decodeCommandCustomHeader(GetConsumerListByGroupRequestHeader.class);
+        final RemotingCommand resp = createResponseCommand(GetConsumerListByGroupResponseHeader.class);
+        final GetConsumerListByGroupRequestHeader reqHeader = (GetConsumerListByGroupRequestHeader) req.decodeCommandCustomHeader(GetConsumerListByGroupRequestHeader.class);
 
-        ConsumerGroupInfo consumerGroupInfo =
-            this.brokerController.getConsumerManager().getConsumerGroupInfo(
-                requestHeader.getConsumerGroup());
-        if (consumerGroupInfo != null) {
-            List<String> clientIds = consumerGroupInfo.getAllClientId();
+        ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(reqHeader.getConsumerGroup());
+        if (consumerGroupInfo != null) { //存在相关信息
+            List<String> clientIds = consumerGroupInfo.getAllClientId(); //获得所有的clientId
             if (!clientIds.isEmpty()) {
                 GetConsumerListByGroupResponseBody body = new GetConsumerListByGroupResponseBody();
                 body.setConsumerIdList(clientIds);
-                response.setBody(body.encode());
-                response.setCode(ResponseCode.SUCCESS);
-                response.setRemark(null);
-                return response;
+                resp.setBody(body.encode());
+                resp.setCode(ResponseCode.SUCCESS);
+                resp.setRemark(null);
+                return resp;
             } else {
-                log.warn("getAllClientId failed, {} {}", requestHeader.getConsumerGroup(),
+                log.warn("getAllClientId failed, {} {}", reqHeader.getConsumerGroup(),
                     parseChannelRemoteAddr(ctx.channel()));
             }
         } else {
-            log.warn("getConsumerGroupInfo failed, {} {}", requestHeader.getConsumerGroup(),
+            log.warn("getConsumerGroupInfo failed, {} {}", reqHeader.getConsumerGroup(),
                 parseChannelRemoteAddr(ctx.channel()));
         }
-
-        response.setCode(ResponseCode.SYSTEM_ERROR);
-        response.setRemark("no consumer for this group, " + requestHeader.getConsumerGroup());
-        return response;
+        resp.setRemark("no consumer for this group, " + reqHeader.getConsumerGroup());
+        return resp;
     }
 
     /**

@@ -91,9 +91,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
     }
 
     @Override
-    public RemotingCommand processRequest(final ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
-        return this.processRequest(ctx.channel(), request, true);
+    public RemotingCommand processRequest(final ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
+        return this.processRequest(ctx.channel(), req, true);
     }
 
     @Override
@@ -156,8 +155,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         ConsumerFilterData consumerFilterData = null;
         if (hasSubscriptionFlag) { //存在订阅标记
             try {
-                subscriptionData = build(topic, subscription, expressionType);
-                if (!isTagType(subscriptionData.getExpressionType())) { //是sql92类型的
+                subscriptionData = build(topic, subscription, expressionType); //构建订阅的数据
+                if (!isTagType(subscriptionData.getExpressionType())) { //是sql92类型的，或者其他的类型
                     consumerFilterData = ConsumerFilterManager.build(topic, consumerGroup, subscription, expressionType, subVersion);
                     assert consumerFilterData != null;
                 }
@@ -217,7 +216,6 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         }
 
         if (!isTagType(subscriptionData.getExpressionType()) && !this.brokerController.getBrokerConfig().isEnablePropertyFilter()) {
-            resp.setCode(SYSTEM_ERROR);
             resp.setRemark("The broker does not support consumer to filter message by " + subscriptionData.getExpressionType());
             return resp;
         }
@@ -343,11 +341,9 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                         break;
                     case PULL_NOT_FOUND:
                         if (!brokerAllowSuspend) {
-
                             context.setCommercialRcvStats(RCV_EPOLLS);
                             context.setCommercialRcvTimes(1);
                             context.setCommercialOwner(owner);
-
                         }
                         break;
                     case PULL_RETRY_IMMEDIATELY:
@@ -440,7 +436,6 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                     assert false;
             }
         } else {
-            resp.setCode(SYSTEM_ERROR);
             resp.setRemark("store getMessage return null");
         }
 

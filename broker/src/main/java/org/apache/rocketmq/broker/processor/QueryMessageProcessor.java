@@ -52,13 +52,20 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
         this.brokerController = brokerController;
     }
 
+    /**
+     * 查询消息处理，支持消息id和消息key方式的查询
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
         throws RemotingCommandException {
         switch (request.getCode()) {
-            case RequestCode.QUERY_MESSAGE:
+            case RequestCode.QUERY_MESSAGE: //通过消息的key进行查找
                 return this.queryMessage(ctx, request);
-            case RequestCode.VIEW_MESSAGE_BY_ID:
+            case RequestCode.VIEW_MESSAGE_BY_ID: //通过消息id进行查询
                 return this.viewMessageById(ctx, request);
             default:
                 break;
@@ -75,92 +82,86 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
     /**
      * 主动的查询消息
      * @param ctx
-     * @param request
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
-    public RemotingCommand queryMessage(ChannelHandlerContext ctx, RemotingCommand request)
+    public RemotingCommand queryMessage(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
-        final RemotingCommand response =
-            createResponseCommand(QueryMessageResponseHeader.class);
-        final QueryMessageResponseHeader responseHeader =
-            (QueryMessageResponseHeader) response.readCustomHeader();
-        final QueryMessageRequestHeader requestHeader =
-            (QueryMessageRequestHeader) request
-                .decodeCommandCustomHeader(QueryMessageRequestHeader.class);
+        final RemotingCommand resp = createResponseCommand(QueryMessageResponseHeader.class);
+        final QueryMessageResponseHeader respHeader = (QueryMessageResponseHeader) resp.readCustomHeader();
+        final QueryMessageRequestHeader reqHeader = (QueryMessageRequestHeader) req.decodeCommandCustomHeader(QueryMessageRequestHeader.class);
 
-        response.setOpaque(request.getOpaque());
+        resp.setOpaque(req.getOpaque());
 
-        String isUniqueKey = request.getExtFields().get(MixAll.UNIQUE_MSG_QUERY_FLAG);
+        String isUniqueKey = req.getExtFields().get(MixAll.UNIQUE_MSG_QUERY_FLAG); //uniqueKey
         if (isUniqueKey != null && isUniqueKey.equals("true")) {
-            requestHeader.setMaxNum(this.brokerController.getMessageStoreConfig().getDefaultQueryMaxNum());
+            reqHeader.setMaxNum(this.brokerController.getMessageStoreConfig().getDefaultQueryMaxNum());
         }
 
         //构建查询结果，提供对消息存储的直接查询
-        final QueryMessageResult queryMessageResult =
-            this.brokerController.getMessageStore().queryMessage(requestHeader.getTopic(),
-                requestHeader.getKey(), requestHeader.getMaxNum(), requestHeader.getBeginTimestamp(),
-                requestHeader.getEndTimestamp());
-        assert queryMessageResult != null;
+        final QueryMessageResult queryResult = this.brokerController.getMessageStore().queryMessage(
+                reqHeader.getTopic(), reqHeader.getKey(), reqHeader.getMaxNum(), reqHeader.getBeginTimestamp(), reqHeader.getEndTimestamp());
+        assert queryResult != null;
 
-        responseHeader.setIndexLastUpdatePhyoffset(queryMessageResult.getIndexLastUpdatePhyoffset());
-        responseHeader.setIndexLastUpdateTimestamp(queryMessageResult.getIndexLastUpdateTimestamp());
+        respHeader.setIndexLastUpdatePhyoffset(queryResult.getIndexLastUpdatePhyoffset());
+        respHeader.setIndexLastUpdateTimestamp(queryResult.getIndexLastUpdateTimestamp());
 
-        if (queryMessageResult.getBufferTotalSize() > 0) {
-            response.setCode(ResponseCode.SUCCESS);
-            response.setRemark(null);
+        if (queryResult.getBufferTotalSize() > 0) {
+            resp.setCode(ResponseCode.SUCCESS);
+            resp.setRemark(null);
 
             try {
-                FileRegion fileRegion =
-                    new QueryMessageTransfer(response.encodeHeader(queryMessageResult
-                        .getBufferTotalSize()), queryMessageResult);
-                ctx.channel().writeAndFlush(fileRegion).addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        queryMessageResult.release();
-                        if (!future.isSuccess()) {
-                            log.error("transfer query message by page cache failed, ", future.cause());
-                        }
+                FileRegion fileRegion = new QueryMessageTransfer(resp.encodeHeader(queryResult.getBufferTotalSize()), queryResult);
+                ctx.channel().writeAndFlush(fileRegion).addListener((ChannelFutureListener) future -> {
+                    queryResult.release();
+                    if (!future.isSuccess()) {
+                        log.error("transfer query message by page cache failed, ", future.cause());
                     }
                 });
             } catch (Throwable e) {
                 log.error("", e);
-                queryMessageResult.release();
+                queryResult.release();
             }
 
             return null;
         }
 
-        response.setCode(ResponseCode.QUERY_NOT_FOUND);
-        response.setRemark("can not find message, maybe time range not correct");
-        return response;
+        resp.setCode(ResponseCode.QUERY_NOT_FOUND);
+        resp.setRemark("can not find message, maybe time range not correct");
+        return resp;
     }
 
-    public RemotingCommand viewMessageById(ChannelHandlerContext ctx, RemotingCommand request)
+    /**
+     * 通过消息id进行查询，
+     * 我们知道消息id存储了存储主机的broker和其offset
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
+    public RemotingCommand viewMessageById(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(null);
-        final ViewMessageRequestHeader requestHeader =
-            (ViewMessageRequestHeader) request.decodeCommandCustomHeader(ViewMessageRequestHeader.class);
+        final RemotingCommand resp = createResponseCommand(null);
+        final ViewMessageRequestHeader reqHeader =
+            (ViewMessageRequestHeader) req.decodeCommandCustomHeader(ViewMessageRequestHeader.class);
 
-        response.setOpaque(request.getOpaque());
+        resp.setOpaque(req.getOpaque());
 
-        final SelectMappedBufferResult selectMappedBufferResult =
-            this.brokerController.getMessageStore().selectOneMessageByOffset(requestHeader.getOffset());
+        //直接使用offset找到对应的缓冲区
+        final SelectMappedBufferResult selectMappedBufferResult = this.brokerController.getMessageStore().selectOneMessageByOffset(reqHeader.getOffset());
         if (selectMappedBufferResult != null) {
-            response.setCode(ResponseCode.SUCCESS);
-            response.setRemark(null);
+            resp.setCode(ResponseCode.SUCCESS);
+            resp.setRemark(null);
 
+            //直接使用FileRegion进行输出
             try {
                 FileRegion fileRegion =
-                    new OneMessageTransfer(response.encodeHeader(selectMappedBufferResult.getSize()),
-                        selectMappedBufferResult);
-                ctx.channel().writeAndFlush(fileRegion).addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        selectMappedBufferResult.release();
-                        if (!future.isSuccess()) {
-                            log.error("Transfer one message from page cache failed, ", future.cause());
-                        }
+                    new OneMessageTransfer(resp.encodeHeader(selectMappedBufferResult.getSize()), selectMappedBufferResult);
+                ctx.channel().writeAndFlush(fileRegion).addListener((ChannelFutureListener) future -> {
+                    selectMappedBufferResult.release();
+                    if (!future.isSuccess()) {
+                        log.error("Transfer one message from page cache failed, ", future.cause());
                     }
                 });
             } catch (Throwable e) {
@@ -170,10 +171,10 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
 
             return null;
         } else {
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark("can not find message by the offset, " + requestHeader.getOffset());
+            resp.setCode(ResponseCode.SYSTEM_ERROR);
+            resp.setRemark("can not find message by the offset, " + reqHeader.getOffset());
         }
 
-        return response;
+        return resp;
     }
 }
