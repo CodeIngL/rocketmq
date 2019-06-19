@@ -221,7 +221,8 @@ public abstract class RebalanceImpl {
 
 
     /**
-     * @param isOrder
+     * rebalanceImpl进行平衡
+     * @param isOrder 是否是顺序消费
      */
     public void doRebalance(final boolean isOrder) {
         //订阅的映射
@@ -252,31 +253,32 @@ public abstract class RebalanceImpl {
      * @param isOrder 是否有序
      */
     private void rebalanceByTopic(final String topic, final boolean isOrder) {
+        Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);//找到topic对应的消费队列
         switch (messageModel) {
-            case BROADCASTING: { //广播
-                Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
-                if (mqSet != null) {
-                    boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
-                    if (changed) {
-                        this.messageQueueChanged(topic, mqSet, mqSet);
-                        log.info("messageQueueChanged {} {} {} {}", consumerGroup, topic, mqSet, mqSet);
-                    }
-                } else {
+            case BROADCASTING: { //广播方式
+                if (mqSet == null){
                     log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
+                    return;
+                }
+                boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
+                if (changed) {
+                    this.messageQueueChanged(topic, mqSet, mqSet);
+                    log.info("messageQueueChanged {} {} {} {}", consumerGroup, topic, mqSet, mqSet);
                 }
                 break;
             }
-            case CLUSTERING: { //集群
-                Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic); //找到topic对应的消费队列
-                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup); //找到远程的consumerId
+            case CLUSTERING: { //集群方式
                 if (null == mqSet) {
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
                     }
+                    return;
                 }
 
+                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup); //找到远程的消费者的Id
                 if (null == cidAll) {
                     log.warn("doRebalance, {} {}, get consumer id list failed", consumerGroup, topic);
+                    return;
                 }
 
                 if (mqSet != null && cidAll != null) {
@@ -290,6 +292,9 @@ public abstract class RebalanceImpl {
 
                     List<MessageQueue> allocateResult = null;
                     try {
+                        /**
+                         * 分配策略
+                         */
                         allocateResult = strategy.allocate(this.consumerGroup, this.mQClientFactory.getClientId(), mqAll, cidAll); //分配结果
                     } catch (Throwable e) {
                         log.error("AllocateMessageQueueStrategy.allocate Exception. allocateMessageQueueStrategyName={}", strategy.getName(), e);
@@ -332,23 +337,23 @@ public abstract class RebalanceImpl {
 
     /**
      * 更新重平衡结果
-     * @param topic
-     * @param mqSet
-     * @param isOrder
+     * @param topic 主题
+     * @param mqSet 获得的消息队列
+     * @param isOrder 是否是顺序消费
      * @return
      */
     private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet, final boolean isOrder) {
         boolean changed = false;
 
         //消息队列和处理队列
-        Iterator<Entry<MessageQueue, ProcessQueue>> it = this.processQueueTable.entrySet().iterator(); //本地存储
+        Iterator<Entry<MessageQueue, ProcessQueue>> it = this.processQueueTable.entrySet().iterator(); //本地存储的副本
         while (it.hasNext()) {
             Entry<MessageQueue, ProcessQueue> next = it.next();
             MessageQueue mq = next.getKey();
             ProcessQueue pq = next.getValue();
 
             if (mq.getTopic().equals(topic)) {
-                if (!mqSet.contains(mq)) {
+                if (!mqSet.contains(mq)) { //重新的结果不包含副本存储的，需要标记这个删除
                     pq.setDropped(true);
                     if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                         it.remove();
@@ -425,6 +430,12 @@ public abstract class RebalanceImpl {
     public abstract void messageQueueChanged(final String topic, final Set<MessageQueue> mqAll,
         final Set<MessageQueue> mqDivided);
 
+    /**
+     * 是否移除不必要的消息队列
+     * @param mq
+     * @param pq
+     * @return
+     */
     public abstract boolean removeUnnecessaryMessageQueue(final MessageQueue mq, final ProcessQueue pq);
 
     public abstract ConsumeType consumeType();

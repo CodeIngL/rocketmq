@@ -54,6 +54,8 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.netty.ResponseFuture;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.common.message.MessageClientIDSetter.getNearlyTimeFromID;
+
 public class MQAdminImpl {
 
     private final InternalLogger log = ClientLogger.getLog();
@@ -240,8 +242,16 @@ public class MQAdminImpl {
         throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);
     }
 
-    public MessageExt viewMessage(
-        String msgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
+    /**
+     * 通过消息id查找相关的消息
+     * @param msgId
+     * @return
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     * @throws MQClientException
+     */
+    public MessageExt viewMessage(String msgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
 
         MessageId messageId = null;
         try {
@@ -253,17 +263,12 @@ public class MQAdminImpl {
             messageId.getOffset(), timeoutMillis);
     }
 
-    public QueryResult queryMessage(String topic, String key, int maxNum, long begin,
-        long end) throws MQClientException,
-        InterruptedException {
+    public QueryResult queryMessage(String topic, String key, int maxNum, long begin, long end) throws MQClientException, InterruptedException {
         return queryMessage(topic, key, maxNum, begin, end, false);
     }
 
-    public MessageExt queryMessageByUniqKey(String topic,
-        String uniqKey) throws InterruptedException, MQClientException {
-
-        QueryResult qr = this.queryMessage(topic, uniqKey, 32,
-            MessageClientIDSetter.getNearlyTimeFromID(uniqKey).getTime() - 1000, Long.MAX_VALUE, true);
+    public MessageExt queryMessageByUniqKey(String topic, String uniqKey) throws InterruptedException, MQClientException {
+        QueryResult qr = this.queryMessage(topic, uniqKey, 32, getNearlyTimeFromID(uniqKey).getTime() - 1000, Long.MAX_VALUE, true);
         if (qr != null && qr.getMessageList() != null && qr.getMessageList().size() > 0) {
             return qr.getMessageList().get(0);
         } else {
@@ -271,9 +276,7 @@ public class MQAdminImpl {
         }
     }
 
-    protected QueryResult queryMessage(String topic, String key, int maxNum, long begin, long end,
-        boolean isUniqKey) throws MQClientException,
-        InterruptedException {
+    protected QueryResult queryMessage(String topic, String key, int maxNum, long begin, long end, boolean isUniqKey) throws MQClientException, InterruptedException {
         TopicRouteData topicRouteData = this.mQClientFactory.getAnExistTopicRouteData(topic);
         if (null == topicRouteData) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic);
@@ -304,9 +307,7 @@ public class MQAdminImpl {
                         requestHeader.setEndTimestamp(end);
 
                         this.mQClientFactory.getMQClientAPIImpl().queryMessage(addr, requestHeader, timeoutMillis * 3,
-                            new InvokeCallback() {
-                                @Override
-                                public void operationComplete(ResponseFuture responseFuture) {
+                                responseFuture -> {
                                     try {
                                         RemotingCommand response = responseFuture.getResponseCommand();
                                         if (response != null) {
@@ -344,8 +345,7 @@ public class MQAdminImpl {
                                     } finally {
                                         countDownLatch.countDown();
                                     }
-                                }
-                            }, isUniqKey);
+                                }, isUniqKey);
                     } catch (Exception e) {
                         log.warn("queryMessage exception", e);
                     }

@@ -529,6 +529,11 @@ public class MQClientInstance {
         }
     }
 
+    /***
+     * 从nameServer中跟新相关的路由
+     * @param topic
+     * @return
+     */
     public boolean updateTopicRouteInfoFromNameServer(final String topic) {
         return updateTopicRouteInfoFromNameServer(topic, false, null);
     }
@@ -638,9 +643,8 @@ public class MQClientInstance {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
-                    if (isDefault && defaultMQProducer != null) {
-                        topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
-                            1000 * 3);
+                    if (isDefault && defaultMQProducer != null) { //存在后面的两个选项
+                        topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(), 1000 * 3);
                         if (topicRouteData != null) {
                             for (QueueData data : topicRouteData.getQueueDatas()) {
                                 int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums());
@@ -651,50 +655,52 @@ public class MQClientInstance {
                     } else {
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 3);
                     }
-                    if (topicRouteData != null) {
-                        TopicRouteData old = this.topicRouteTable.get(topic);
-                        boolean changed = topicRouteDataIsChange(old, topicRouteData);
+                    if (topicRouteData != null) { //获得远程的topicInfo
+                        TopicRouteData old = this.topicRouteTable.get(topic); //内存中旧的topicInfo
+                        boolean changed = topicRouteDataIsChange(old, topicRouteData); //是否存在变更
                         if (!changed) {
-                            changed = this.isNeedUpdateTopicRouteInfo(topic);
+                            changed = this.isNeedUpdateTopicRouteInfo(topic); //是否需要变更
                         } else {
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
-                        if (changed) {
+                        if (changed) { //需要变更
                             TopicRouteData cloneTopicRouteData = topicRouteData.cloneTopicRouteData();
 
-                            for (BrokerData bd : topicRouteData.getBrokerDatas()) {
+                            for (BrokerData bd : topicRouteData.getBrokerDatas()) { //更新topicinfo携带的broker相关的信息
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
 
                             // Update Pub info
+                            // 更新发布的信息
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
-                                publishInfo.setHaveTopicRouterInfo(true);
-                                Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator();
+                                publishInfo.setHaveTopicRouterInfo(true); //已经存在了topicInfo信息，而不仅仅是一个空壳子
+                                Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator(); //发送的table
                                 while (it.hasNext()) {
                                     Entry<String, MQProducerInner> entry = it.next();
                                     MQProducerInner impl = entry.getValue();
                                     if (impl != null) {
-                                        impl.updateTopicPublishInfo(topic, publishInfo);
+                                        impl.updateTopicPublishInfo(topic, publishInfo); //调用发送的实现，进行更改相关的topic和相应的topicInfo
                                     }
                                 }
                             }
 
                             // Update sub info
+                            //更新相关的订阅的相关的信息
                             {
                                 Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
-                                Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
+                                Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator(); //接收的订阅相关的信息
                                 while (it.hasNext()) {
                                     Entry<String, MQConsumerInner> entry = it.next();
                                     MQConsumerInner impl = entry.getValue();
                                     if (impl != null) {
-                                        impl.updateTopicSubscribeInfo(topic, subscribeInfo);
+                                        impl.updateTopicSubscribeInfo(topic, subscribeInfo); //调用消费的实现，进行更改相关的topic和相应的订阅info
                                     }
                                 }
                             }
                             log.info("topicRouteTable.put. Topic = {}, TopicRouteData[{}]", topic, cloneTopicRouteData);
-                            this.topicRouteTable.put(topic, cloneTopicRouteData);
+                            this.topicRouteTable.put(topic, cloneTopicRouteData); //放置相关的topic和对应的data信息
                             return true;
                         }
                     } else {
@@ -1063,6 +1069,11 @@ public class MQClientInstance {
         return null;
     }
 
+    /**
+     * 在内存中找到对应的broker
+     * @param brokerName
+     * @return
+     */
     public String findBrokerAddressInPublish(final String brokerName) {
         HashMap<Long/* brokerId */, String/* address */> map = this.brokerAddrTable.get(brokerName);
         if (map != null && !map.isEmpty()) {
@@ -1121,14 +1132,14 @@ public class MQClientInstance {
     public List<String> findConsumerIdList(final String topic, final String group) {
         String brokerAddr = this.findBrokerAddrByTopic(topic);
         if (null == brokerAddr) { //地址为空，
-            this.updateTopicRouteInfoFromNameServer(topic);
-            brokerAddr = this.findBrokerAddrByTopic(topic);
+            this.updateTopicRouteInfoFromNameServer(topic); //从nameserver中跟新一下
+            brokerAddr = this.findBrokerAddrByTopic(topic); //再次调用找到相关的数据
         }
         if (null == brokerAddr){
             return null;
         }
         try {
-            return this.mQClientAPIImpl.getConsumerIdListByGroup(brokerAddr, group, 3000);
+            return this.mQClientAPIImpl.getConsumerIdListByGroup(brokerAddr, group, 3000); //找到group对应的队列ids
         } catch (Exception e) {
             log.warn("getConsumerIdListByGroup exception, " + brokerAddr + " " + group, e);
         }
@@ -1141,15 +1152,15 @@ public class MQClientInstance {
      * @return
      */
     public String findBrokerAddrByTopic(final String topic) {
-        TopicRouteData topicRouteData = this.topicRouteTable.get(topic);
+        TopicRouteData topicRouteData = this.topicRouteTable.get(topic); //获得内存保留的基于topicroute的数据
         if (topicRouteData == null){
             return null;
         }
-        List<BrokerData> brokers = topicRouteData.getBrokerDatas();
+        List<BrokerData> brokers = topicRouteData.getBrokerDatas(); //从路由数据中找到相关的broker信息
         if (brokers.isEmpty()) {
             return null;
         }
-        //随机进行获得
+        //随机的选择一个，我们使用该broker的地址
         int index = random.nextInt(brokers.size());
         BrokerData bd = brokers.get(index % brokers.size());
         return bd.selectBrokerAddr();

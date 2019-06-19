@@ -216,18 +216,18 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             return;
         }
 
-        //设置拉取事件
+        //设置拉取时间
         pullRequest.getProcessQueue().setLastPullTimestamp(System.currentTimeMillis());
 
         try {
-            this.makeSureStateOK();
+            this.makeSureStateOK(); //确定状态是ok的
         } catch (MQClientException e) {
             log.warn("pullMessage exception, consumer state not ok", e);
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_EXCEPTION);
             return;
         }
 
-        if (this.isPause()) {
+        if (this.isPause()) { //暂停了
             log.warn("consumer was paused, execute pull request later. instanceName={}, group={}", this.defaultMQPushConsumer.getInstanceName(), this.defaultMQPushConsumer.getConsumerGroup());
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_SUSPEND);
             return;
@@ -238,10 +238,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         //最大缓存大小
         long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
 
-        //流控数量
+        //流控操作，缓存的数量大于队列拉取的流控阈值
         if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {
-            this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
-            if ((queueFlowControlTimes++ % 1000) == 0) {
+            this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL); //延迟50ms
+            if ((queueFlowControlTimes++ % 1000) == 0) { //流控操作
                 log.warn(
                     "the cached message count exceeds the threshold {}, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
                     this.defaultMQPushConsumer.getPullThresholdForQueue(), processQueue.getMsgTreeMap().firstKey(), processQueue.getMsgTreeMap().lastKey(), cachedMessageCount, cachedMessageSizeInMiB, pullRequest, queueFlowControlTimes);
@@ -249,9 +249,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             return;
         }
 
-        //流控大小
+        //流控操作，缓存的内存大小大于队列拉取的设置流控阈值
         if (cachedMessageSizeInMiB > this.defaultMQPushConsumer.getPullThresholdSizeForQueue()) {
-            this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
+            this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL); //延迟50ms操作
             if ((queueFlowControlTimes++ % 1000) == 0) {
                 log.warn(
                     "the cached message size exceeds the threshold {} MiB, so do flow control, minOffset={}, maxOffset={}, count={}, size={} MiB, pullRequest={}, flowControlTimes={}",
@@ -262,9 +262,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
 
         if (!this.consumeOrderly) {//一般消费
-            //流控消息跨度超过2000
+            //流控操作，消息跨度超过2000
             if (processQueue.getMaxSpan() > this.defaultMQPushConsumer.getConsumeConcurrentlyMaxSpan()) {
-                this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
+                this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL); //延迟50ms操作
                 if ((queueMaxSpanFlowControlTimes++ % 1000) == 0) {
                     log.warn(
                         "the queue's messages, span too long, so do flow control, minOffset={}, maxOffset={}, maxSpan={}, pullRequest={}, flowControlTimes={}",
@@ -274,7 +274,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 return;
             }
         } else {
-            //顺序消费
+            //使用顺序消费
             if (processQueue.isLocked()) {
                 if (!pullRequest.isLockedFirst()) {
                     final long offset = this.rebalanceImpl.computePullFromWhere(pullRequest.getMessageQueue());
@@ -303,7 +303,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
         final long beginTimestamp = System.currentTimeMillis();
 
-        PullCallback pullCallback = new PullCallback() {
+        PullCallback callback = new PullCallback() {
+            /**
+             * 拉取成功回调
+             * @param result
+             */
             @Override
             public void onSuccess(PullResult result) {
                 if (result == null){
@@ -324,8 +328,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                         } else {
                             firstMsgOffset = result.getMsgFoundList().get(0).getQueueOffset();
 
-                            DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullTPS(pullRequest.getConsumerGroup(),
-                                    messageQueue.getTopic(), result.getMsgFoundList().size());
+                            DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullTPS(pullRequest.getConsumerGroup(), messageQueue.getTopic(), result.getMsgFoundList().size());
 
                             boolean dispatchToConsume = processQueue.putMessage(result.getMsgFoundList());
                             DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
@@ -344,9 +347,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
                         if (result.getNextBeginOffset() < prevRequestOffset || firstMsgOffset < prevRequestOffset) {
                             log.warn("[BUG] pull message result maybe data wrong, nextBeginOffset: {} firstMsgOffset: {} prevRequestOffset: {}",
-                                    result.getNextBeginOffset(),
-                                    firstMsgOffset,
-                                    prevRequestOffset);
+                                    result.getNextBeginOffset(), firstMsgOffset, prevRequestOffset);
                         }
 
                         break;
@@ -438,7 +439,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 BROKER_SUSPEND_MAX_TIME_MILLIS,
                 CONSUMER_TIMEOUT_MILLIS_WHEN_SUSPEND,
                 CommunicationMode.ASYNC,
-                pullCallback
+                callback
             );
         } catch (Exception e) {
             log.error("pullKernelImpl exception", e);
