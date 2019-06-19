@@ -30,12 +30,12 @@ import java.util.Map;
  * Support filter to retry topic.
  * <br>It will decode properties first in order to get real topic.
  * <p>
- *     支持过滤器重试主题。 它将首先解码属性以获得真实的主题。
+ *     支持retry topic的过滤器。 它将首先解码属性以获得真实的主题。
  * </p>
  */
 public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
-    public ExpressionForRetryMessageFilter(SubscriptionData subscriptionData, ConsumerFilterData consumerFilterData,
-        ConsumerFilterManager consumerFilterManager) {
+
+    public ExpressionForRetryMessageFilter(SubscriptionData subscriptionData, ConsumerFilterData consumerFilterData, ConsumerFilterManager consumerFilterManager) {
         super(subscriptionData, consumerFilterData, consumerFilterManager);
     }
 
@@ -49,8 +49,10 @@ public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
             return true;
         }
 
+        //是否是重试topic
         boolean isRetryTopic = subscriptionData.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX);
 
+        //不是重试topic并且是基于tag的，我们直接返回
         if (!isRetryTopic && ExpressionType.isTagType(subscriptionData.getExpressionType())) {
             return true;
         }
@@ -67,10 +69,11 @@ public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
             }
             String realTopic = tempProperties.get(MessageConst.PROPERTY_RETRY_TOPIC);
             String group = subscriptionData.getTopic().substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length());
+            //获得真是的topic和消息group对应的filter
             realFilterData = this.consumerFilterManager.get(realTopic, group);
         }
 
-        // no expression
+        // no expression 没有表达式，直接返回
         if (realFilterData == null || realFilterData.getExpression() == null
             || realFilterData.getCompiledExpression() == null) {
             return true;
@@ -83,8 +86,7 @@ public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
         Object ret = null;
         try {
             MessageEvaluationContext context = new MessageEvaluationContext(tempProperties);
-
-            ret = realFilterData.getCompiledExpression().evaluate(context);
+            ret = realFilterData.getCompiledExpression().evaluate(context);//计算结果
         } catch (Throwable e) {
             log.error("Message Filter error, " + realFilterData + ", " + tempProperties, e);
         }

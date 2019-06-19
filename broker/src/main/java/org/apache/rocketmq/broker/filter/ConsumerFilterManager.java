@@ -73,34 +73,34 @@ public class ConsumerFilterManager extends ConfigManager {
 
     /**
      * Build consumer filter data.Be care, bloom filter data is not included.
+     * <p>
+     *     构建消费者过滤器数据。请注意，不包括bloom过滤器数据。
+     * </p>
      *
      * @return maybe null
      */
-    public static ConsumerFilterData build(final String topic, final String consumerGroup,
-        final String expression, final String type,
-        final long clientVersion) {
+    public static ConsumerFilterData build(final String topic, final String consumerGroup, final String expression, final String type, final long clientVersion) {
         if (ExpressionType.isTagType(type)) {
             return null;
         }
 
-        ConsumerFilterData consumerFilterData = new ConsumerFilterData();
-        consumerFilterData.setTopic(topic);
-        consumerFilterData.setConsumerGroup(consumerGroup);
-        consumerFilterData.setBornTime(System.currentTimeMillis());
-        consumerFilterData.setDeadTime(0);
-        consumerFilterData.setExpression(expression);
-        consumerFilterData.setExpressionType(type);
-        consumerFilterData.setClientVersion(clientVersion);
+        ConsumerFilterData filterData = new ConsumerFilterData();
+        filterData.setTopic(topic);
+        filterData.setConsumerGroup(consumerGroup);
+        filterData.setBornTime(System.currentTimeMillis());
+        filterData.setDeadTime(0);
+        filterData.setExpression(expression);
+        filterData.setExpressionType(type);
+        filterData.setClientVersion(clientVersion);
         try {
-            consumerFilterData.setCompiledExpression(
-                FilterFactory.INSTANCE.get(type).compile(expression)
-            );
+            //设置编译后的表达式
+            filterData.setCompiledExpression(FilterFactory.INSTANCE.get(type).compile(expression));
         } catch (Throwable e) {
             log.error("parse error: expr={}, topic={}, group={}, error={}", expression, topic, consumerGroup, e.getMessage());
             return null;
         }
-
-        return consumerFilterData;
+        //返回数据
+        return filterData;
     }
 
     public void register(final String consumerGroup, final Collection<SubscriptionData> subList) {
