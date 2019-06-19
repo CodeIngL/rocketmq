@@ -48,6 +48,11 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         }
     }
 
+    /**
+     * 从发生过错误的项数中进行操作，如果存在，我们检测一下这个项的可用性
+     * @param name
+     * @return
+     */
     @Override
     public boolean isAvailable(final String name) {
         final FaultItem faultItem = this.faultItemTable.get(name);
@@ -62,30 +67,33 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         this.faultItemTable.remove(name);
     }
 
+    /**
+     * 选择最近的一个broker
+     * @return
+     */
     @Override
     public String pickOneAtLeast() {
         final Enumeration<FaultItem> elements = this.faultItemTable.elements();
-        List<FaultItem> tmpList = new LinkedList<FaultItem>();
+        List<FaultItem> copyList = new LinkedList<FaultItem>();
         while (elements.hasMoreElements()) {
-            final FaultItem faultItem = elements.nextElement();
-            tmpList.add(faultItem);
+            copyList.add(elements.nextElement());
+        }
+        if (copyList.size() == 0) {
+            return null;
         }
 
-        if (!tmpList.isEmpty()) {
-            Collections.shuffle(tmpList);
+        Collections.shuffle(copyList);
 
-            Collections.sort(tmpList);
+        Collections.sort(copyList);
 
-            final int half = tmpList.size() / 2;
-            if (half <= 0) {
-                return tmpList.get(0).getName();
-            } else {
-                final int i = this.whichItemWorst.getAndIncrement() % half;
-                return tmpList.get(i).getName();
-            }
+        final int half = copyList.size() / 2;
+        if (half <= 0) {
+            return copyList.get(0).getName();
+        } else {
+            final int i = this.whichItemWorst.getAndIncrement() % half;
+            return copyList.get(i).getName();
         }
 
-        return null;
     }
 
     @Override

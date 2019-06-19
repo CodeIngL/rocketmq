@@ -58,10 +58,16 @@ public class MQFaultStrategy {
         this.sendLatencyFaultEnable = sendLatencyFaultEnable;
     }
 
+    /**
+     * 策略选择相关的消息队列进行发送
+     * @param tpInfo
+     * @param lastBrokerName
+     * @return
+     */
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         if (this.sendLatencyFaultEnable) { //支持容错
             try {
-                int index = tpInfo.getSendWhichQueue().getAndIncrement();
+                int index = tpInfo.getSendWhichQueue().getAndIncrement(); //
                 for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) {
                     int pos = Math.abs(index++) % tpInfo.getMessageQueueList().size(); //随机
                     if (pos < 0)
@@ -74,7 +80,7 @@ public class MQFaultStrategy {
                 }
 
                 final String notBestBroker = latencyFaultTolerance.pickOneAtLeast(); //使用最近的
-                int writeQueueNums = tpInfo.getQueueIdByBroker(notBestBroker);
+                int writeQueueNums = tpInfo.getQueueIdByBroker(notBestBroker); //查找broker对应的可写的queue
                 if (writeQueueNums > 0) {
                     final MessageQueue mq = tpInfo.selectOneMessageQueue();
                     if (notBestBroker != null) {
@@ -83,7 +89,7 @@ public class MQFaultStrategy {
                     }
                     return mq;
                 } else {
-                    latencyFaultTolerance.remove(notBestBroker);
+                    latencyFaultTolerance.remove(notBestBroker); //删除这个broker
                 }
             } catch (Exception e) {
                 log.error("Error occurred when selecting message queue", e);
@@ -95,19 +101,29 @@ public class MQFaultStrategy {
         return tpInfo.selectOneMessageQueue(lastBrokerName);
     }
 
+    /**
+     * 更新容错项
+     * @param brokerName broker的名字
+     * @param currentLatency 当前的延迟
+     * @param isolation 隔离
+     */
     public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation) {
-        if (this.sendLatencyFaultEnable) {
-            long duration = computeNotAvailableDuration(isolation ? 30000 : currentLatency);
+        if (this.sendLatencyFaultEnable) { //支持发送容错
+            long duration = computeNotAvailableDuration(isolation ? 30000 : currentLatency); //isolation为true则固定是30000，否则由入参决定这个值
             this.latencyFaultTolerance.updateFaultItem(brokerName, currentLatency, duration);
         }
     }
 
+    /**
+     * 计算不可用的持续时间
+     * @param currentLatency
+     * @return
+     */
     private long computeNotAvailableDuration(final long currentLatency) {
         for (int i = latencyMax.length - 1; i >= 0; i--) {
             if (currentLatency >= latencyMax[i])
                 return this.notAvailableDuration[i];
         }
-
         return 0;
     }
 }
