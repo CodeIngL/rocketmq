@@ -186,8 +186,7 @@ public abstract class AbstractPluginMessageStore implements MessageStore {
     }
 
     @Override
-    public QueryMessageResult queryMessage(String topic, String key, int maxNum, long begin,
-        long end) {
+    public QueryMessageResult queryMessage(String topic, String key, int maxNum, long begin, long end) {
         return next.queryMessage(topic, key, maxNum, begin, end);
     }
 

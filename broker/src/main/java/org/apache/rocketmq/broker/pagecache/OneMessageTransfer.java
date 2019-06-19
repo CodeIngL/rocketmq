@@ -32,6 +32,11 @@ public class OneMessageTransfer extends AbstractReferenceCounted implements File
      */
     private long transferred;
 
+    /**
+     * 单消息的传输
+     * @param byteBufferHeader
+     * @param selectMappedBufferResult
+     */
     public OneMessageTransfer(ByteBuffer byteBufferHeader, SelectMappedBufferResult selectMappedBufferResult) {
         this.byteBufferHeader = byteBufferHeader;
         this.selectMappedBufferResult = selectMappedBufferResult;

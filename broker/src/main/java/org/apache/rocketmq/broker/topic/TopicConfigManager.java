@@ -150,6 +150,11 @@ public class TopicConfigManager extends ConfigManager {
         return !topic.equals(MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC);
     }
 
+    /**
+     * 获得内存的中的topic相关的配置
+     * @param topic
+     * @return
+     */
     public TopicConfig selectTopicConfig(final String topic) {
         return this.topicConfigTable.get(topic);
     }
