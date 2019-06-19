@@ -22,13 +22,8 @@ import java.io.RandomAccessFile;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileLock;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -972,31 +967,41 @@ public class DefaultMessageStore implements MessageStore {
         this.cleanCommitLogService.excuteDeleteFilesManualy();
     }
 
+    /**
+     * 使用key方式进行查询消息
+     * @param topic topic of the message.
+     * @param key message key.
+     * @param maxNum maximum number of the messages possible.
+     * @param begin begin timestamp.
+     * @param end end timestamp.
+     * @return
+     */
     @Override
     public QueryMessageResult queryMessage(String topic, String key, int maxNum, long begin, long end) {
-        QueryMessageResult queryMessageResult = new QueryMessageResult();
+        QueryMessageResult queryResult = new QueryMessageResult();
 
         long lastQueryMsgTime = end;
 
         for (int i = 0; i < 3; i++) {
-            QueryOffsetResult queryOffsetResult = this.indexService.queryOffset(topic, key, maxNum, begin, lastQueryMsgTime);
-            if (queryOffsetResult.getPhyOffsets().isEmpty()) {
+            QueryOffsetResult queryOffsetResult = this.indexService.queryOffset(topic, key, maxNum, begin, lastQueryMsgTime); //查询index相关数据
+            List<Long> phyOffsets = queryOffsetResult.getPhyOffsets();
+            if (phyOffsets.isEmpty()) {
                 break;
             }
 
-            Collections.sort(queryOffsetResult.getPhyOffsets());
+            Collections.sort(phyOffsets);
 
-            queryMessageResult.setIndexLastUpdatePhyoffset(queryOffsetResult.getIndexLastUpdatePhyoffset());
-            queryMessageResult.setIndexLastUpdateTimestamp(queryOffsetResult.getIndexLastUpdateTimestamp());
+            queryResult.setIndexLastUpdatePhyoffset(queryOffsetResult.getIndexLastUpdatePhyoffset());
+            queryResult.setIndexLastUpdateTimestamp(queryOffsetResult.getIndexLastUpdateTimestamp());
 
-            for (int m = 0; m < queryOffsetResult.getPhyOffsets().size(); m++) {
-                long offset = queryOffsetResult.getPhyOffsets().get(m);
+            for (int m = 0; m < phyOffsets.size(); m++) {
+                long offset = phyOffsets.get(m); //得到消息的offset
 
                 try {
 
-                    boolean match = true;
-                    MessageExt msg = this.lookMessageByOffset(offset);
-                    if (0 == m) {
+                    boolean match = true; //是否匹配
+                    MessageExt msg = this.lookMessageByOffset(offset); //查找消息
+                    if (0 == m) { //第一条
                         lastQueryMsgTime = msg.getStoreTimestamp();
                     }
 
@@ -1011,12 +1016,12 @@ public class DefaultMessageStore implements MessageStore {
 //                    }
 
                     if (match) {
-                        SelectMappedBufferResult result = this.commitLog.getData(offset, false);
+                        SelectMappedBufferResult result = this.commitLog.getData(offset, false); //获得数据
                         if (result != null) {
                             int size = result.getByteBuffer().getInt(0);
                             result.getByteBuffer().limit(size);
                             result.setSize(size);
-                            queryMessageResult.addMessage(result);
+                            queryResult.addMessage(result); //添加到结果中
                         }
                     } else {
                         log.warn("queryMessage hash duplicate, {} {}", topic, key);
@@ -1026,7 +1031,7 @@ public class DefaultMessageStore implements MessageStore {
                 }
             }
 
-            if (queryMessageResult.getBufferTotalSize() > 0) {
+            if (queryResult.getBufferTotalSize() > 0) {
                 break;
             }
 
@@ -1035,7 +1040,7 @@ public class DefaultMessageStore implements MessageStore {
             }
         }
 
-        return queryMessageResult;
+        return queryResult;
     }
 
     @Override
@@ -1661,8 +1666,8 @@ public class DefaultMessageStore implements MessageStore {
 
         @Override
         public void dispatch(DispatchRequest request) {
-            if (DefaultMessageStore.this.messageStoreConfig.isMessageIndexEnable()) {
-                DefaultMessageStore.this.indexService.buildIndex(request);
+            if (DefaultMessageStore.this.messageStoreConfig.isMessageIndexEnable()) { //支持构建index
+                DefaultMessageStore.this.indexService.buildIndex(request); //构建index索引
             }
         }
     }
@@ -2036,8 +2041,9 @@ public class DefaultMessageStore implements MessageStore {
          * 投递
          */
         private void doReput() {
+            CommitLog commitLog = DefaultMessageStore.this.commitLog;
             //最小的偏移量
-            long minOffset = DefaultMessageStore.this.commitLog.getMinOffset();
+            long minOffset = commitLog.getMinOffset();
             // 检查状态，投递的偏移量小于存储引擎的最小的偏移量，这通常表明调度过多而且commitlog已经过期
             if (this.reputFromOffset < minOffset) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.", this.reputFromOffset, minOffset);
@@ -2053,7 +2059,7 @@ public class DefaultMessageStore implements MessageStore {
                 /**
                  * 获得映射
                  */
-                SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
+                SelectMappedBufferResult result = commitLog.getData(reputFromOffset);
                 if (result == null) {
                     break;
                 }
@@ -2063,7 +2069,7 @@ public class DefaultMessageStore implements MessageStore {
 
                     for (int readSize = 0; readSize < result.getSize() && doNext; ) {
                         //分发的请求
-                        DispatchRequest req = DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);
+                        DispatchRequest req = commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);
                         String topic = req.getTopic();
                         int size = req.getBufferSize() == -1 ? req.getMsgSize() : req.getBufferSize();
 
@@ -2093,7 +2099,7 @@ public class DefaultMessageStore implements MessageStore {
                                     DefaultMessageStore.this.storeStatsService.getSinglePutMessageTopicSizeTotal(topic).addAndGet(req.getMsgSize());
                                 }
                             } else if (size == 0) {
-                                this.reputFromOffset = DefaultMessageStore.this.commitLog.rollNextFile(this.reputFromOffset);
+                                this.reputFromOffset = commitLog.rollNextFile(this.reputFromOffset);
                                 readSize = result.getSize();
                             }
                         } else if (!req.isSuccess()) {

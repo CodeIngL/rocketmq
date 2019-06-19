@@ -447,7 +447,7 @@ public class ConsumeQueue {
     }
 
     /**
-     * 投递
+     * 投递,cq格式，offset+msg size+tags hashcode，行单元20
      * @param offset
      * @param size
      * @param tagsCode

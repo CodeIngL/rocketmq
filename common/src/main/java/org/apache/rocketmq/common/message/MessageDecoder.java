@@ -79,6 +79,12 @@ public class MessageDecoder {
         return UtilAll.bytes2string(byteBuffer.array());
     }
 
+    /**
+     * 从消息id中提取出相关的消息特征，这里主要的是消息是有broker地址，和存储的commitlog构成的，因此我们转换成messageId这个对象结构
+     * @param msgId
+     * @return
+     * @throws UnknownHostException
+     */
     public static MessageId decodeMessageId(final String msgId) throws UnknownHostException {
         SocketAddress address;
         long offset;

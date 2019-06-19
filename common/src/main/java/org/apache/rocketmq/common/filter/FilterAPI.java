@@ -81,11 +81,10 @@ public class FilterAPI {
             throw new IllegalArgumentException("Expression can't be null! " + type);
         }
 
-        SubscriptionData subscriptionData = new SubscriptionData();
-        subscriptionData.setTopic(topic);
-        subscriptionData.setSubString(subString);
-        subscriptionData.setExpressionType(type);
-
-        return subscriptionData;
+        SubscriptionData data = new SubscriptionData();
+        data.setTopic(topic);
+        data.setSubString(subString);
+        data.setExpressionType(type);
+        return data;
     }
 }
