@@ -22,6 +22,12 @@ import java.util.Map;
 
 /**
  * Filter factory: support other filter to register.
+ * <p>
+ *     Filter factory:：支持其他filter注册。
+ * </p>
+ * <p>
+ *     默认只有sql
+ * </p>
  */
 public class FilterFactory {
 
@@ -38,6 +44,11 @@ public class FilterFactory {
      * <br>
      * Note:
      * <li>1. Filter registered will be used in broker server, so take care of it's reliability and performance.</li>
+     * <p>
+     *     <li>
+     *         1.已注册的Filter将用于broker服务器，因此请注意其可靠性和性能。
+     *     </li>
+     * </p>
      */
     public void register(FilterSpi filterSpi) {
         if (FILTER_SPI_HOLDER.containsKey(filterSpi.ofType())) {

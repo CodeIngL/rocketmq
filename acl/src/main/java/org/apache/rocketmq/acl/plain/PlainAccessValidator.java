@@ -34,7 +34,10 @@ import org.apache.rocketmq.common.protocol.heartbeat.HeartbeatData;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.acl.common.Permission.PUB;
+import static org.apache.rocketmq.acl.common.Permission.SUB;
 import static org.apache.rocketmq.acl.plain.PlainAccessResource.getRetryTopic;
+import static org.apache.rocketmq.common.protocol.RequestCode.*;
 
 public class PlainAccessValidator implements AccessValidator {
 
@@ -45,7 +48,7 @@ public class PlainAccessValidator implements AccessValidator {
     }
 
     @Override
-    public AccessResource parse(RemotingCommand request, String remoteAddr) {
+    public AccessResource parse(RemotingCommand req, String remoteAddr) {
         PlainAccessResource accessResource = new PlainAccessResource();
         if (remoteAddr != null && remoteAddr.contains(":")) {
             accessResource.setWhiteRemoteAddress(remoteAddr.split(":")[0]);
@@ -53,61 +56,58 @@ public class PlainAccessValidator implements AccessValidator {
             accessResource.setWhiteRemoteAddress(remoteAddr);
         }
 
-        if (request.getExtFields() == null) {
+        if (req.getExtFields() == null) {
             throw new AclException("request's extFields value is null");
         }
         
-        accessResource.setRequestCode(request.getCode());
-        accessResource.setAccessKey(request.getExtFields().get(SessionCredentials.ACCESS_KEY));
-        accessResource.setSignature(request.getExtFields().get(SessionCredentials.SIGNATURE));
-        accessResource.setSecretToken(request.getExtFields().get(SessionCredentials.SECURITY_TOKEN));
+        accessResource.setRequestCode(req.getCode());
+        accessResource.setAccessKey(req.getExtFields().get(SessionCredentials.ACCESS_KEY));
+        accessResource.setSignature(req.getExtFields().get(SessionCredentials.SIGNATURE));
+        accessResource.setSecretToken(req.getExtFields().get(SessionCredentials.SECURITY_TOKEN));
 
         try {
-            switch (request.getCode()) {
-                case RequestCode.SEND_MESSAGE:
-                    accessResource.addResourceAndPerm(request.getExtFields().get("topic"), Permission.PUB);
+            switch (req.getCode()) {
+                case SEND_MESSAGE:
+                    accessResource.addResourceAndPerm(req.getExtFields().get("topic"), PUB);
                     break;
-                case RequestCode.SEND_MESSAGE_V2:
-                    accessResource.addResourceAndPerm(request.getExtFields().get("b"), Permission.PUB);
+                case SEND_MESSAGE_V2:
+                    accessResource.addResourceAndPerm(req.getExtFields().get("b"), PUB);
                     break;
-                case RequestCode.CONSUMER_SEND_MSG_BACK:
-                    accessResource.addResourceAndPerm(request.getExtFields().get("originTopic"), Permission.PUB);
-                    accessResource.addResourceAndPerm(getRetryTopic(request.getExtFields().get("group")), Permission.SUB);
+                case CONSUMER_SEND_MSG_BACK:
+                    accessResource.addResourceAndPerm(req.getExtFields().get("originTopic"), PUB);
+                    accessResource.addResourceAndPerm(getRetryTopic(req.getExtFields().get("group")), SUB);
                     break;
-                case RequestCode.PULL_MESSAGE:
-                    accessResource.addResourceAndPerm(request.getExtFields().get("topic"), Permission.SUB);
-                    accessResource.addResourceAndPerm(getRetryTopic(request.getExtFields().get("consumerGroup")), Permission.SUB);
+                case PULL_MESSAGE:
+                    accessResource.addResourceAndPerm(req.getExtFields().get("topic"), SUB);
+                    accessResource.addResourceAndPerm(getRetryTopic(req.getExtFields().get("consumerGroup")), SUB);
                     break;
-                case RequestCode.QUERY_MESSAGE:
-                    accessResource.addResourceAndPerm(request.getExtFields().get("topic"), Permission.SUB);
+                case QUERY_MESSAGE:
+                    accessResource.addResourceAndPerm(req.getExtFields().get("topic"), SUB);
                     break;
-                case RequestCode.HEART_BEAT:
-                    HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
+                case HEART_BEAT:
+                    HeartbeatData heartbeatData = HeartbeatData.decode(req.getBody(), HeartbeatData.class);
                     for (ConsumerData data : heartbeatData.getConsumerDataSet()) {
-                        accessResource.addResourceAndPerm(getRetryTopic(data.getGroupName()), Permission.SUB);
+                        accessResource.addResourceAndPerm(getRetryTopic(data.getGroupName()), SUB);
                         for (SubscriptionData subscriptionData : data.getSubscriptionDataSet()) {
-                            accessResource.addResourceAndPerm(subscriptionData.getTopic(), Permission.SUB);
+                            accessResource.addResourceAndPerm(subscriptionData.getTopic(), SUB);
                         }
                     }
                     break;
-                case RequestCode.UNREGISTER_CLIENT:
-                    final UnregisterClientRequestHeader unregisterClientRequestHeader =
-                        (UnregisterClientRequestHeader) request
-                            .decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
-                    accessResource.addResourceAndPerm(getRetryTopic(unregisterClientRequestHeader.getConsumerGroup()), Permission.SUB);
+                case UNREGISTER_CLIENT:
+                    final UnregisterClientRequestHeader reqHeader = (UnregisterClientRequestHeader) req.decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
+                    accessResource.addResourceAndPerm(getRetryTopic(reqHeader.getConsumerGroup()), SUB);
                     break;
-                case RequestCode.GET_CONSUMER_LIST_BY_GROUP:
-                    final GetConsumerListByGroupRequestHeader getConsumerListByGroupRequestHeader =
-                        (GetConsumerListByGroupRequestHeader) request
+                case GET_CONSUMER_LIST_BY_GROUP:
+                    final GetConsumerListByGroupRequestHeader requestHeader = (GetConsumerListByGroupRequestHeader) req
                             .decodeCommandCustomHeader(GetConsumerListByGroupRequestHeader.class);
-                    accessResource.addResourceAndPerm(getRetryTopic(getConsumerListByGroupRequestHeader.getConsumerGroup()), Permission.SUB);
+                    accessResource.addResourceAndPerm(getRetryTopic(requestHeader.getConsumerGroup()), SUB);
                     break;
-                case RequestCode.UPDATE_CONSUMER_OFFSET:
+                case UPDATE_CONSUMER_OFFSET:
                     final UpdateConsumerOffsetRequestHeader updateConsumerOffsetRequestHeader =
-                        (UpdateConsumerOffsetRequestHeader) request
+                        (UpdateConsumerOffsetRequestHeader) req
                             .decodeCommandCustomHeader(UpdateConsumerOffsetRequestHeader.class);
-                    accessResource.addResourceAndPerm(getRetryTopic(updateConsumerOffsetRequestHeader.getConsumerGroup()), Permission.SUB);
-                    accessResource.addResourceAndPerm(updateConsumerOffsetRequestHeader.getTopic(), Permission.SUB);
+                    accessResource.addResourceAndPerm(getRetryTopic(updateConsumerOffsetRequestHeader.getConsumerGroup()), SUB);
+                    accessResource.addResourceAndPerm(updateConsumerOffsetRequestHeader.getTopic(), SUB);
                     break;
                 default:
                     break;
@@ -118,12 +118,12 @@ public class PlainAccessValidator implements AccessValidator {
         }
         // Content
         SortedMap<String, String> map = new TreeMap<String, String>();
-        for (Map.Entry<String, String> entry : request.getExtFields().entrySet()) {
+        for (Map.Entry<String, String> entry : req.getExtFields().entrySet()) {
             if (!SessionCredentials.SIGNATURE.equals(entry.getKey())) {
                 map.put(entry.getKey(), entry.getValue());
             }
         }
-        accessResource.setContent(AclUtils.combineRequestContent(request, map));
+        accessResource.setContent(AclUtils.combineRequestContent(req, map));
         return accessResource;
     }
 
