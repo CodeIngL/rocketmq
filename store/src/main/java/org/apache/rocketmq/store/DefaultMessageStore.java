@@ -587,7 +587,7 @@ public class DefaultMessageStore implements MessageStore {
             return null;
         }
 
-        long beginTime = this.getSystemClock().now();
+        long beginTime = this.getSystemClock().now(); //开始时间
 
         GetMessageStatus status = NO_MESSAGE_IN_QUEUE;
         long nextBeginOffset = offset;

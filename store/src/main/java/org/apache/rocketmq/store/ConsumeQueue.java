@@ -454,8 +454,7 @@ public class ConsumeQueue {
      * @param cqOffset
      * @return
      */
-    private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
-        final long cqOffset) {
+    private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode, final long cqOffset) {
 
         if (offset + size <= this.maxPhysicOffset) {
             log.warn("Maybe try to build consume queue repeatedly maxPhysicOffset={} phyOffset={}", maxPhysicOffset, offset);
@@ -471,42 +470,41 @@ public class ConsumeQueue {
         //tags hashcode
         this.byteBufferIndex.putLong(tagsCode);
 
-        final long expectLogicOffset = cqOffset * CQ_STORE_UNIT_SIZE;
+        final long expectLogicOffset = cqOffset * CQ_STORE_UNIT_SIZE; //期望的逻辑放置地址
 
-        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile(expectLogicOffset);
-        if (mappedFile != null) {
+        MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile(expectLogicOffset); //获得对应的映射文件
+        if (mappedFile == null){
+            return false;
+        }
+        if (mappedFile.isFirstCreateInQueue() && cqOffset != 0 && mappedFile.getWrotePosition() == 0) {
+            this.minLogicOffset = expectLogicOffset;
+            this.mappedFileQueue.setFlushedWhere(expectLogicOffset);
+            this.mappedFileQueue.setCommittedWhere(expectLogicOffset);
+            this.fillPreBlank(mappedFile, expectLogicOffset);
+            log.info("fill pre blank space " + mappedFile.getFileName() + " " + expectLogicOffset + " " + mappedFile.getWrotePosition());
+        }
 
-            if (mappedFile.isFirstCreateInQueue() && cqOffset != 0 && mappedFile.getWrotePosition() == 0) {
-                this.minLogicOffset = expectLogicOffset;
-                this.mappedFileQueue.setFlushedWhere(expectLogicOffset);
-                this.mappedFileQueue.setCommittedWhere(expectLogicOffset);
-                this.fillPreBlank(mappedFile, expectLogicOffset);
-                log.info("fill pre blank space " + mappedFile.getFileName() + " " + expectLogicOffset + " " + mappedFile.getWrotePosition());
+        if (cqOffset != 0) {
+            long currentLogicOffset = mappedFile.getWrotePosition() + mappedFile.getFileFromOffset();
+
+            if (expectLogicOffset < currentLogicOffset) {
+                log.warn("Build  consume queue repeatedly, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
+                        expectLogicOffset, currentLogicOffset, this.topic, this.queueId, expectLogicOffset - currentLogicOffset);
+                return true;
             }
 
-            if (cqOffset != 0) {
-                long currentLogicOffset = mappedFile.getWrotePosition() + mappedFile.getFileFromOffset();
-
-                if (expectLogicOffset < currentLogicOffset) {
-                    log.warn("Build  consume queue repeatedly, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
-                        expectLogicOffset, currentLogicOffset, this.topic, this.queueId, expectLogicOffset - currentLogicOffset);
-                    return true;
-                }
-
-                if (expectLogicOffset != currentLogicOffset) {
-                    LOG_ERROR.warn("[BUG]logic queue order maybe wrong, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
+            if (expectLogicOffset != currentLogicOffset) {
+                LOG_ERROR.warn("[BUG]logic queue order maybe wrong, expectLogicOffset: {} currentLogicOffset: {} Topic: {} QID: {} Diff: {}",
                         expectLogicOffset,
                         currentLogicOffset,
                         this.topic,
                         this.queueId,
                         expectLogicOffset - currentLogicOffset
-                    );
-                }
+                );
             }
-            this.maxPhysicOffset = offset + size;
-            return mappedFile.appendMessage(this.byteBufferIndex.array());
         }
-        return false;
+        this.maxPhysicOffset = offset + size;
+        return mappedFile.appendMessage(this.byteBufferIndex.array());
     }
 
     /**
