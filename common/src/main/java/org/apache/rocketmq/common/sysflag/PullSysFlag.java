@@ -18,10 +18,18 @@ package org.apache.rocketmq.common.sysflag;
 
 public class PullSysFlag {
     private final static int FLAG_COMMIT_OFFSET = 0x1 << 0;
-    private final static int FLAG_SUSPEND = 0x1 << 1;
-    private final static int FLAG_SUBSCRIPTION = 0x1 << 2;
-    private final static int FLAG_CLASS_FILTER = 0x1 << 3;
+    private final static int FLAG_SUSPEND = 0x1 << 1; //支持挂起
+    private final static int FLAG_SUBSCRIPTION = 0x1 << 2; //支持订阅
+    private final static int FLAG_CLASS_FILTER = 0x1 << 3;//支持类过滤
 
+    /**
+     *
+     * @param commitOffset 是否有commitOffset
+     * @param suspend
+     * @param subscription
+     * @param classFilter
+     * @return
+     */
     public static int buildSysFlag(final boolean commitOffset, final boolean suspend, final boolean subscription, final boolean classFilter) {
         int flag = 0;
 

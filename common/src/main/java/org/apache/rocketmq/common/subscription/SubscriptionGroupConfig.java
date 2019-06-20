@@ -24,6 +24,7 @@ public class SubscriptionGroupConfig {
     private String groupName;
 
     private boolean consumeEnable = true;
+
     private boolean consumeFromMinEnable = true;
 
     private boolean consumeBroadcastEnable = true;

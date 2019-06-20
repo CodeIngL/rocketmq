@@ -19,6 +19,8 @@ package org.apache.rocketmq.common.filter;
 import java.net.URL;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
+import static org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData.SUB_ALL;
+
 public class FilterAPI {
     public static URL classFile(final String className) {
         final String javaSource = simpleClassName(className) + ".java";
@@ -36,31 +38,33 @@ public class FilterAPI {
         return simple;
     }
 
-    public static SubscriptionData buildSubscriptionData(final String consumerGroup, String topic,
-        String subString) throws Exception {
+    /**
+     * 构建订阅数据
+     * @param consumerGroup 消费组
+     * @param topic 主题
+     * @param subString 内容
+     * @return
+     * @throws Exception
+     */
+    public static SubscriptionData buildSubscriptionData(final String consumerGroup, String topic, String subString) throws Exception {
         SubscriptionData subscriptionData = new SubscriptionData();
         subscriptionData.setTopic(topic);
         subscriptionData.setSubString(subString);
 
-        if (null == subString || subString.equals(SubscriptionData.SUB_ALL) || subString.length() == 0) {
-            subscriptionData.setSubString(SubscriptionData.SUB_ALL);
-        } else {
+        if (null == subString || subString.equals(SUB_ALL) || subString.length() == 0) {
+            subscriptionData.setSubString(SUB_ALL);
+        } else { //使用的是tag
             String[] tags = subString.split("\\|\\|");
-            if (tags.length > 0) {
-                for (String tag : tags) {
-                    if (tag.length() > 0) {
-                        String trimString = tag.trim();
-                        if (trimString.length() > 0) {
-                            subscriptionData.getTagsSet().add(trimString);
-                            subscriptionData.getCodeSet().add(trimString.hashCode());
-                        }
-                    }
+            for (String tag : tags) {
+                String trim = tag.trim();
+                if (trim.length() > 0) {
+                    //tag
+                    subscriptionData.getTagsSet().add(trim);
+                    //tag的哈市code
+                    subscriptionData.getCodeSet().add(trim.hashCode());
                 }
-            } else {
-                throw new Exception("subString split error");
             }
         }
-
         return subscriptionData;
     }
 
@@ -83,8 +87,8 @@ public class FilterAPI {
 
         SubscriptionData data = new SubscriptionData();
         data.setTopic(topic);
-        data.setSubString(subString);
-        data.setExpressionType(type);
+        data.setSubString(subString); //设置新的表达是
+        data.setExpressionType(type); //设置类型
         return data;
     }
 }
