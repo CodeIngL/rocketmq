@@ -225,13 +225,13 @@ public abstract class RebalanceImpl {
      * @param isOrder 是否是顺序消费
      */
     public void doRebalance(final boolean isOrder) {
-        //订阅的映射
+        //遍历所有的订阅关系
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
         if (subTable != null) {
             for (final Map.Entry<String, SubscriptionData> entry : subTable.entrySet()) {
                 final String topic = entry.getKey();
                 try {
-                    this.rebalanceByTopic(topic, isOrder);
+                    this.rebalanceByTopic(topic, isOrder); //对每一个topic进行负载均衡
                 } catch (Throwable e) {
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         log.warn("rebalanceByTopic Exception", e);
@@ -285,8 +285,8 @@ public abstract class RebalanceImpl {
                     List<MessageQueue> mqAll = new ArrayList<MessageQueue>();
                     mqAll.addAll(mqSet);
 
-                    Collections.sort(mqAll);
-                    Collections.sort(cidAll);
+                    Collections.sort(mqAll); //排序
+                    Collections.sort(cidAll); //排序
 
                     AllocateMessageQueueStrategy strategy = this.allocateMessageQueueStrategy; //分配策略
 
@@ -352,21 +352,21 @@ public abstract class RebalanceImpl {
             MessageQueue mq = next.getKey();
             ProcessQueue pq = next.getValue();
 
-            if (mq.getTopic().equals(topic)) {
-                if (!mqSet.contains(mq)) { //重新的结果不包含副本存储的，需要标记这个删除
+            if (mq.getTopic().equals(topic)) { //topic一致
+                if (!mqSet.contains(mq)) { //重新负载均衡的结果不包含副本存储的，需要标记这个删除
                     pq.setDropped(true);
-                    if (this.removeUnnecessaryMessageQueue(mq, pq)) {
+                    if (this.removeUnnecessaryMessageQueue(mq, pq)) { //是否移除这个已经被标记drop消息队列
                         it.remove();
                         changed = true;
                         log.info("doRebalance, {}, remove unnecessary mq, {}", consumerGroup, mq);
                     }
-                } else if (pq.isPullExpired()) { //超时
+                } else if (pq.isPullExpired()) { //拉取超时
                     switch (this.consumeType()) { //类型
-                        case CONSUME_ACTIVELY:
+                        case CONSUME_ACTIVELY: //活跃
                             break;
-                        case CONSUME_PASSIVELY:
+                        case CONSUME_PASSIVELY: //不活跃
                             pq.setDropped(true); //丢弃
-                            if (this.removeUnnecessaryMessageQueue(mq, pq)) {
+                            if (this.removeUnnecessaryMessageQueue(mq, pq)) { //是否移除这个已经被标记drop消息队列
                                 it.remove();
                                 changed = true;
                                 log.error("[BUG]doRebalance, {}, remove unnecessary mq, {}, because pull is pause, so try to fixed it", consumerGroup, mq);
@@ -391,16 +391,16 @@ public abstract class RebalanceImpl {
                 continue;
             }
 
-            this.removeDirtyOffset(mq);
-            ProcessQueue pq = new ProcessQueue();
-            long nextOffset = this.computePullFromWhere(mq);
+            this.removeDirtyOffset(mq); //删除这个队列对应的offset
+            ProcessQueue pq = new ProcessQueue(); //构建新的副本
+            long nextOffset = this.computePullFromWhere(mq); //计算下一个offset
             if (nextOffset >= 0) {
-                ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq);
-                if (pre != null) {
+                ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq); //更新放置
+                if (pre != null) { //先前存在
                     log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
-                } else {
+                } else { //先前不存在
                     log.info("doRebalance, {}, add a new mq, {}", consumerGroup, mq);
-                    PullRequest pullRequest = new PullRequest();
+                    PullRequest pullRequest = new PullRequest(); //构建一个消息准备进行拉取消息
                     pullRequest.setConsumerGroup(consumerGroup);
                     pullRequest.setNextOffset(nextOffset);
                     pullRequest.setMessageQueue(mq);
@@ -416,7 +416,7 @@ public abstract class RebalanceImpl {
         /**
          * 分发处理的结果
          */
-        this.dispatchPullRequest(pullRequestList);
+        this.dispatchPullRequest(pullRequestList); //分发拉取的请求列表
 
         return changed;
     }

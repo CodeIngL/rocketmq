@@ -49,6 +49,8 @@ import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.BROADCASTING;
+import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTERING;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.exceptionSimpleDesc;
 
 public class ConsumeMessageOrderlyService implements ConsumeMessageService {
@@ -86,7 +88,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     public void start() {
-        if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())) {
+        if (CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())) {
             this.scheduledExecutorService.scheduleAtFixedRate(() ->
                     ConsumeMessageOrderlyService.this.lockMQPeriodically(), 1000 * 1, ProcessQueue.REBALANCE_LOCK_INTERVAL, TimeUnit.MILLISECONDS);
         }
@@ -96,7 +98,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         this.stopped = true;
         this.scheduledExecutorService.shutdown();
         this.consumeExecutor.shutdown();
-        if (MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
+        if (CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             this.unlockAllMQ();
         }
     }
@@ -206,15 +208,12 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
 
     public void tryLockLaterAndReconsume(final MessageQueue mq, final ProcessQueue processQueue,
         final long delayMills) {
-        this.scheduledExecutorService.schedule(new Runnable() {
-            @Override
-            public void run() {
-                boolean lockOK = ConsumeMessageOrderlyService.this.lockOneMQ(mq);
-                if (lockOK) {
-                    ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 10);
-                } else {
-                    ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 3000);
-                }
+        this.scheduledExecutorService.schedule(() -> {
+            boolean lockOK = ConsumeMessageOrderlyService.this.lockOneMQ(mq);
+            if (lockOK) {
+                ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 10);
+            } else {
+                ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 3000);
             }
         }, delayMills, TimeUnit.MILLISECONDS);
     }
@@ -243,13 +242,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             timeMillis = 30000;
         }
 
-        this.scheduledExecutorService.schedule(new Runnable() {
-
-            @Override
-            public void run() {
-                ConsumeMessageOrderlyService.this.submitConsumeRequest(null, processQueue, messageQueue, true);
-            }
-        }, timeMillis, TimeUnit.MILLISECONDS);
+        this.scheduledExecutorService.schedule(() -> ConsumeMessageOrderlyService.this.submitConsumeRequest(null, processQueue, messageQueue, true), timeMillis, TimeUnit.MILLISECONDS);
     }
 
     public boolean processConsumeResult(
@@ -379,6 +372,9 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         return false;
     }
 
+    /**
+     * 消费请求，支持顺序消费的消息服务
+     */
     class ConsumeRequest implements Runnable {
         private final ProcessQueue processQueue;
         private final MessageQueue messageQueue;
@@ -403,10 +399,12 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                 return;
             }
 
+            //消费锁
             final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
+            //值允许一个消费线程进行消费
             synchronized (objLock) {
-                if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
-                    || (this.processQueue.isLocked() && !this.processQueue.isLockExpired())) {
+                if (BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
+                    || (this.processQueue.isLocked() && !this.processQueue.isLockExpired())) { //广播模式，或者锁定，但是没有超时
                     final long beginTime = System.currentTimeMillis();
                     for (boolean continueConsume = true; continueConsume; ) {
                         if (this.processQueue.isDropped()) {
@@ -414,14 +412,14 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             break;
                         }
 
-                        if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
+                        if (CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                             && !this.processQueue.isLocked()) {
                             log.warn("the message queue not locked, so consume later, {}", this.messageQueue);
                             ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 10);
                             break;
                         }
 
-                        if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
+                        if (CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                             && this.processQueue.isLockExpired()) {
                             log.warn("the message queue lock expired, so consume later, {}", this.messageQueue);
                             ConsumeMessageOrderlyService.this.tryLockLaterAndReconsume(this.messageQueue, this.processQueue, 10);

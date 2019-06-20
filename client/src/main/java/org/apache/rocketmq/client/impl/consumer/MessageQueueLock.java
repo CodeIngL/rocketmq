@@ -22,10 +22,13 @@ import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
  * Message lock,strictly ensure the single queue only one thread at a time consuming
+ * <p>
+ *     消息锁定，严格保证单个队列一次只有一个线程消耗
+ * </p>
  */
 public class MessageQueueLock {
-    private ConcurrentMap<MessageQueue, Object> mqLockTable =
-        new ConcurrentHashMap<MessageQueue, Object>();
+
+    private ConcurrentMap<MessageQueue, Object> mqLockTable = new ConcurrentHashMap<MessageQueue, Object>();
 
     public Object fetchLockObject(final MessageQueue mq) {
         Object objLock = this.mqLockTable.get(mq);

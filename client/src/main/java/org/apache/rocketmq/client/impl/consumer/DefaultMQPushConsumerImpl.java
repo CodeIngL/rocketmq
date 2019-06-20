@@ -76,6 +76,9 @@ import org.apache.rocketmq.remoting.RPCHook;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
+import static org.apache.rocketmq.client.consumer.store.ReadOffsetType.READ_FROM_MEMORY;
+import static org.apache.rocketmq.client.impl.CommunicationMode.ASYNC;
+import static org.apache.rocketmq.common.MixAll.RETRY_GROUP_TOPIC_PREFIX;
 import static org.apache.rocketmq.common.ServiceState.START_FAILED;
 import static org.apache.rocketmq.common.filter.FilterAPI.buildSubscriptionData;
 import static org.apache.rocketmq.common.help.FAQUrl.CLIENT_SERVICE_NOT_OK;
@@ -396,7 +399,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
             @Override
             public void onException(Throwable e) {
-                if (!pullRequest.getMessageQueue().getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                if (!pullRequest.getMessageQueue().getTopic().startsWith(RETRY_GROUP_TOPIC_PREFIX)) {
                     log.warn("execute the pull request exception", e);
                 }
 
@@ -406,8 +409,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
         boolean commitOffsetEnable = false;
         long commitOffsetValue = 0L;
-        if (CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) {
-            commitOffsetValue = this.offsetStore.readOffset(pullRequest.getMessageQueue(), ReadOffsetType.READ_FROM_MEMORY);
+        if (CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) { //集群方式支持
+            commitOffsetValue = this.offsetStore.readOffset(pullRequest.getMessageQueue(), READ_FROM_MEMORY);
             if (commitOffsetValue > 0) {
                 commitOffsetEnable = true;
             }
@@ -438,7 +441,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 commitOffsetValue,
                 BROKER_SUSPEND_MAX_TIME_MILLIS,
                 CONSUMER_TIMEOUT_MILLIS_WHEN_SUSPEND,
-                CommunicationMode.ASYNC,
+                ASYNC,
                 callback
             );
         } catch (Exception e) {
@@ -515,28 +518,46 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         log.info("resume this consumer, {}", this.defaultMQPushConsumer.getConsumerGroup());
     }
 
+    /**
+     * 消息重发
+     * @param msg
+     * @param delayLevel
+     * @param brokerName
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     * @throws MQClientException
+     */
     public void sendMessageBack(MessageExt msg, int delayLevel, final String brokerName)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         try {
-            String brokerAddr = (null != brokerName) ? this.mQClientFactory.findBrokerAddressInPublish(brokerName)
-                : RemotingHelper.parseSocketAddressAddr(msg.getStoreHost());
+            String brokerAddr = (null != brokerName) ? this.mQClientFactory.findBrokerAddressInPublish(brokerName) : RemotingHelper.parseSocketAddressAddr(msg.getStoreHost());
             this.mQClientFactory.getMQClientAPIImpl().consumerSendMessageBack(brokerAddr, msg,
-                this.defaultMQPushConsumer.getConsumerGroup(), delayLevel, 5000, getMaxReconsumeTimes());
+                    this.defaultMQPushConsumer.getConsumerGroup(), delayLevel, 5000, getMaxReconsumeTimes());
         } catch (Exception e) {
             log.error("sendMessageBack Exception, " + this.defaultMQPushConsumer.getConsumerGroup(), e);
 
+            //重试的topic
             Message newMsg = new Message(MixAll.getRetryTopic(this.defaultMQPushConsumer.getConsumerGroup()), msg.getBody());
 
+            //原始的消息id
             String originMsgId = MessageAccessor.getOriginMessageId(msg);
             MessageAccessor.setOriginMessageId(newMsg, UtilAll.isBlank(originMsgId) ? msg.getMsgId() : originMsgId);
 
+            //设计标记
             newMsg.setFlag(msg.getFlag());
+            //属性
             MessageAccessor.setProperties(newMsg, msg.getProperties());
+            //属性
             MessageAccessor.putProperty(newMsg, MessageConst.PROPERTY_RETRY_TOPIC, msg.getTopic());
+            //重发次数
             MessageAccessor.setReconsumeTime(newMsg, String.valueOf(msg.getReconsumeTimes() + 1));
+            //最大重试次数
             MessageAccessor.setMaxReconsumeTimes(newMsg, String.valueOf(getMaxReconsumeTimes()));
+            //设置延迟级别
             newMsg.setDelayTimeLevel(3 + msg.getReconsumeTimes());
 
+            //发送
             this.mQClientFactory.getDefaultMQProducer().send(newMsg);
         }
     }
@@ -575,12 +596,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
      * @throws MQClientException
      */
     public synchronized void start() throws MQClientException {
-        String consumerGroup =  this.defaultMQPushConsumer.getConsumerGroup();
-        MessageModel messageModel = this.defaultMQPushConsumer.getMessageModel();
-        switch (this.serviceState) {
-            case CREATE_JUST:
-                log.info("the consumer [{}] start beginning. messageModel={}, isUnitMode={}", consumerGroup,
-                        messageModel, this.defaultMQPushConsumer.isUnitMode());
+        String consumerGroup =  this.defaultMQPushConsumer.getConsumerGroup(); //消费组
+        MessageModel messageModel = this.defaultMQPushConsumer.getMessageModel(); //消息订阅模式
+        switch (this.serviceState) { //状态
+            case CREATE_JUST: //刚刚创建
+                log.info("the consumer [{}] start beginning. messageModel={}, isUnitMode={}", consumerGroup, messageModel, this.defaultMQPushConsumer.isUnitMode());
                 this.serviceState = START_FAILED;
 
                 this.checkConfig();
@@ -602,34 +622,38 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 this.pullAPIWrapper = new PullAPIWrapper(mQClientFactory, consumerGroup, isUnitMode());
                 this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
 
-                if (this.defaultMQPushConsumer.getOffsetStore() != null) {
+                if (this.defaultMQPushConsumer.getOffsetStore() != null) { //有自己的消息存储，使用自己的消息存储，否则根据具体的模型进行存储的使用
                     this.offsetStore = this.defaultMQPushConsumer.getOffsetStore();
                 } else {
                     switch (messageModel) {
-                        case BROADCASTING:
+                        case BROADCASTING://广播模式下的offset存储，使用了本地的消息存储
                             this.offsetStore = new LocalFileOffsetStore(this.mQClientFactory, consumerGroup);
                             break;
-                        case CLUSTERING:
+                        case CLUSTERING://集群模式下的offset存储，使用了交互式的基于远程的消息存储
                             this.offsetStore = new RemoteBrokerOffsetStore(this.mQClientFactory, consumerGroup);
                             break;
                         default:
                             break;
                     }
-                    this.defaultMQPushConsumer.setOffsetStore(this.offsetStore);
+                    this.defaultMQPushConsumer.setOffsetStore(this.offsetStore); //设置offset的存储
                 }
                 this.offsetStore.load();
 
                 MessageListener listener = getMessageListenerInner();
                 if (listener instanceof MessageListenerOrderly) {
-                    this.consumeOrderly = true; //顺序小幅
+                    this.consumeOrderly = true; //顺序消费
+                    //消费服务是顺序消费
                     this.consumeMessageService = new ConsumeMessageOrderlyService(this, (MessageListenerOrderly) listener);
                 } else if (listener instanceof MessageListenerConcurrently) {
+                    //非顺序消费
                     this.consumeOrderly = false;
+                    //消费服务是并发的消费
                     this.consumeMessageService = new ConsumeMessageConcurrentlyService(this, (MessageListenerConcurrently) listener);
                 }
 
                 this.consumeMessageService.start();
 
+                //注册
                 boolean registerOK = mQClientFactory.registerConsumer(consumerGroup, this);
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
@@ -878,6 +902,12 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         return this.rebalanceImpl.getSubscriptionInner();
     }
 
+    /**
+     * 使用子表达式的订阅，比如使用tag
+     * @param topic
+     * @param subExpression
+     * @throws MQClientException
+     */
     public void subscribe(String topic, String subExpression) throws MQClientException {
         try {
             SubscriptionData subscriptionData = buildSubscriptionData(this.defaultMQPushConsumer.getConsumerGroup(), topic, subExpression);
@@ -890,13 +920,20 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * 使用自定义类的表达式的订阅
+     * @param topic
+     * @param fullClassName
+     * @param filterClassSource
+     * @throws MQClientException
+     */
     public void subscribe(String topic, String fullClassName, String filterClassSource) throws MQClientException {
         try {
-            SubscriptionData subscriptionData = buildSubscriptionData(this.defaultMQPushConsumer.getConsumerGroup(),
-                topic, "*");
-            subscriptionData.setSubString(fullClassName);
-            subscriptionData.setClassFilterMode(true);
-            subscriptionData.setFilterClassSource(filterClassSource);
+            SubscriptionData subscriptionData = buildSubscriptionData(this.defaultMQPushConsumer.getConsumerGroup(), topic, "*");
+            subscriptionData.setSubString(fullClassName); //更新subString是全类名
+            subscriptionData.setClassFilterMode(true); //设置使用类过滤方式
+            subscriptionData.setFilterClassSource(filterClassSource); //设置过滤类的源码
+            //更新内部数据
             this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
             if (this.mQClientFactory != null) {
                 this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
@@ -907,16 +944,23 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * 带有selector的订阅
+     * @param topic
+     * @param messageSelector
+     * @throws MQClientException
+     */
     public void subscribe(final String topic, final MessageSelector messageSelector) throws MQClientException {
         try {
-            if (messageSelector == null) {
+            if (messageSelector == null) { //如果不传递selector，我们委托给普通的使用all的方式进行订阅
                 subscribe(topic, SubscriptionData.SUB_ALL);
                 return;
             }
 
-            SubscriptionData subscriptionData = FilterAPI.build(topic,
-                messageSelector.getExpression(), messageSelector.getExpressionType());
+            //构建核心的订阅数据，每一种方式的核心都是构建这个核心的订阅数据结构
+            SubscriptionData subscriptionData = FilterAPI.build(topic, messageSelector.getExpression(), messageSelector.getExpressionType());
 
+            //放入负载均衡中等待下一次rebalance
             this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
             if (this.mQClientFactory != null) {
                 this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
