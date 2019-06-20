@@ -876,35 +876,31 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    private RemotingCommand registerFilterServer(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(RegisterFilterServerResponseHeader.class);
-        final RegisterFilterServerResponseHeader responseHeader = (RegisterFilterServerResponseHeader) response.readCustomHeader();
-        final RegisterFilterServerRequestHeader requestHeader =
-            (RegisterFilterServerRequestHeader) request.decodeCommandCustomHeader(RegisterFilterServerRequestHeader.class);
+    private RemotingCommand registerFilterServer(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
+        final RemotingCommand resp = createResponseCommand(RegisterFilterServerResponseHeader.class);
+        final RegisterFilterServerResponseHeader respHeader = (RegisterFilterServerResponseHeader) resp.readCustomHeader();
+        final RegisterFilterServerRequestHeader reqHeader = (RegisterFilterServerRequestHeader) req.decodeCommandCustomHeader(RegisterFilterServerRequestHeader.class);
 
-        this.brokerController.getFilterServerManager().registerFilterServer(ctx.channel(), requestHeader.getFilterServerAddr());
+        this.brokerController.getFilterServerManager().registerFilterServer(ctx.channel(), reqHeader.getFilterServerAddr());
 
-        responseHeader.setBrokerId(this.brokerController.getBrokerConfig().getBrokerId());
-        responseHeader.setBrokerName(this.brokerController.getBrokerConfig().getBrokerName());
-
-        response.setCode(SUCCESS);
-        response.setRemark(null);
-        return response;
+        respHeader.setBrokerId(this.brokerController.getBrokerConfig().getBrokerId());
+        respHeader.setBrokerName(this.brokerController.getBrokerConfig().getBrokerName());
+        resp.setCode(SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
-    private RemotingCommand queryConsumeTimeSpan(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(null);
+    private RemotingCommand queryConsumeTimeSpan(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
+        final RemotingCommand resp = createResponseCommand(null);
         QueryConsumeTimeSpanRequestHeader requestHeader =
-            (QueryConsumeTimeSpanRequestHeader) request.decodeCommandCustomHeader(QueryConsumeTimeSpanRequestHeader.class);
+            (QueryConsumeTimeSpanRequestHeader) req.decodeCommandCustomHeader(QueryConsumeTimeSpanRequestHeader.class);
 
         final String topic = requestHeader.getTopic();
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(topic);
         if (null == topicConfig) {
-            response.setCode(ResponseCode.TOPIC_NOT_EXIST);
-            response.setRemark("topic[" + topic + "] not exist");
-            return response;
+            resp.setCode(ResponseCode.TOPIC_NOT_EXIST);
+            resp.setRemark("topic[" + topic + "] not exist");
+            return resp;
         }
 
         List<QueueTimeSpan> timeSpanSet = new ArrayList<QueueTimeSpan>();
@@ -943,10 +939,10 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
 
         QueryConsumeTimeSpanBody queryConsumeTimeSpanBody = new QueryConsumeTimeSpanBody();
         queryConsumeTimeSpanBody.setConsumeTimeSpanSet(timeSpanSet);
-        response.setBody(queryConsumeTimeSpanBody.encode());
-        response.setCode(SUCCESS);
-        response.setRemark(null);
-        return response;
+        resp.setBody(queryConsumeTimeSpanBody.encode());
+        resp.setCode(SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
     /**

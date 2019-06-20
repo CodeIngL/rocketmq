@@ -107,14 +107,14 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
     /**
      * 处理消费端要求的消息重发
      * @param ctx
-     * @param request
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
-    private RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand request)
+    private RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand req)
         throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(null);
-        final ConsumerSendMsgBackRequestHeader reqHeader = (ConsumerSendMsgBackRequestHeader)request.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
+        final ConsumerSendMsgBackRequestHeader reqHeader = (ConsumerSendMsgBackRequestHeader)req.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
 
         if (this.hasConsumeMessageHook() && !UtilAll.isBlank(reqHeader.getOriginMsgId())) {
             ConsumeMessageContext context = new ConsumeMessageContext();
@@ -122,7 +122,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             context.setTopic(reqHeader.getOriginTopic());
             context.setCommercialRcvStats(BrokerStatsManager.StatsType.SEND_BACK);
             context.setCommercialRcvTimes(1);
-            context.setCommercialOwner(request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER));
+            context.setCommercialOwner(req.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER));
             this.executeConsumeMessageHookAfter(context);
         }
 
@@ -187,20 +187,16 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         int delayLevel = reqHeader.getDelayLevel();
 
         int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
-        if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
+        if (req.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
             maxReconsumeTimes = reqHeader.getMaxReconsumeTimes();
         }
 
-        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes || delayLevel < 0) {
+        if (msgExt.getReconsumeTimes() >= maxReconsumeTimes || delayLevel < 0) { //重发次数到达最大的次数，或者延时小于0,发送到死信队列中
             newTopic = MixAll.getDLQTopic(reqHeader.getGroup());
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
 
-            topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic,
-                DLQ_NUMS_PER_GROUP,
-                PermName.PERM_WRITE, 0
-            );
+            topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, DLQ_NUMS_PER_GROUP, PermName.PERM_WRITE, 0);
             if (null == topicConfig) {
-                resp.setCode(SYSTEM_ERROR);
                 resp.setRemark("topic[" + newTopic + "] not exist");
                 return resp;
             }
@@ -230,30 +226,25 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         String originMsgId = MessageAccessor.getOriginMessageId(msgExt);
         MessageAccessor.setOriginMessageId(msgInner, UtilAll.isBlank(originMsgId) ? msgExt.getMsgId() : originMsgId);
 
-        PutMessageResult putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
-        if (putMessageResult != null) {
-            switch (putMessageResult.getPutMessageStatus()) {
+        PutMessageResult result = this.brokerController.getMessageStore().putMessage(msgInner);
+        if (result != null) {
+            switch (result.getPutMessageStatus()) {
                 case PUT_OK:
                     String backTopic = msgExt.getTopic();
                     String correctTopic = msgExt.getProperty(MessageConst.PROPERTY_RETRY_TOPIC);
                     if (correctTopic != null) {
                         backTopic = correctTopic;
                     }
-
                     this.brokerController.getBrokerStatsManager().incSendBackNums(reqHeader.getGroup(), backTopic);
-
                     resp.setCode(ResponseCode.SUCCESS);
                     resp.setRemark(null);
-
                     return resp;
                 default:
                     break;
             }
-            resp.setCode(SYSTEM_ERROR);
-            resp.setRemark(putMessageResult.getPutMessageStatus().name());
+            resp.setRemark(result.getPutMessageStatus().name());
             return resp;
         }
-        resp.setCode(SYSTEM_ERROR);
         resp.setRemark("putMessageResult is null");
         return resp;
     }

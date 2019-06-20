@@ -126,7 +126,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         //消费组概念
         String consumerGroup = reqHeader.getConsumerGroup();
-        //获得订阅组概念
+        //获得消费组对应的订阅组概念
         SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(consumerGroup);
         if (checkSubscriptionGroupConfig(resp, consumerGroup, subscriptionGroupConfig)) return resp;
 
@@ -231,13 +231,14 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         BrokerConfig brokerConfig = this.brokerController.getBrokerConfig();
         MessageStoreConfig storeConfig = this.brokerController.getMessageStoreConfig();
         MessageStore messageStore = this.brokerController.getMessageStore();
+        BrokerRole brokerRole = storeConfig.getBrokerRole();
         //消息结果
         final GetMessageResult result = messageStore.getMessage(consumerGroup, topic, queueId, reqHeader.getQueueOffset(), reqHeader.getMaxMsgNums(), messageFilter);
         if (result != null) {
-            resp.setRemark(result.getStatus().name());
-            respHeader.setNextBeginOffset(result.getNextBeginOffset());
-            respHeader.setMinOffset(result.getMinOffset());
-            respHeader.setMaxOffset(result.getMaxOffset());
+            resp.setRemark(result.getStatus().name()); //状态
+            respHeader.setNextBeginOffset(result.getNextBeginOffset()); //下一次开始的offset
+            respHeader.setMinOffset(result.getMinOffset());//最小的offset
+            respHeader.setMaxOffset(result.getMaxOffset()); //最大的offset
 
             if (result.isSuggestPullingFromSlave()) { //建议从slave去消费
                 respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
@@ -245,7 +246,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 respHeader.setSuggestWhichBrokerId(MASTER_ID);
             }
 
-            switch (storeConfig.getBrokerRole()) {
+            switch (brokerRole) {
                 case ASYNC_MASTER:
                 case SYNC_MASTER:
                     break;
@@ -259,6 +260,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
             if (brokerConfig.isSlaveReadEnable()) {
                 // consume too slow ,redirect to another machine
+                // 消费太慢了，重定向到其他的机器上
                 if (result.isSuggestPullingFromSlave()) {
                     respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
                 }
@@ -270,6 +272,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 respHeader.setSuggestWhichBrokerId(MASTER_ID);
             }
 
+            //校验结果
             switch (result.getStatus()) {
                 case FOUND:
                     resp.setCode(SUCCESS);
@@ -321,6 +324,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
             //存在钩子
             if (this.hasConsumeMessageHook()) {
+                //构建上下文
                 ConsumeMessageContext context = new ConsumeMessageContext();
                 context.setConsumerGroup(consumerGroup);
                 context.setTopic(topic);
@@ -366,11 +370,10 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                     this.brokerController.getBrokerStatsManager().incGroupGetNums(consumerGroup, topic, result.getMessageCount());
                     this.brokerController.getBrokerStatsManager().incGroupGetSize(consumerGroup, topic, result.getBufferTotalSize());
                     this.brokerController.getBrokerStatsManager().incBrokerGetNums(result.getMessageCount());
-                    if (this.brokerController.getBrokerConfig().isTransferMsgByHeap()) {
-                        final long beginTimeMills = this.brokerController.getMessageStore().now();
+                    if (brokerConfig.isTransferMsgByHeap()) { //使用堆内进行发送
+                        final long beginTimeMills = messageStore.now();
                         final byte[] r = this.readGetMessageResult(result, consumerGroup, topic, queueId);
-                        this.brokerController.getBrokerStatsManager().incGroupGetLatency(consumerGroup, topic, queueId,
-                            (int) (this.brokerController.getMessageStore().now() - beginTimeMills));
+                        this.brokerController.getBrokerStatsManager().incGroupGetLatency(consumerGroup, topic, queueId, (int) (messageStore.now() - beginTimeMills));
                         resp.setBody(r);
                     } else {
                         try {
@@ -398,7 +401,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                         }
 
                         long offset = reqHeader.getQueueOffset();
-                        PullRequest pullRequest = new PullRequest(req, channel, pollingTimeMills, this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
+                        PullRequest pullRequest = new PullRequest(req, channel, pollingTimeMills, messageStore.now(), offset, subscriptionData, messageFilter);
                         this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest);
                         resp = null;
                         break;
@@ -407,11 +410,11 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 case PULL_RETRY_IMMEDIATELY:
                     break;
                 case PULL_OFFSET_MOVED:
-                    if (this.brokerController.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE || this.brokerController.getMessageStoreConfig().isOffsetCheckInSlave()) {
+                    if (brokerRole != BrokerRole.SLAVE || storeConfig.isOffsetCheckInSlave()) {
                         MessageQueue mq = new MessageQueue();
                         mq.setTopic(topic);
                         mq.setQueueId(queueId);
-                        mq.setBrokerName(this.brokerController.getBrokerConfig().getBrokerName());
+                        mq.setBrokerName(brokerConfig.getBrokerName());
 
                         OffsetMovedEvent event = new OffsetMovedEvent();
                         event.setConsumerGroup(consumerGroup);
@@ -439,9 +442,9 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             resp.setRemark("store getMessage return null");
         }
 
-        boolean storeOffsetEnable = brokerAllowSuspend;
-        storeOffsetEnable = storeOffsetEnable && hasCommitOffsetFlag;
-        storeOffsetEnable = storeOffsetEnable && this.brokerController.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE;
+        boolean storeOffsetEnable = brokerAllowSuspend; //broker允许挂起
+        storeOffsetEnable = storeOffsetEnable && hasCommitOffsetFlag; //存在commitOffset
+        storeOffsetEnable = storeOffsetEnable && brokerRole != BrokerRole.SLAVE; //不是slave
         if (storeOffsetEnable) {
             this.brokerController.getConsumerOffsetManager().commitOffset(parseChannelRemoteAddr(channel),
                 consumerGroup, topic, queueId, reqHeader.getCommitOffset());
@@ -493,10 +496,16 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    /**
+     * 校验broker的权限
+     * @param resp
+     * @return
+     */
     private boolean checkBrokerPermission(RemotingCommand resp) {
-        if (!isReadable(this.brokerController.getBrokerConfig().getBrokerPermission())) {
+        BrokerConfig brokerConfig = this.brokerController.getBrokerConfig();
+        if (!isReadable(brokerConfig.getBrokerPermission())) {
             resp.setCode(NO_PERMISSION);
-            resp.setRemark(String.format("the broker[%s] pulling message is forbidden", this.brokerController.getBrokerConfig().getBrokerIP1()));
+            resp.setRemark(String.format("the broker[%s] pulling message is forbidden", brokerConfig.getBrokerIP1()));
             return true;
         }
         return false;
@@ -517,15 +526,21 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         }
     }
 
-    private byte[] readGetMessageResult(final GetMessageResult getMessageResult, final String group, final String topic,
-        final int queueId) {
+    /**
+     * 进行一次copy使得堆外内存转换为堆内分配的内存
+     * @param getMessageResult
+     * @param group
+     * @param topic
+     * @param queueId
+     * @return
+     */
+    private byte[] readGetMessageResult(final GetMessageResult getMessageResult, final String group, final String topic, final int queueId) {
         final ByteBuffer byteBuffer = ByteBuffer.allocate(getMessageResult.getBufferTotalSize());
 
         long storeTimestamp = 0;
         try {
             List<ByteBuffer> messageBufferList = getMessageResult.getMessageBufferList();
             for (ByteBuffer bb : messageBufferList) {
-
                 byteBuffer.put(bb);
                 storeTimestamp = bb.getLong(MessageDecoder.MESSAGE_STORE_TIMESTAMP_POSTION);
             }

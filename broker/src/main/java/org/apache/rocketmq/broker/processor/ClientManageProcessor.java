@@ -42,6 +42,9 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.common.protocol.RequestCode.CHECK_CLIENT_CONFIG;
+import static org.apache.rocketmq.common.protocol.RequestCode.HEART_BEAT;
+import static org.apache.rocketmq.common.protocol.RequestCode.UNREGISTER_CLIENT;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
 
 /**
@@ -56,15 +59,15 @@ public class ClientManageProcessor implements NettyRequestProcessor {
     }
 
     @Override
-    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
-        switch (request.getCode()) {
-            case RequestCode.HEART_BEAT:
-                return this.heartBeat(ctx, request);
-            case RequestCode.UNREGISTER_CLIENT:
-                return this.unregisterClient(ctx, request);
-            case RequestCode.CHECK_CLIENT_CONFIG:
-                return this.checkClientConfig(ctx, request);
+        switch (req.getCode()) {
+            case HEART_BEAT:
+                return this.heartBeat(ctx, req);
+            case UNREGISTER_CLIENT:
+                return this.unregisterClient(ctx, req);
+            case CHECK_CLIENT_CONFIG:
+                return this.checkClientConfig(ctx, req);
             default:
                 break;
         }
@@ -76,20 +79,20 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         return false;
     }
 
-    public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand request) {
-        RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
-        ClientChannelInfo clientChannelInfo = new ClientChannelInfo(
-            ctx.channel(),
-            heartbeatData.getClientID(),
-            request.getLanguage(),
-            request.getVersion()
-        );
+    /**
+     * 处理心跳信息
+     * @param ctx
+     * @param req
+     * @return
+     */
+    public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand req) {
+        RemotingCommand resp = RemotingCommand.createResponseCommand(null);
+        HeartbeatData heartbeatData = HeartbeatData.decode(req.getBody(), HeartbeatData.class);
+        //客户网络信息
+        ClientChannelInfo channelInfo = new ClientChannelInfo(ctx.channel(), heartbeatData.getClientID(), req.getLanguage(), req.getVersion());
 
         for (ConsumerData data : heartbeatData.getConsumerDataSet()) {
-            SubscriptionGroupConfig subscriptionGroupConfig =
-                this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(
-                    data.getGroupName());
+            SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName());
             boolean isNotifyConsumerIdsChangedEnable = true;
             if (null != subscriptionGroupConfig) {
                 isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
@@ -98,15 +101,12 @@ public class ClientManageProcessor implements NettyRequestProcessor {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 }
                 String newTopic = MixAll.getRetryTopic(data.getGroupName());
-                this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
-                    newTopic,
-                    subscriptionGroupConfig.getRetryQueueNums(),
-                    PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
+                this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, subscriptionGroupConfig.getRetryQueueNums(), PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
             }
 
             boolean changed = this.brokerController.getConsumerManager().registerConsumer(
                 data.getGroupName(),
-                clientChannelInfo,
+                channelInfo,
                 data.getConsumeType(),
                 data.getMessageModel(),
                 data.getConsumeFromWhere(),
@@ -123,57 +123,51 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         }
 
         for (ProducerData data : heartbeatData.getProducerDataSet()) {
-            this.brokerController.getProducerManager().registerProducer(data.getGroupName(),
-                clientChannelInfo);
+            this.brokerController.getProducerManager().registerProducer(data.getGroupName(), channelInfo);
         }
-        response.setCode(ResponseCode.SUCCESS);
-        response.setRemark(null);
-        return response;
+        resp.setCode(ResponseCode.SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
     /**
      * 注销客户端
      * @param ctx
-     * @param request
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
-    public RemotingCommand unregisterClient(ChannelHandlerContext ctx, RemotingCommand request)
-        throws RemotingCommandException {
-        final RemotingCommand response =
-            RemotingCommand.createResponseCommand(UnregisterClientResponseHeader.class);
-        final UnregisterClientRequestHeader requestHeader =
-            (UnregisterClientRequestHeader) request
-                .decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
+    public RemotingCommand unregisterClient(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
 
-        ClientChannelInfo clientChannelInfo = new ClientChannelInfo(
-            ctx.channel(),
-            requestHeader.getClientID(),
-            request.getLanguage(),
-            request.getVersion());
+        final RemotingCommand resp = RemotingCommand.createResponseCommand(UnregisterClientResponseHeader.class);
+        final UnregisterClientRequestHeader reqHeader =
+            (UnregisterClientRequestHeader) req.decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
+
+        ClientChannelInfo channelInfo = new ClientChannelInfo(ctx.channel(), reqHeader.getClientID(), req.getLanguage(), req.getVersion());
+        //注销producer
         {
-            final String group = requestHeader.getProducerGroup();
+            final String group = reqHeader.getProducerGroup();
             if (group != null) {
-                this.brokerController.getProducerManager().unregisterProducer(group, clientChannelInfo);
+                this.brokerController.getProducerManager().unregisterProducer(group, channelInfo);
             }
         }
 
+        //注销consumer
         {
-            final String group = requestHeader.getConsumerGroup();
+            final String group = reqHeader.getConsumerGroup();
             if (group != null) {
-                SubscriptionGroupConfig subscriptionGroupConfig =
-                    this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(group);
+                SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(group);
                 boolean isNotifyConsumerIdsChangedEnable = true;
                 if (null != subscriptionGroupConfig) {
                     isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
                 }
-                this.brokerController.getConsumerManager().unregisterConsumer(group, clientChannelInfo, isNotifyConsumerIdsChangedEnable);
+                this.brokerController.getConsumerManager().unregisterConsumer(group, channelInfo, isNotifyConsumerIdsChangedEnable);
             }
         }
 
-        response.setCode(ResponseCode.SUCCESS);
-        response.setRemark(null);
-        return response;
+        resp.setCode(ResponseCode.SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
     public RemotingCommand checkClientConfig(ChannelHandlerContext ctx, RemotingCommand request)
