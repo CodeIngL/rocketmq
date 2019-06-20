@@ -953,23 +953,23 @@ public class MQClientAPIImpl {
         final QueryConsumerOffsetRequestHeader requestHeader,
         final long timeoutMillis
     ) throws RemotingException, MQBrokerException, InterruptedException {
-        RemotingCommand request = createRequestCommand(RequestCode.QUERY_CONSUMER_OFFSET, requestHeader);
+        RemotingCommand req = createRequestCommand(RequestCode.QUERY_CONSUMER_OFFSET, requestHeader);
 
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-            request, timeoutMillis);
-        assert response != null;
-        switch (response.getCode()) {
+        RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
+            req, timeoutMillis);
+        assert resp != null;
+        switch (resp.getCode()) {
             case SUCCESS: {
-                QueryConsumerOffsetResponseHeader responseHeader =
-                    (QueryConsumerOffsetResponseHeader) response.decodeCommandCustomHeader(QueryConsumerOffsetResponseHeader.class);
+                QueryConsumerOffsetResponseHeader respHeader =
+                    (QueryConsumerOffsetResponseHeader) resp.decodeCommandCustomHeader(QueryConsumerOffsetResponseHeader.class);
 
-                return responseHeader.getOffset();
+                return respHeader.getOffset();
             }
             default:
                 break;
         }
 
-        throw new MQBrokerException(response.getCode(), response.getRemark());
+        throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
     public void updateConsumerOffset(
@@ -1003,24 +1003,19 @@ public class MQClientAPIImpl {
         this.remotingClient.invokeOneway(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
     }
 
-    public int sendHearbeat(
-        final String addr,
-        final HeartbeatData heartbeatData,
-        final long timeoutMillis
+    public int sendHearbeat(final String addr, final HeartbeatData heartbeatData, final long timeoutMillis
     ) throws RemotingException, MQBrokerException, InterruptedException {
-        RemotingCommand request = createRequestCommand(RequestCode.HEART_BEAT, null);
-        request.setLanguage(clientConfig.getLanguage());
-        request.setBody(heartbeatData.encode());
-        RemotingCommand response = this.remotingClient.invokeSync(addr, request, timeoutMillis);
+        RemotingCommand req = createRequestCommand(RequestCode.HEART_BEAT, null);
+        req.setLanguage(clientConfig.getLanguage());
+        req.setBody(heartbeatData.encode());
+        RemotingCommand response = this.remotingClient.invokeSync(addr, req, timeoutMillis);
         assert response != null;
         switch (response.getCode()) {
-            case SUCCESS: {
+            case SUCCESS:
                 return response.getVersion();
-            }
             default:
                 break;
         }
-
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
@@ -1031,23 +1026,21 @@ public class MQClientAPIImpl {
         final String consumerGroup,
         final long timeoutMillis
     ) throws RemotingException, MQBrokerException, InterruptedException {
-        final UnregisterClientRequestHeader requestHeader = new UnregisterClientRequestHeader();
-        requestHeader.setClientID(clientID);
-        requestHeader.setProducerGroup(producerGroup);
-        requestHeader.setConsumerGroup(consumerGroup);
-        RemotingCommand request = createRequestCommand(RequestCode.UNREGISTER_CLIENT, requestHeader);
+        final UnregisterClientRequestHeader reqHeader = new UnregisterClientRequestHeader();
+        reqHeader.setClientID(clientID);
+        reqHeader.setProducerGroup(producerGroup);
+        reqHeader.setConsumerGroup(consumerGroup);
+        RemotingCommand req = createRequestCommand(RequestCode.UNREGISTER_CLIENT, reqHeader);
 
-        RemotingCommand response = this.remotingClient.invokeSync(addr, request, timeoutMillis);
-        assert response != null;
-        switch (response.getCode()) {
-            case SUCCESS: {
+        RemotingCommand resp = this.remotingClient.invokeSync(addr, req, timeoutMillis);
+        assert resp != null;
+        switch (resp.getCode()) {
+            case SUCCESS:
                 return;
-            }
             default:
                 break;
         }
-
-        throw new MQBrokerException(response.getCode(), response.getRemark());
+        throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
     /**
@@ -1743,16 +1736,17 @@ public class MQClientAPIImpl {
         final byte[] classBody,
         final long timeoutMillis) throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException,
         InterruptedException, MQBrokerException {
-        RegisterMessageFilterClassRequestHeader requestHeader = new RegisterMessageFilterClassRequestHeader();
-        requestHeader.setConsumerGroup(consumerGroup);
-        requestHeader.setClassName(className);
-        requestHeader.setTopic(topic);
-        requestHeader.setClassCRC(classCRC);
 
-        RemotingCommand request = createRequestCommand(RequestCode.REGISTER_MESSAGE_FILTER_CLASS, requestHeader);
-        request.setBody(classBody);
-        RemotingCommand response = this.remotingClient.invokeSync(addr, request, timeoutMillis);
-        switch (response.getCode()) {
+        RegisterMessageFilterClassRequestHeader reqHeader = new RegisterMessageFilterClassRequestHeader();
+        reqHeader.setConsumerGroup(consumerGroup);
+        reqHeader.setClassName(className);
+        reqHeader.setTopic(topic);
+        reqHeader.setClassCRC(classCRC);
+
+        RemotingCommand req = createRequestCommand(RequestCode.REGISTER_MESSAGE_FILTER_CLASS, reqHeader);
+        req.setBody(classBody);
+        RemotingCommand resp = this.remotingClient.invokeSync(addr, req, timeoutMillis);
+        switch (resp.getCode()) {
             case SUCCESS: {
                 return;
             }
@@ -1760,7 +1754,7 @@ public class MQClientAPIImpl {
                 break;
         }
 
-        throw new MQBrokerException(response.getCode(), response.getRemark());
+        throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
     public TopicList getSystemTopicList(
