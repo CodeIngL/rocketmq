@@ -39,8 +39,8 @@ import static org.apache.rocketmq.common.MixAll.isSysConsumerGroup;
 public class SubscriptionGroupManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 
-    private final ConcurrentMap<String, SubscriptionGroupConfig> subscriptionGroupTable =
-        new ConcurrentHashMap<String, SubscriptionGroupConfig>(1024);
+    //消费组名称和对应的订阅组配置
+    private final ConcurrentMap<String, SubscriptionGroupConfig> subscriptionGroupTable = new ConcurrentHashMap<>(1024);
     private final DataVersion dataVersion = new DataVersion();
     private transient BrokerController brokerController;
 
@@ -129,19 +129,19 @@ public class SubscriptionGroupManager extends ConfigManager {
      */
     public SubscriptionGroupConfig findSubscriptionGroupConfig(final String group) {
         SubscriptionGroupConfig config = this.subscriptionGroupTable.get(group);
-        if (null == config) {
-            if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || isSysConsumerGroup(group)) {
-                config = new SubscriptionGroupConfig();
-                config.setGroupName(group);
-                SubscriptionGroupConfig preConfig = this.subscriptionGroupTable.putIfAbsent(group, config);
-                if (null == preConfig) {
-                    log.info("auto create a subscription group, {}", config.toString());
-                }
-                this.dataVersion.nextVersion();
-                this.persist(); //持久化
-            }
+        if (config != null){
+            return config;
         }
-
+        if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || isSysConsumerGroup(group)) { //自动创建订阅组或者是一个系统组，我们构建一个
+            config = new SubscriptionGroupConfig();
+            config.setGroupName(group);
+            SubscriptionGroupConfig preConfig = this.subscriptionGroupTable.putIfAbsent(group, config);
+            if (null == preConfig) {
+                log.info("auto create a subscription group, {}", config.toString());
+            }
+            this.dataVersion.nextVersion();
+            this.persist(); //持久化
+        }
         return config;
     }
 
