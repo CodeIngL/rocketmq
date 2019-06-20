@@ -131,8 +131,7 @@ public class ConsumerOffsetManager extends ConfigManager {
      * @param queueId
      * @param offset
      */
-    public void commitOffset(final String clientHost, final String group, final String topic, final int queueId,
-        final long offset) {
+    public void commitOffset(final String clientHost, final String group, final String topic, final int queueId, final long offset) {
         // topic@group
         String key = topic + TOPIC_GROUP_SEPARATOR + group;
         this.commitOffset(clientHost, key, queueId, offset);

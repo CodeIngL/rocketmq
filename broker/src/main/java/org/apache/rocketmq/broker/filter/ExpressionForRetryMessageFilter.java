@@ -60,7 +60,7 @@ public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
         ConsumerFilterData realFilterData = this.consumerFilterData;
         Map<String, String> tempProperties = properties;
         boolean decoded = false;
-        if (isRetryTopic) {
+        if (isRetryTopic) { //是重试的拉取
             // retry topic, use original filter data.
             // poor performance to support retry filter.
             if (tempProperties == null && msgBuffer != null) {
