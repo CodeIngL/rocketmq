@@ -24,6 +24,9 @@ import java.nio.channels.WritableByteChannel;
 import java.util.List;
 import org.apache.rocketmq.store.GetMessageResult;
 
+/**
+ * 多个消息一起发送
+ */
 public class ManyMessageTransfer extends AbstractReferenceCounted implements FileRegion {
     private final ByteBuffer byteBufferHeader;
     private final GetMessageResult getMessageResult;
