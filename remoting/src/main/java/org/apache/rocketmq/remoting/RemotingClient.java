@@ -31,20 +31,16 @@ public interface RemotingClient extends RemotingService {
 
     List<String> getNameServerAddressList();
 
-    RemotingCommand invokeSync(final String addr, final RemotingCommand request,
-        final long timeoutMillis) throws InterruptedException, RemotingConnectException,
+    RemotingCommand invokeSync(final String addr, final RemotingCommand req, final long timeoutMillis) throws InterruptedException, RemotingConnectException,
         RemotingSendRequestException, RemotingTimeoutException;
 
-    void invokeAsync(final String addr, final RemotingCommand request, final long timeoutMillis,
-        final InvokeCallback invokeCallback) throws InterruptedException, RemotingConnectException,
+    void invokeAsync(final String addr, final RemotingCommand req, final long timeoutMillis, final InvokeCallback invokeCallback) throws InterruptedException, RemotingConnectException,
         RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException;
 
-    void invokeOneway(final String addr, final RemotingCommand request, final long timeoutMillis)
-        throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException,
+    void invokeOneway(final String addr, final RemotingCommand req, final long timeoutMillis) throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException,
         RemotingTimeoutException, RemotingSendRequestException;
 
-    void registerProcessor(final int requestCode, final NettyRequestProcessor processor,
-        final ExecutorService executor);
+    void registerProcessor(final int reqCode, final NettyRequestProcessor processor, final ExecutorService executor);
 
     void setCallbackExecutor(final ExecutorService callbackExecutor);
 
