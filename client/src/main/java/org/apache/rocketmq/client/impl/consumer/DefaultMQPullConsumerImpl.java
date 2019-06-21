@@ -206,7 +206,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     }
 
     /**
-     * 同步的拉取消息
+     * pull方式的同步的拉取消息
      * @param mq
      * @param subscriptionData
      * @param offset
@@ -262,8 +262,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         //处理结果
         this.pullAPIWrapper.processPullResult(mq, pullResult, subscriptionData);
         if (!this.consumeMessageHookList.isEmpty()) {
-            ConsumeMessageContext consumeMessageContext = null;
-            consumeMessageContext = new ConsumeMessageContext();
+            ConsumeMessageContext consumeMessageContext = new ConsumeMessageContext();
             consumeMessageContext.setConsumerGroup(this.groupName());
             consumeMessageContext.setMq(mq);
             consumeMessageContext.setMsgList(pullResult.getMsgFoundList());
@@ -440,6 +439,19 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         this.pullAsyncImpl(mq, subscriptionData, offset, maxNums, pullCallback, false, timeout);
     }
 
+    /**
+     * pull方式的拉取消息提供的基于一异步的拉取消息，需要提供一个callback
+     * @param mq
+     * @param subscriptionData
+     * @param offset
+     * @param maxNums
+     * @param pullCallback
+     * @param block
+     * @param timeout
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws InterruptedException
+     */
     private void pullAsyncImpl(
         final MessageQueue mq,
         final SubscriptionData subscriptionData,
@@ -490,8 +502,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
                     @Override
                     public void onSuccess(PullResult pullResult) {
-                        pullCallback
-                            .onSuccess(DefaultMQPullConsumerImpl.this.pullAPIWrapper.processPullResult(mq, pullResult, subscriptionData));
+                        pullCallback.onSuccess(DefaultMQPullConsumerImpl.this.pullAPIWrapper.processPullResult(mq, pullResult, subscriptionData));
                     }
 
                     @Override
@@ -627,13 +638,12 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                 //设置客户端
                 this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
 
-                this.pullAPIWrapper = new PullAPIWrapper(
-                    mQClientFactory,
+                this.pullAPIWrapper = new PullAPIWrapper(mQClientFactory,
                     this.defaultMQPullConsumer.getConsumerGroup(), isUnitMode());
                 this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
 
                 if (this.defaultMQPullConsumer.getOffsetStore() != null) {
-                    this.offsetStore = this.defaultMQPullConsumer.getOffsetStore();
+                    this.offsetStore = this.defaultMQPullConsumer.getOffsetStore(); //使用用户自己设置的存储
                 } else {
                     switch (this.defaultMQPullConsumer.getMessageModel()) {
                         case BROADCASTING: //广播方式
@@ -648,7 +658,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                     this.defaultMQPullConsumer.setOffsetStore(this.offsetStore);
                 }
 
-                this.offsetStore.load();
+                this.offsetStore.load(); //存储加载
 
                 boolean registerOK = mQClientFactory.registerConsumer(this.defaultMQPullConsumer.getConsumerGroup(), this);
                 if (!registerOK) {

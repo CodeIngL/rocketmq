@@ -52,7 +52,7 @@ import static org.apache.rocketmq.common.message.MessageConst.*;
 import static org.apache.rocketmq.common.sysflag.PullSysFlag.hasClassFilterFlag;
 
 /**
- * 拉模式的核心处理逻辑,无论是push还是pull
+ * 拉模式的核心处理逻辑,无论是push还是pull，实际上是一种拉取的模式，但是在broker中，如果支持长连接的话，我们会在何时时候进行推送会客户端。
  */
 public class PullAPIWrapper {
     private final InternalLogger log = ClientLogger.getLog();
@@ -219,18 +219,18 @@ public class PullAPIWrapper {
                 sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
             }
 
-            PullMessageRequestHeader requestHeader = new PullMessageRequestHeader();
-            requestHeader.setConsumerGroup(this.consumerGroup);
-            requestHeader.setTopic(mq.getTopic());
-            requestHeader.setQueueId(mq.getQueueId());
-            requestHeader.setQueueOffset(offset);
-            requestHeader.setMaxMsgNums(maxNums);
-            requestHeader.setSysFlag(sysFlagInner);
-            requestHeader.setCommitOffset(commitOffset);
-            requestHeader.setSuspendTimeoutMillis(brokerSuspendMaxTimeMillis);
-            requestHeader.setSubscription(subExpression);
-            requestHeader.setSubVersion(subVersion);
-            requestHeader.setExpressionType(expressionType);
+            PullMessageRequestHeader reqHeader = new PullMessageRequestHeader();
+            reqHeader.setConsumerGroup(this.consumerGroup);
+            reqHeader.setTopic(mq.getTopic());
+            reqHeader.setQueueId(mq.getQueueId());
+            reqHeader.setQueueOffset(offset);
+            reqHeader.setMaxMsgNums(maxNums);
+            reqHeader.setSysFlag(sysFlagInner);
+            reqHeader.setCommitOffset(commitOffset);
+            reqHeader.setSuspendTimeoutMillis(brokerSuspendMaxTimeMillis);
+            reqHeader.setSubscription(subExpression);
+            reqHeader.setSubVersion(subVersion);
+            reqHeader.setExpressionType(expressionType);
 
             String brokerAddr = findBrokerResult.getBrokerAddr();
             if (hasClassFilterFlag(sysFlagInner)) {
@@ -239,7 +239,7 @@ public class PullAPIWrapper {
 
             PullResult pullResult = this.mQClientFactory.getMQClientAPIImpl().pullMessage(
                 brokerAddr,
-                requestHeader,
+                reqHeader,
                 timeoutMillis,
                 communicationMode,
                 pullCallback);
@@ -250,6 +250,11 @@ public class PullAPIWrapper {
         throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);
     }
 
+    /**
+     * 计算重新去哪个节点拉取消息
+     * @param mq
+     * @return
+     */
     public long recalculatePullFromWhichNode(final MessageQueue mq) {
         if (this.isConnectBrokerByUser()) {
             return this.defaultBrokerId;

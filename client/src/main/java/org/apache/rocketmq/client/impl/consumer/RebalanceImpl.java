@@ -400,12 +400,12 @@ public abstract class RebalanceImpl {
                     log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
                 } else { //先前不存在
                     log.info("doRebalance, {}, add a new mq, {}", consumerGroup, mq);
-                    PullRequest pullRequest = new PullRequest(); //构建一个消息准备进行拉取消息
-                    pullRequest.setConsumerGroup(consumerGroup);
-                    pullRequest.setNextOffset(nextOffset);
-                    pullRequest.setMessageQueue(mq);
-                    pullRequest.setProcessQueue(pq);
-                    pullRequestList.add(pullRequest);
+                    PullRequest req = new PullRequest(); //构建一个消息准备进行拉取消息
+                    req.setConsumerGroup(consumerGroup);
+                    req.setNextOffset(nextOffset);
+                    req.setMessageQueue(mq);
+                    req.setProcessQueue(pq);
+                    pullRequestList.add(req);
                     changed = true;
                 }
             } else {

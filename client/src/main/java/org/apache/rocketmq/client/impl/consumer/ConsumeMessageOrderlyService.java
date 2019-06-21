@@ -53,6 +53,9 @@ import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.BROADCA
 import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTERING;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.exceptionSimpleDesc;
 
+/**
+ * 顺序消费
+ */
 public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     private static final InternalLogger log = ClientLogger.getLog();
     private final static long MAX_TIME_CONSUME_CONTINUOUSLY =
@@ -67,11 +70,9 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     private final ScheduledExecutorService scheduledExecutorService;
     private volatile boolean stopped = false;
 
-    public ConsumeMessageOrderlyService(DefaultMQPushConsumerImpl defaultMQPushConsumerImpl,
-        MessageListenerOrderly messageListener) {
+    public ConsumeMessageOrderlyService(DefaultMQPushConsumerImpl defaultMQPushConsumerImpl, MessageListenerOrderly listener) {
         this.defaultMQPushConsumerImpl = defaultMQPushConsumerImpl;
-        this.messageListener = messageListener;
-
+        this.messageListener = listener;
         this.defaultMQPushConsumer = this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer();
         this.consumerGroup = this.defaultMQPushConsumer.getConsumerGroup();
         this.consumeRequestQueue = new LinkedBlockingQueue<>();
@@ -88,7 +89,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     public void start() {
-        if (CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())) {
+        if (CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) { //集群模式才支持定时的调度
             this.scheduledExecutorService.scheduleAtFixedRate(() ->
                     ConsumeMessageOrderlyService.this.lockMQPeriodically(), 1000 * 1, ProcessQueue.REBALANCE_LOCK_INTERVAL, TimeUnit.MILLISECONDS);
         }
@@ -189,11 +190,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     @Override
-    public void submitConsumeRequest(
-        final List<MessageExt> msgs,
-        final ProcessQueue processQueue,
-        final MessageQueue messageQueue,
-        final boolean dispathToConsume) {
+    public void submitConsumeRequest(final List<MessageExt> msgs, final ProcessQueue processQueue, final MessageQueue messageQueue, final boolean dispathToConsume) {
         if (dispathToConsume) {
             ConsumeRequest consumeRequest = new ConsumeRequest(processQueue, messageQueue);
             this.consumeExecutor.submit(consumeRequest);
