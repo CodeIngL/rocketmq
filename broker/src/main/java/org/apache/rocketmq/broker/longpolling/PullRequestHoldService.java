@@ -62,7 +62,6 @@ public class PullRequestHoldService extends ServiceThread {
                 mpr = prev;
             }
         }
-
         mpr.addPullRequest(req);
     }
 
@@ -152,6 +151,7 @@ public class PullRequestHoldService extends ServiceThread {
      * @param properties
      */
     public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset, final Long tagsCode, long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {
+        //获得内存中维持关于长轮训的请求
         ManyPullRequest mpr = this.pullRequestTable.get(buildKey(topic, queueId));
         if (mpr == null) {
             return;
@@ -176,7 +176,7 @@ public class PullRequestHoldService extends ServiceThread {
                     match = filter.isMatchedByCommitLog(null, properties);
                 }
 
-                //匹配
+                //匹配，我们唤醒，来重新处理这个长轮训的请求，因为我们之前没能成功进行返回消息。
                 if (match) {
                     try {
                         this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(req.getClientChannel(), req.getRequestCommand());

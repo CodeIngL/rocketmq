@@ -22,7 +22,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.store.MessageFilter;
 
 /**
- * 拉取消息的请求
+ * 拉取消息的请求，这里使用在broker端，而不是客户端
  */
 public class PullRequest {
     //构建的远程请求
