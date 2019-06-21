@@ -51,6 +51,11 @@ public class ClientConfig {
 
     private LanguageCode language = LanguageCode.JAVA;
 
+    /**
+     * 获得mq中网络客户端的id
+     * 由ip@rocketmq.client.name:default@unitName
+     * @return
+     */
     public String buildMQClientId() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClientIP());

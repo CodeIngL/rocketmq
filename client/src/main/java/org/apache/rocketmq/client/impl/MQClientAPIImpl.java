@@ -57,7 +57,6 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.namesrv.TopAddressing;
 import org.apache.rocketmq.common.protocol.RequestCode;
-import org.apache.rocketmq.common.protocol.ResponseCode;
 import org.apache.rocketmq.common.protocol.body.BrokerStatsData;
 import org.apache.rocketmq.common.protocol.body.CheckClientRequestBody;
 import org.apache.rocketmq.common.protocol.body.ClusterInfo;
@@ -152,9 +151,11 @@ import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+import static org.apache.rocketmq.client.consumer.PullStatus.*;
 import static org.apache.rocketmq.common.MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC;
 import static org.apache.rocketmq.common.protocol.RequestCode.CONSUMER_SEND_MSG_BACK;
 import static org.apache.rocketmq.common.protocol.RequestCode.LOCK_BATCH_MQ;
+import static org.apache.rocketmq.common.protocol.RequestCode.PULL_MESSAGE;
 import static org.apache.rocketmq.common.protocol.ResponseCode.*;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createRequestCommand;
 import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCCESS;
@@ -660,79 +661,64 @@ public class MQClientAPIImpl {
     }
 
     /**
-     * 拉取消息
+     * 拉取消息,网络客户端的唯一方式，内部转换为使用异步的方式或者是使用同步的方式
+     * 异步需要提供一个callback用于回调处理结果，
+     * 同步则我们向上层返回我们处理的结果。
+     * 当返回结果后，我们总是先要处理合适的格式，然后转换为一个通用的pullResult
      * @param addr
-     * @param requestHeader
+     * @param reqHeader
      * @param timeoutMillis
      * @param communicationMode
-     * @param pullCallback
+     * @param callback
      * @return
      * @throws RemotingException
      * @throws MQBrokerException
      * @throws InterruptedException
      */
-    public PullResult pullMessage(
-        final String addr,
-        final PullMessageRequestHeader requestHeader,
-        final long timeoutMillis,
-        final CommunicationMode communicationMode,
-        final PullCallback pullCallback
-    ) throws RemotingException, MQBrokerException, InterruptedException {
-        RemotingCommand request = createRequestCommand(RequestCode.PULL_MESSAGE, requestHeader);
-
+    public PullResult pullMessage(final String addr, final PullMessageRequestHeader reqHeader, final long timeoutMillis, final CommunicationMode communicationMode, final PullCallback callback) throws RemotingException, MQBrokerException, InterruptedException {
+        RemotingCommand req = createRequestCommand(PULL_MESSAGE, reqHeader);
         switch (communicationMode) {
-            case ONEWAY:
-                assert false;
-                return null;
             case ASYNC:
-                this.pullMessageAsync(addr, request, timeoutMillis, pullCallback);
+                pullMessageAsync(addr, req, timeoutMillis, callback);
                 return null;
             case SYNC:
-                return this.pullMessageSync(addr, request, timeoutMillis);
+                return pullMessageSync(addr, req, timeoutMillis);
+            case ONEWAY:
             default:
                 assert false;
                 break;
         }
-
         return null;
     }
 
     /**
      * 异步拉取消息
      * @param addr
-     * @param request
+     * @param req
      * @param timeoutMillis
      * @param pullCallback
      * @throws RemotingException
      * @throws InterruptedException
      */
-    private void pullMessageAsync(
-        final String addr,
-        final RemotingCommand request,
-        final long timeoutMillis,
-        final PullCallback pullCallback
-    ) throws RemotingException, InterruptedException {
-        this.remotingClient.invokeAsync(addr, request, timeoutMillis, new InvokeCallback() {
-            @Override
-            public void operationComplete(ResponseFuture responseFuture) {
-                RemotingCommand response = responseFuture.getResponseCommand();
-                if (response != null) {
-                    try {
-                        PullResult pullResult = MQClientAPIImpl.this.processPullResponse(response);
-                        assert pullResult != null;
-                        pullCallback.onSuccess(pullResult);
-                    } catch (Exception e) {
-                        pullCallback.onException(e);
-                    }
+    private void pullMessageAsync(final String addr, final RemotingCommand req, final long timeoutMillis, final PullCallback pullCallback) throws RemotingException, InterruptedException {
+        this.remotingClient.invokeAsync(addr, req, timeoutMillis, respFuture -> {
+            RemotingCommand resp = respFuture.getResponseCommand();
+            if (resp != null) {
+                try {
+                    PullResult result = MQClientAPIImpl.this.processPullResponse(resp);
+                    assert result != null;
+                    pullCallback.onSuccess(result);
+                } catch (Exception e) {
+                    pullCallback.onException(e);
+                }
+            } else {
+                if (!respFuture.isSendRequestOK()) {
+                    pullCallback.onException(new MQClientException("send request failed to " + addr + ". Request: " + req, respFuture.getCause()));
+                } else if (respFuture.isTimeout()) {
+                    pullCallback.onException(new MQClientException("wait response from " + addr + " timeout :" + respFuture.getTimeoutMillis() + "ms" + ". Request: " + req,
+                        respFuture.getCause()));
                 } else {
-                    if (!responseFuture.isSendRequestOK()) {
-                        pullCallback.onException(new MQClientException("send request failed to " + addr + ". Request: " + request, responseFuture.getCause()));
-                    } else if (responseFuture.isTimeout()) {
-                        pullCallback.onException(new MQClientException("wait response from " + addr + " timeout :" + responseFuture.getTimeoutMillis() + "ms" + ". Request: " + request,
-                            responseFuture.getCause()));
-                    } else {
-                        pullCallback.onException(new MQClientException("unknown reason. addr: " + addr + ", timeoutMillis: " + timeoutMillis + ". Request: " + request, responseFuture.getCause()));
-                    }
+                    pullCallback.onException(new MQClientException("unknown reason. addr: " + addr + ", timeoutMillis: " + timeoutMillis + ". Request: " + req, respFuture.getCause()));
                 }
             }
         });
@@ -741,56 +727,49 @@ public class MQClientAPIImpl {
     /**
      * 拉取消息
      * @param addr
-     * @param request
+     * @param req
      * @param timeoutMillis
      * @return
      * @throws RemotingException
      * @throws InterruptedException
      * @throws MQBrokerException
      */
-    private PullResult pullMessageSync(
-        final String addr,
-        final RemotingCommand request,
-        final long timeoutMillis
-    ) throws RemotingException, InterruptedException, MQBrokerException {
-        RemotingCommand response = this.remotingClient.invokeSync(addr, request, timeoutMillis);
-        assert response != null;
-        return this.processPullResponse(response);
+    private PullResult pullMessageSync(final String addr, final RemotingCommand req, final long timeoutMillis) throws RemotingException, InterruptedException, MQBrokerException {
+        RemotingCommand resp = this.remotingClient.invokeSync(addr, req, timeoutMillis);
+        assert resp != null;
+        return this.processPullResponse(resp);
     }
 
     /**
-     * 处理拉取结果
-     * @param response
+     * 内部我们总是要将拉取消息的结果转换为一个合适的对象，也就是PullResult来完成对上层的支持。
+     * @param resp 网络统一的响应格式
      * @return
      * @throws MQBrokerException
      * @throws RemotingCommandException
      */
-    private PullResult processPullResponse(
-        final RemotingCommand response) throws MQBrokerException, RemotingCommandException {
-        PullStatus pullStatus = PullStatus.NO_NEW_MSG;
-        switch (response.getCode()) {
+    private PullResult processPullResponse(final RemotingCommand resp) throws MQBrokerException, RemotingCommandException {
+        PullStatus pullStatus;
+        switch (resp.getCode()) {
             case SUCCESS:
-                pullStatus = PullStatus.FOUND;
+                pullStatus = FOUND;
                 break;
-            case ResponseCode.PULL_NOT_FOUND:
-                pullStatus = PullStatus.NO_NEW_MSG;
+            case PULL_NOT_FOUND:
+                pullStatus = NO_NEW_MSG;
                 break;
-            case ResponseCode.PULL_RETRY_IMMEDIATELY:
-                pullStatus = PullStatus.NO_MATCHED_MSG;
+            case PULL_RETRY_IMMEDIATELY:
+                pullStatus = NO_MATCHED_MSG;
                 break;
-            case ResponseCode.PULL_OFFSET_MOVED:
-                pullStatus = PullStatus.OFFSET_ILLEGAL;
+            case PULL_OFFSET_MOVED:
+                pullStatus = OFFSET_ILLEGAL;
                 break;
-
             default:
-                throw new MQBrokerException(response.getCode(), response.getRemark());
+                throw new MQBrokerException(resp.getCode(), resp.getRemark());
         }
 
-        PullMessageResponseHeader responseHeader =
-            (PullMessageResponseHeader) response.decodeCommandCustomHeader(PullMessageResponseHeader.class);
+        PullMessageResponseHeader respHeader = (PullMessageResponseHeader) resp.decodeCommandCustomHeader(PullMessageResponseHeader.class);
 
-        return new PullResultExt(pullStatus, responseHeader.getNextBeginOffset(), responseHeader.getMinOffset(),
-            responseHeader.getMaxOffset(), null, responseHeader.getSuggestWhichBrokerId(), response.getBody());
+        return new PullResultExt(pullStatus, respHeader.getNextBeginOffset(), respHeader.getMinOffset(),
+            respHeader.getMaxOffset(), null, respHeader.getSuggestWhichBrokerId(), resp.getBody());
     }
 
     public MessageExt viewMessage(final String addr, final long phyoffset, final long timeoutMillis)
