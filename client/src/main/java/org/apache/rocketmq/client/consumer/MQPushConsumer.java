@@ -64,8 +64,7 @@ public interface MQPushConsumer extends MQConsumer {
      * @param filterClassSource class source code,used UTF-8 file encoding,must be responsible for your code safety
      */
     @Deprecated
-    void subscribe(final String topic, final String fullClassName,
-        final String filterClassSource) throws MQClientException;
+    void subscribe(final String topic, final String fullClassName, final String filterClassSource) throws MQClientException;
 
     /**
      * Subscribe some topic with selector.
