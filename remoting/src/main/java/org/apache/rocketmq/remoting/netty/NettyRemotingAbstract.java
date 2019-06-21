@@ -315,17 +315,17 @@ public abstract class NettyRemotingAbstract {
      */
     public void processResponseCommand(ChannelHandlerContext ctx, RemotingCommand cmd) {
         final int opaque = cmd.getOpaque();
-        final ResponseFuture responseFuture = responseTable.get(opaque);
-        if (responseFuture != null) {
-            responseFuture.setResponseCommand(cmd);
+        final ResponseFuture respFuture = responseTable.get(opaque);
+        if (respFuture != null) {
+            respFuture.setResponseCommand(cmd);
 
             responseTable.remove(opaque);
 
-            if (responseFuture.getInvokeCallback() != null) {
-                executeInvokeCallback(responseFuture);
+            if (respFuture.getInvokeCallback() != null) {
+                executeInvokeCallback(respFuture);
             } else {
-                responseFuture.putResponse(cmd);
-                responseFuture.release();
+                respFuture.putResponse(cmd);
+                respFuture.release();
             }
         } else {
             log.warn("receive response, but not matched any request, " + parseChannelRemoteAddr(ctx.channel()));
