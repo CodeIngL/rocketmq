@@ -67,7 +67,7 @@ public class MQFaultStrategy {
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         if (this.sendLatencyFaultEnable) { //支持容错
             try {
-                int index = tpInfo.getSendWhichQueue().getAndIncrement(); //
+                int index = tpInfo.getSendWhichQueue().getAndIncrement(); //获得queue
                 for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) {
                     int pos = Math.abs(index++) % tpInfo.getMessageQueueList().size(); //随机
                     if (pos < 0)
