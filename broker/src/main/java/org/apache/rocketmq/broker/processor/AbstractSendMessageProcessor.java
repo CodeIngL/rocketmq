@@ -77,26 +77,30 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
                 .getNettyServerConfig().getListenPort());
     }
 
-    protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx, SendMessageRequestHeader reqHeader) {
+    /**
+     * 构建处理消息发送的上下文
+     * @param ctx channel上下文
+     * @param header 消息请求头
+     * @return
+     */
+    protected SendMessageContext buildMsgContext(ChannelHandlerContext ctx, SendMessageRequestHeader header) {
         if (!this.hasSendMessageHook()) {
             return null;
         }
-        SendMessageContext context;
-        context = new SendMessageContext();
-        context.setProducerGroup(reqHeader.getProducerGroup());
-        context.setTopic(reqHeader.getTopic());
-        context.setMsgProps(reqHeader.getProperties());
-        context.setBornHost(parseChannelRemoteAddr(ctx.channel()));
-        context.setBrokerAddr(this.brokerController.getBrokerAddr());
-        context.setBrokerRegionId(this.brokerController.getBrokerConfig().getRegionId());
-        context.setBornTimeStamp(reqHeader.getBornTimestamp());
+        SendMessageContext context = new SendMessageContext();
+        context.setProducerGroup(header.getProducerGroup()); //发送组
+        context.setTopic(header.getTopic()); //topic
+        context.setMsgProps(header.getProperties()); //属性
+        context.setBornHost(parseChannelRemoteAddr(ctx.channel())); //消息产生host
+        context.setBrokerAddr(this.brokerController.getBrokerAddr()); //broker地址
+        context.setBrokerRegionId(this.brokerController.getBrokerConfig().getRegionId());//区域id
+        context.setBornTimeStamp(header.getBornTimestamp()); //消息产生时间
 
-        Map<String, String> properties = string2messageProperties(reqHeader.getProperties());
-        String uniqueKey = properties.get(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX);
+        Map<String, String> properties = string2messageProperties(header.getProperties()); //属性键值对
         properties.put(PROPERTY_MSG_REGION, this.brokerController.getBrokerConfig().getRegionId());
         properties.put(PROPERTY_TRACE_SWITCH, String.valueOf(this.brokerController.getBrokerConfig().isTraceOn()));
-        reqHeader.setProperties(MessageDecoder.messageProperties2String(properties));
-
+        header.setProperties(MessageDecoder.messageProperties2String(properties));
+        String uniqueKey = properties.get(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX); //key
         if (uniqueKey == null) {
             uniqueKey = "";
         }
@@ -104,38 +108,41 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         return context;
     }
 
+    /**
+     * 是否有发送消息的钩子列表
+     * @return
+     */
     public boolean hasSendMessageHook() {
         return sendMessageHookList != null && !this.sendMessageHookList.isEmpty();
     }
 
-    protected MessageExtBrokerInner buildInnerMsg(final ChannelHandlerContext ctx,
-        final SendMessageRequestHeader requestHeader, final byte[] body, TopicConfig topicConfig) {
-        int queueIdInt = requestHeader.getQueueId();
+    protected MessageExtBrokerInner buildInnerMsg(final ChannelHandlerContext ctx, final SendMessageRequestHeader reqHeader, final byte[] body, TopicConfig topicConfig) {
+        int queueIdInt = reqHeader.getQueueId();
         if (queueIdInt < 0) {
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
         }
-        int sysFlag = requestHeader.getSysFlag();
+        int sysFlag = reqHeader.getSysFlag();
 
         if (TopicFilterType.MULTI_TAG == topicConfig.getTopicFilterType()) {
             sysFlag |= MessageSysFlag.MULTI_TAGS_FLAG;
         }
 
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
-        msgInner.setTopic(requestHeader.getTopic());
+        msgInner.setTopic(reqHeader.getTopic());
         msgInner.setBody(body);
-        msgInner.setFlag(requestHeader.getFlag());
+        msgInner.setFlag(reqHeader.getFlag());
         MessageAccessor.setProperties(msgInner,
-            string2messageProperties(requestHeader.getProperties()));
-        msgInner.setPropertiesString(requestHeader.getProperties());
+            string2messageProperties(reqHeader.getProperties()));
+        msgInner.setPropertiesString(reqHeader.getProperties());
         msgInner.setTagsCode(MessageExtBrokerInner.tagsString2tagsCode(topicConfig.getTopicFilterType(),
             msgInner.getTags()));
 
         msgInner.setQueueId(queueIdInt);
         msgInner.setSysFlag(sysFlag);
-        msgInner.setBornTimestamp(requestHeader.getBornTimestamp());
+        msgInner.setBornTimestamp(reqHeader.getBornTimestamp());
         msgInner.setBornHost(ctx.channel().remoteAddress());
         msgInner.setStoreHost(this.getStoreHost());
-        msgInner.setReconsumeTimes(requestHeader.getReconsumeTimes() == null ? 0 : requestHeader
+        msgInner.setReconsumeTimes(reqHeader.getReconsumeTimes() == null ? 0 : reqHeader
             .getReconsumeTimes());
         return msgInner;
     }
@@ -274,30 +281,29 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         for (SendMessageHook hook : this.sendMessageHookList) {
             try {
                 //请求头
-                final SendMessageRequestHeader reqHeader = parseRequestHeader(req);
-
-                if (null != reqHeader) {
+                final SendMessageRequestHeader header = parseRequestHeader(req);
+                if (null != header) {
                     //设置发送组
-                    context.setProducerGroup(reqHeader.getProducerGroup());
+                    context.setProducerGroup(header.getProducerGroup());
                     //设置主题
-                    context.setTopic(reqHeader.getTopic());
+                    context.setTopic(header.getTopic());
                     //设置消息体长
                     context.setBodyLength(req.getBody().length);
                     //设置消息相关的属性
-                    context.setMsgProps(reqHeader.getProperties());
+                    context.setMsgProps(header.getProperties());
                     //设置
                     context.setBornHost(parseChannelRemoteAddr(ctx.channel()));
                     //设置broker的地址
                     context.setBrokerAddr(this.brokerController.getBrokerAddr());
                     //设置队列的id
-                    context.setQueueId(reqHeader.getQueueId());
+                    context.setQueueId(header.getQueueId());
                 }
 
                 //执行钩子
                 hook.sendMessageBefore(context);
-                if (reqHeader != null) {
+                if (header != null) {
                     //将上下文的消息属性写入请求头中
-                    reqHeader.setProperties(context.getMsgProps());
+                    header.setProperties(context.getMsgProps());
                 }
             } catch (Throwable e) {
                 // Ignore
@@ -314,22 +320,22 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
      */
     protected SendMessageRequestHeader parseRequestHeader(RemotingCommand req) throws RemotingCommandException {
 
-        SendMessageRequestHeaderV2 reqHeaderV2 = null;
-        SendMessageRequestHeader reqHeader = null;
+        SendMessageRequestHeaderV2 headerV2 = null;
+        SendMessageRequestHeader header = null;
         switch (req.getCode()) {
             case SEND_BATCH_MESSAGE:
             case SEND_MESSAGE_V2: //批量发送，v2版本
-                reqHeaderV2 = (SendMessageRequestHeaderV2) req.decodeCommandCustomHeader(SendMessageRequestHeaderV2.class);
+                headerV2 = (SendMessageRequestHeaderV2) req.decodeCommandCustomHeader(SendMessageRequestHeaderV2.class);
             case SEND_MESSAGE: //单个发送
-                if (null == reqHeaderV2) {//版本不是v2，直接操作
-                    reqHeader = (SendMessageRequestHeader) req.decodeCommandCustomHeader(SendMessageRequestHeader.class);
+                if (null == headerV2) {//版本不是v2，直接操作
+                    header = (SendMessageRequestHeader) req.decodeCommandCustomHeader(SendMessageRequestHeader.class);
                 } else {//版本是v2转换以前的版本
-                    reqHeader = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV1(reqHeaderV2);
+                    header = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV1(headerV2);
                 }
             default:
                 break;
         }
-        return reqHeader;
+        return header;
     }
 
     public void executeSendMessageHookAfter(final RemotingCommand resp, final SendMessageContext context) {

@@ -53,6 +53,7 @@ import static org.apache.rocketmq.common.help.FAQUrl.suggestTodo;
 import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_MSG_REGION;
 import static org.apache.rocketmq.common.message.MessageConst.PROPERTY_TRACE_SWITCH;
 import static org.apache.rocketmq.common.message.MessageDecoder.string2messageProperties;
+import static org.apache.rocketmq.common.protocol.RequestCode.CONSUMER_SEND_MSG_BACK;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
 import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SYSTEM_ERROR;
 
@@ -61,6 +62,7 @@ import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SYST
  */
 public class SendMessageProcessor extends AbstractSendMessageProcessor implements NettyRequestProcessor {
 
+    //消息重发的hook
     private List<ConsumeMessageHook> consumeMessageHookList;
 
     public SendMessageProcessor(final BrokerController brokerController) {
@@ -76,21 +78,18 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
      * @throws RemotingCommandException
      */
     @Override
-    public RemotingCommand processRequest(ChannelHandlerContext ctx,
-                                          RemotingCommand req) throws RemotingCommandException {
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         switch (req.getCode()) {
-            case RequestCode.CONSUMER_SEND_MSG_BACK: //重发
+            case CONSUMER_SEND_MSG_BACK: //消息重发
                 return this.consumerSendMsgBack(ctx, req);
             default:
-                //解析消息发送的请求头部
-                SendMessageRequestHeader reqHeader = parseRequestHeader(req);
+                SendMessageRequestHeader reqHeader = parseRequestHeader(req);//解析消息头部
                 if (reqHeader == null) {
                     return null;
                 }
 
                 //上下文
                 SendMessageContext context = buildMsgContext(ctx, reqHeader);
-
                 this.executeSendMessageHookBefore(ctx, req, context);//先执行钩子before，里面存在不必要的代码
                 RemotingCommand resp = reqHeader.isBatch() ? sendBatchMessage(ctx, req, context, reqHeader) : sendMessage(ctx, req, context, reqHeader);
                 this.executeSendMessageHookAfter(resp, context);//再执行钩子after，里面存在着不必要的代码
@@ -114,23 +113,23 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
     private RemotingCommand consumerSendMsgBack(final ChannelHandlerContext ctx, final RemotingCommand req)
         throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(null);
-        final ConsumerSendMsgBackRequestHeader reqHeader = (ConsumerSendMsgBackRequestHeader)req.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
+        final ConsumerSendMsgBackRequestHeader header = (ConsumerSendMsgBackRequestHeader)req.decodeCommandCustomHeader(ConsumerSendMsgBackRequestHeader.class);
 
-        if (this.hasConsumeMessageHook() && !UtilAll.isBlank(reqHeader.getOriginMsgId())) {
+        if (this.hasConsumeMessageHook() && !UtilAll.isBlank(header.getOriginMsgId())) { //
             ConsumeMessageContext context = new ConsumeMessageContext();
-            context.setConsumerGroup(reqHeader.getGroup());
-            context.setTopic(reqHeader.getOriginTopic());
+            context.setConsumerGroup(header.getGroup());
+            context.setTopic(header.getOriginTopic());
             context.setCommercialRcvStats(BrokerStatsManager.StatsType.SEND_BACK);
             context.setCommercialRcvTimes(1);
             context.setCommercialOwner(req.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER));
-            this.executeConsumeMessageHookAfter(context);
+            this.executeConsumeMessageHookAfter(context); //执行hook后，之前存在hook前，在拉取消息的时候先执行，这里将处理拉取后进行消息重发的操作
         }
 
-        SubscriptionGroupConfig subscriptionGroupConfig =
-            this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(reqHeader.getGroup());
+        //获得内存中的订阅关系
+        SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(header.getGroup());
         if (null == subscriptionGroupConfig) {
             resp.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
-            resp.setRemark("subscription group not exist, " + reqHeader.getGroup() + " "
+            resp.setRemark("subscription group not exist, " + header.getGroup() + " "
                 + suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
             return resp;
         }
@@ -147,14 +146,15 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             return resp;
         }
 
-        String newTopic = MixAll.getRetryTopic(reqHeader.getGroup());
-        int queueIdInt = Math.abs(this.random.nextInt() % 99999999) % subscriptionGroupConfig.getRetryQueueNums();
+        String newTopic = MixAll.getRetryTopic(header.getGroup()); //构建重试topic也就是，重试前缀加上真是topic
+        int queueIdInt = Math.abs(this.random.nextInt() % 99999999) % subscriptionGroupConfig.getRetryQueueNums(); //选取相关的queueId
 
         int topicSysFlag = 0;
-        if (reqHeader.isUnitMode()) {
+        if (header.isUnitMode()) {
             topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
         }
 
+        //获得内存中的topic配置信息
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(
             newTopic,
             subscriptionGroupConfig.getRetryQueueNums(),
@@ -171,28 +171,29 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             return resp;
         }
 
-        MessageExt msgExt = this.brokerController.getMessageStore().lookMessageByOffset(reqHeader.getOffset());
+        //根据提供的offset。我们直接寻找相关的消息，
+        MessageExt msgExt = this.brokerController.getMessageStore().lookMessageByOffset(header.getOffset());
         if (null == msgExt) {
             resp.setCode(SYSTEM_ERROR);
-            resp.setRemark("look message by offset failed, " + reqHeader.getOffset());
+            resp.setRemark("look message by offset failed, " + header.getOffset());
             return resp;
         }
 
-        final String retryTopic = msgExt.getProperty(MessageConst.PROPERTY_RETRY_TOPIC);
+        final String retryTopic = msgExt.getProperty(MessageConst.PROPERTY_RETRY_TOPIC); //获得一下重试的topic
         if (null == retryTopic) {
             MessageAccessor.putProperty(msgExt, MessageConst.PROPERTY_RETRY_TOPIC, msgExt.getTopic());
         }
         msgExt.setWaitStoreMsgOK(false);
 
-        int delayLevel = reqHeader.getDelayLevel();
+        int delayLevel = header.getDelayLevel(); //延迟级别
 
         int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
         if (req.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
-            maxReconsumeTimes = reqHeader.getMaxReconsumeTimes();
+            maxReconsumeTimes = header.getMaxReconsumeTimes();
         }
 
         if (msgExt.getReconsumeTimes() >= maxReconsumeTimes || delayLevel < 0) { //重发次数到达最大的次数，或者延时小于0,发送到死信队列中
-            newTopic = MixAll.getDLQTopic(reqHeader.getGroup());
+            newTopic = MixAll.getDLQTopic(header.getGroup());
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
 
             topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, DLQ_NUMS_PER_GROUP, PermName.PERM_WRITE, 0);
@@ -235,7 +236,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                     if (correctTopic != null) {
                         backTopic = correctTopic;
                     }
-                    this.brokerController.getBrokerStatsManager().incSendBackNums(reqHeader.getGroup(), backTopic);
+                    this.brokerController.getBrokerStatsManager().incSendBackNums(header.getGroup(), backTopic);
                     resp.setCode(ResponseCode.SUCCESS);
                     resp.setRemark(null);
                     return resp;

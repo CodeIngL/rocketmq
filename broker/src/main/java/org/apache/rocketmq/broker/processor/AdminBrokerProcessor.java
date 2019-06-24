@@ -172,7 +172,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
                 return this.lockBatchMQ(ctx, request);
             case RequestCode.UNLOCK_BATCH_MQ:
                 return this.unlockBatchMQ(ctx, request);
-            case RequestCode.UPDATE_AND_CREATE_SUBSCRIPTIONGROUP:
+            case RequestCode.UPDATE_AND_CREATE_SUBSCRIPTIONGROUP: //更新或者构建消费组对应的订阅组
                 return this.updateAndCreateSubscriptionGroup(ctx, request);
             case RequestCode.GET_ALL_SUBSCRIPTIONGROUP_CONFIG:
                 return this.getAllSubscriptionGroup(ctx, request);
@@ -502,20 +502,26 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    private RemotingCommand updateAndCreateSubscriptionGroup(ChannelHandlerContext ctx, RemotingCommand request)
-        throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(null);
+    /**
+     * 更新或者构建订阅组
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
+    private RemotingCommand updateAndCreateSubscriptionGroup(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
+        final RemotingCommand resp = createResponseCommand(null);
 
         log.info("updateAndCreateSubscriptionGroup called by {}", parseChannelRemoteAddr(ctx.channel()));
 
-        SubscriptionGroupConfig config = RemotingSerializable.decode(request.getBody(), SubscriptionGroupConfig.class);
+        SubscriptionGroupConfig config = RemotingSerializable.decode(req.getBody(), SubscriptionGroupConfig.class);
         if (config != null) {
             this.brokerController.getSubscriptionGroupManager().updateSubscriptionGroupConfig(config);
         }
 
-        response.setCode(SUCCESS);
-        response.setRemark(null);
-        return response;
+        resp.setCode(SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
     private RemotingCommand getAllSubscriptionGroup(ChannelHandlerContext ctx,

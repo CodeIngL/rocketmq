@@ -73,7 +73,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
     }
 
     /**
-     * 获得对应的comsumerList
+     * 获得对应的consumer列表
      * @param ctx
      * @param req
      * @return
@@ -84,6 +84,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         final RemotingCommand resp = createResponseCommand(GetConsumerListByGroupResponseHeader.class);
         final GetConsumerListByGroupRequestHeader reqHeader = (GetConsumerListByGroupRequestHeader) req.decodeCommandCustomHeader(GetConsumerListByGroupRequestHeader.class);
 
+        //获得消费组的信息
         ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(reqHeader.getConsumerGroup());
         if (consumerGroupInfo != null) { //存在相关信息
             List<String> clientIds = consumerGroupInfo.getAllClientId(); //获得所有的clientId
@@ -95,12 +96,10 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
                 resp.setRemark(null);
                 return resp;
             } else {
-                log.warn("getAllClientId failed, {} {}", reqHeader.getConsumerGroup(),
-                    parseChannelRemoteAddr(ctx.channel()));
+                log.warn("getAllClientId failed, {} {}", reqHeader.getConsumerGroup(), parseChannelRemoteAddr(ctx.channel()));
             }
         } else {
-            log.warn("getConsumerGroupInfo failed, {} {}", reqHeader.getConsumerGroup(),
-                parseChannelRemoteAddr(ctx.channel()));
+            log.warn("getConsumerGroupInfo failed, {} {}", reqHeader.getConsumerGroup(), parseChannelRemoteAddr(ctx.channel()));
         }
         resp.setRemark("no consumer for this group, " + reqHeader.getConsumerGroup());
         return resp;
