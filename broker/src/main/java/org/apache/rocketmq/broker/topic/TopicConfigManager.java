@@ -58,6 +58,10 @@ public class TopicConfigManager extends ConfigManager {
     public TopicConfigManager() {
     }
 
+    /**
+     * topic配置相关的信息
+     * @param brokerController
+     */
     public TopicConfigManager(BrokerController brokerController) {
         this.brokerController = brokerController;
         {
@@ -71,7 +75,7 @@ public class TopicConfigManager extends ConfigManager {
         }
         {
             // MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC
-            if (this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) {
+            if (this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) { //支持自动创建topic，我们在toppic内存表中，存放了一个特殊的topic
                 String topic = MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC;
                 TopicConfig topicConfig = new TopicConfig(topic);
                 this.systemTopicList.add(topic);

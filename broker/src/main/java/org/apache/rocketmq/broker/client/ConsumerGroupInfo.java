@@ -82,6 +82,10 @@ public class ConsumerGroupInfo {
         return result;
     }
 
+    /**
+     * 获得所有的客户端的id，从channelInfo中获取
+     * @return
+     */
     public List<String> getAllClientId() {
         List<String> result = new ArrayList<>();
 

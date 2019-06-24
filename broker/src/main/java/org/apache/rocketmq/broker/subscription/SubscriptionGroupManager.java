@@ -101,6 +101,10 @@ public class SubscriptionGroupManager extends ConfigManager {
         }
     }
 
+    /**
+     * 更新消费组对应的订阅组，包括新增
+     * @param config
+     */
     public void updateSubscriptionGroupConfig(final SubscriptionGroupConfig config) {
         SubscriptionGroupConfig old = this.subscriptionGroupTable.put(config.getGroupName(), config);
         if (old != null) {
@@ -108,9 +112,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         } else {
             log.info("create new subscription group, {}", config);
         }
-
         this.dataVersion.nextVersion();
-
         this.persist();
     }
 

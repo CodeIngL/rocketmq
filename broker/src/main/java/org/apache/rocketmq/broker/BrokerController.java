@@ -308,7 +308,7 @@ public class BrokerController {
                 }
                 this.brokerStats = new BrokerStats((DefaultMessageStore) this.messageStore);
                 MessageStorePluginContext context = new MessageStorePluginContext(messageStoreConfig, brokerStatsManager, messageArrivingListener, brokerConfig);
-                this.messageStore = MessageStoreFactory.build(context, this.messageStore);
+                this.messageStore = MessageStoreFactory.build(context, this.messageStore); //构建一层带filter的消息存储结构，也就是AbstractPluginMessageStore
                 this.messageStore.getDispatcherList().addFirst(new CommitLogDispatcherCalcBitMap(this.brokerConfig, this.consumerFilterManager));
             } catch (IOException e) {
                 result = false;
