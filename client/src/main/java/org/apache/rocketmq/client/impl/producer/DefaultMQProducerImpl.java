@@ -301,6 +301,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         return topicList;
     }
 
+    /**
+     *
+     * @param topic
+     * @return
+     */
     @Override
     public boolean isPublishTopicNeedUpdate(String topic) {
         TopicPublishInfo prev = this.topicPublishInfoTable.get(topic);
@@ -639,7 +644,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         long beginTimestampFirst = System.currentTimeMillis();
         long beginTimestampPrev = beginTimestampFirst;
         long endTimestamp = beginTimestampFirst;
+
         //topic订阅的信息，发送到哪里，通过topic名字获得
+        // 我们尝试从内存中获得topic相关的发布信息
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         if (topicPublishInfo != null && topicPublishInfo.ok()) { //存在topic的发布相关的信息
             boolean callTimeout = false;
@@ -743,11 +750,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             }
 
             //消息，还是失败的信息
-            String info = String.format("Send [%d] times, still failed, cost [%d]ms, Topic: %s, BrokersSent: %s",
-                times,
-                System.currentTimeMillis() - beginTimestampFirst,
-                msg.getTopic(),
-                Arrays.toString(brokersSent));
+            String info = String.format("Send [%d] times, still failed, cost [%d]ms, Topic: %s, BrokersSent: %s", times,
+                System.currentTimeMillis() - beginTimestampFirst, msg.getTopic(), Arrays.toString(brokersSent));
 
             info += suggestTodo(FAQUrl.SEND_MSG_FAILED);
 
@@ -782,6 +786,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
     /**
      * 使用topic找到对应的topic发布的信息。
+     * 这里是一个对于消息发送者的关键点，因为我们可能发生相关的远程交互，如果我们本地是没有相关的发布映射关系缓存的话
      * @param topic
      * @return
      */
@@ -798,7 +803,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         if (topicPublishInfo.isHaveTopicRouterInfo() || topicPublishInfo.ok()) { //存在相关的topic的发布的信息，直接返回就ok，里面存有相关的topic信息了
             return topicPublishInfo;
         } else { //再次更新
-            this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic, true, this.defaultMQProducer); //尝试再一次拉取信息
+            this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic, true, this.defaultMQProducer); //尝试再一次拉取信息，使用默认的策略进行拉取
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
             return topicPublishInfo;
         }
@@ -933,11 +938,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
                         }
                         //发送
-                        sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(brokerAddr, mq.getBrokerName(),
-                            tmpMessage,
-                            header,
-                            timeout - costTimeAsync,
-                            communicationMode,
+                        sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(
+                                brokerAddr, mq.getBrokerName(), tmpMessage, header, timeout - costTimeAsync, communicationMode,
                             sendCallback,
                             topicPublishInfo,
                             this.mQClientFactory,
@@ -953,14 +955,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         }
                         //发送
                         sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(
-                            brokerAddr,
-                            mq.getBrokerName(),
-                            msg,
-                            header,
-                            timeout - costTimeSync,
-                            communicationMode,
-                            context,
-                            this);
+                            brokerAddr, mq.getBrokerName(), msg, header, timeout - costTimeSync, communicationMode, context, this);
                         break;
                     default:
                         assert false;

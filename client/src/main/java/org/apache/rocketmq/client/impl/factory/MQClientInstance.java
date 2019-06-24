@@ -660,7 +660,7 @@ public class MQClientInstance {
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(), 1000 * 3);
                         if (topicRouteData != null) {
                             for (QueueData data : topicRouteData.getQueueDatas()) {
-                                int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums());
+                                int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums()); //4和设定值中选取小的
                                 data.setReadQueueNums(queueNums);
                                 data.setWriteQueueNums(queueNums);
                             }
@@ -840,7 +840,8 @@ public class MQClientInstance {
     }
 
     /**
-     * topic路由信息发生变更
+     * topic路由信息发生变更，
+     * 我们比较老的和新的data进行比较来确定是否需要进行改变
      * @param olddata
      * @param nowdata
      * @return
@@ -858,6 +859,11 @@ public class MQClientInstance {
 
     }
 
+    /**
+     * 是否需要进行更新相关的topic路由信息
+     * @param topic
+     * @return
+     */
     private boolean isNeedUpdateTopicRouteInfo(final String topic) {
         boolean result = false;
         {
@@ -866,7 +872,7 @@ public class MQClientInstance {
                 Entry<String, MQProducerInner> entry = it.next();
                 MQProducerInner impl = entry.getValue();
                 if (impl != null) {
-                    result = impl.isPublishTopicNeedUpdate(topic);
+                    result = impl.isPublishTopicNeedUpdate(topic); //让实现端来进行来决定是否要进行更新
                 }
             }
         }
@@ -877,7 +883,7 @@ public class MQClientInstance {
                 Entry<String, MQConsumerInner> entry = it.next();
                 MQConsumerInner impl = entry.getValue();
                 if (impl != null) {
-                    result = impl.isSubscribeTopicNeedUpdate(topic);
+                    result = impl.isSubscribeTopicNeedUpdate(topic); //让实现端来进行决定是否要进行更新
                 }
             }
         }
@@ -1035,15 +1041,16 @@ public class MQClientInstance {
      * 客户端使用的rebalance
      */
     public void doRebalance() {
-        //内部使用表，对每一个内部的Inner进行rebalance
+        //内部使用表，对每一个内部的Inner进行rebalance，也就对每一个消息者本身进行负载均衡操作
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
-            if (impl != null) {
-                try {
-                    impl.doRebalance();
-                } catch (Throwable e) {
-                    log.error("doRebalance exception", e);
-                }
+            if (impl == null){
+                continue;
+            }
+            try {
+                impl.doRebalance(); //消费端自己负载均衡
+            } catch (Throwable e) {
+                log.error("doRebalance exception", e);
             }
         }
     }
@@ -1159,7 +1166,7 @@ public class MQClientInstance {
     public List<String> findConsumerIdList(final String topic, final String group) {
         String brokerAddr = this.findBrokerAddrByTopic(topic); //查找topic对应的broker
         if (null == brokerAddr) { //地址为空，
-            this.updateTopicRouteInfoFromNameServer(topic); //从nameserver中跟新一下
+            this.updateTopicRouteInfoFromNameServer(topic); //从nameserver中更新一下
             brokerAddr = this.findBrokerAddrByTopic(topic); //再次调用找到相关的数据
         }
         if (null == brokerAddr){
