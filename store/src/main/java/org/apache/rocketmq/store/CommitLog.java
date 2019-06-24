@@ -44,6 +44,8 @@ import static org.apache.rocketmq.common.message.MessageAccessor.putProperty;
 import static org.apache.rocketmq.common.message.MessageConst.*;
 import static org.apache.rocketmq.common.message.MessageDecoder.*;
 import static org.apache.rocketmq.common.sysflag.MessageSysFlag.*;
+import static org.apache.rocketmq.store.AppendMessageStatus.END_OF_FILE;
+import static org.apache.rocketmq.store.AppendMessageStatus.PUT_OK;
 import static org.apache.rocketmq.store.MessageExtBrokerInner.tagsString2tagsCode;
 import static org.apache.rocketmq.store.PutMessageStatus.*;
 import static org.apache.rocketmq.store.config.FlushDiskType.SYNC_FLUSH;
@@ -1444,7 +1446,7 @@ public class CommitLog {
                 // 3 The remaining space may be any value Here the length of the specially set maxBlank
                 final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
                 byteBuffer.put(this.msgStoreItemMemory.array(), 0, maxBlank);// 剩余空间可以是任何值。这里是特别设置的maxBlank的长度
-                return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset, maxBlank, msgId,
+                return new AppendMessageResult(END_OF_FILE, wroteOffset, maxBlank, msgId,
                         msgInner.getStoreTimestamp(), queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
             }
 
@@ -1499,7 +1501,7 @@ public class CommitLog {
             byteBuffer.put(this.msgStoreItemMemory.array(), 0, msgLen);
 
             //构建追加消息的结果
-            AppendMessageResult result = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, msgLen, msgId,
+            AppendMessageResult result = new AppendMessageResult(PUT_OK, wroteOffset, msgLen, msgId,
                     msgInner.getStoreTimestamp(), queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
 
             switch (tranType) {
@@ -1563,7 +1565,7 @@ public class CommitLog {
                     // Here the length of the specially set maxBlank
                     byteBuffer.reset(); //ignore the previous appended messages
                     byteBuffer.put(this.msgStoreItemMemory.array(), 0, 8);
-                    return new AppendMessageResult(AppendMessageStatus.END_OF_FILE, wroteOffset, maxBlank, msgIdBuilder.toString(), msgBatch.getStoreTimestamp(),
+                    return new AppendMessageResult(END_OF_FILE, wroteOffset, maxBlank, msgIdBuilder.toString(), msgBatch.getStoreTimestamp(),
                             beginQueueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
                 }
                 //move to add queue offset and commitlog offset
@@ -1587,7 +1589,7 @@ public class CommitLog {
             messagesByteBuff.limit(totalMsgLen);
             byteBuffer.put(messagesByteBuff);
             msgBatch.setEncodedBuff(null);
-            AppendMessageResult result = new AppendMessageResult(AppendMessageStatus.PUT_OK, wroteOffset, totalMsgLen, msgIdBuilder.toString(),
+            AppendMessageResult result = new AppendMessageResult(PUT_OK, wroteOffset, totalMsgLen, msgIdBuilder.toString(),
                     msgBatch.getStoreTimestamp(), beginQueueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
             result.setMsgNum(msgNum);
             CommitLog.this.topicQueueTable.put(key, queueOffset);

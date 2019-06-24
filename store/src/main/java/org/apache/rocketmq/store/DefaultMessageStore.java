@@ -89,14 +89,17 @@ public class DefaultMessageStore implements MessageStore {
 
     private final AllocateMappedFileService allocateMappedFileService;
 
+    //重投递服务，负责将commitlog投递到consumerqueue中
     private final ReputMessageService reputMessageService;
 
+    //高可用服务
     private final HAService haService;
 
     private final ScheduleMessageService scheduleMessageService;
 
     private final StoreStatsService storeStatsService;
 
+    //是否支持瞬态，先写入该pool然后再写入批量写入page
     private final TransientStorePool transientStorePool;
 
     private final RunningFlags runningFlags = new RunningFlags();
@@ -1346,6 +1349,10 @@ public class DefaultMessageStore implements MessageStore {
         log.info(fileName + (result ? " create OK" : " already exists"));
     }
 
+    /**
+     * 添加定时调度的任务
+     *
+     */
     private void addScheduleTask() {
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
@@ -1678,11 +1685,10 @@ public class DefaultMessageStore implements MessageStore {
     class CleanCommitLogService {
 
         private final static int MAX_MANUAL_DELETE_FILE_TIMES = 20;
-        private final double diskSpaceWarningLevelRatio =
-                Double.parseDouble(System.getProperty("rocketmq.broker.diskSpaceWarningLevelRatio", "0.90"));
 
-        private final double diskSpaceCleanForciblyRatio =
-                Double.parseDouble(System.getProperty("rocketmq.broker.diskSpaceCleanForciblyRatio", "0.85"));
+        private final double diskSpaceWarningLevelRatio = Double.parseDouble(System.getProperty("rocketmq.broker.diskSpaceWarningLevelRatio", "0.90"));
+
+        private final double diskSpaceCleanForciblyRatio = Double.parseDouble(System.getProperty("rocketmq.broker.diskSpaceCleanForciblyRatio", "0.85"));
         private long lastRedeleteTimestamp = 0;
 
         private volatile int manualDeleteFileSeveralTimes = 0;
@@ -1699,6 +1705,7 @@ public class DefaultMessageStore implements MessageStore {
                 //删除过期的文件
                 this.deleteExpiredFiles();
 
+                //删除挂起的文件
                 this.redeleteHangedFile();
             } catch (Throwable e) {
                 DefaultMessageStore.log.warn(this.getServiceName() + " service has exception. ", e);
@@ -1706,7 +1713,7 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         /**
-         *
+         * 删除过期的文件
          */
         private void deleteExpiredFiles() {
             int deleteCount = 0;
