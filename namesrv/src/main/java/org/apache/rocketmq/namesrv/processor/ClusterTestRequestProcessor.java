@@ -53,10 +53,10 @@ public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
 
     @Override
     public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+        RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand response = createResponseCommand(null);
         final GetRouteInfoRequestHeader requestHeader =
-            (GetRouteInfoRequestHeader) request.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
+            (GetRouteInfoRequestHeader) req.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
         TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(requestHeader.getTopic());
         if (topicRouteData != null) {

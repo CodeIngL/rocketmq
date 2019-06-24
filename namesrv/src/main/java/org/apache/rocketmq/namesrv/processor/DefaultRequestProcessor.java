@@ -59,6 +59,7 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.common.protocol.ResponseCode.TOPIC_NOT_EXIST;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
 
 /**
@@ -348,19 +349,24 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
-                                               RemotingCommand request) throws RemotingCommandException {
+    /**
+     * 获得topic的路由信息，
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
+    public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand response = createResponseCommand(null);
-        final GetRouteInfoRequestHeader requestHeader =
-                (GetRouteInfoRequestHeader) request.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
+        final GetRouteInfoRequestHeader reqHeader = (GetRouteInfoRequestHeader) req.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
-        TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(requestHeader.getTopic());
+        //根据topic选择相关的路由信息
+        TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(reqHeader.getTopic());
 
         if (topicRouteData != null) {
             if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
-                String orderTopicConf =
-                        this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG,
-                                requestHeader.getTopic());
+                String orderTopicConf = this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG,
+                                reqHeader.getTopic());
                 topicRouteData.setOrderTopicConf(orderTopicConf);
             }
 
@@ -371,9 +377,8 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
             return response;
         }
 
-        response.setCode(ResponseCode.TOPIC_NOT_EXIST);
-        response.setRemark("No topic route info in name server for the topic: " + requestHeader.getTopic()
-                + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
+        response.setCode(TOPIC_NOT_EXIST);
+        response.setRemark("No topic route info in name server for the topic: " + reqHeader.getTopic() + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
         return response;
     }
 
