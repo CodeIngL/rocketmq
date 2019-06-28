@@ -34,7 +34,7 @@ public class ManyPullRequest {
     }
 
     /**
-     * clone
+     * clone并清空
      * @return
      */
     public synchronized List<PullRequest> cloneListAndClear() {

@@ -164,16 +164,16 @@ public class PullRequestHoldService extends ServiceThread {
 
         //遍历拉取的请求
         for (PullRequest req : reqs) {
-            long newestOffset = maxOffset;
-            if (newestOffset <= req.getPullFromThisOffset()) {
+            long newestOffset = maxOffset; //等于当前队列中最大的offset，
+            if (newestOffset <= req.getPullFromThisOffset()) {//如果小了，我们再次更新一下，可能是错了
                 newestOffset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
             }
 
-            if (newestOffset > req.getPullFromThisOffset()) {
-                MessageFilter filter = req.getMessageFilter();
-                boolean match = filter.isMatchedByConsumeQueue(tagsCode, new ConsumeQueueExt.CqExtUnit(tagsCode, msgStoreTime, filterBitMap));
+            if (newestOffset > req.getPullFromThisOffset()) { //最新的offset大于请求拉取的offset
+                MessageFilter filter = req.getMessageFilter(); //获得filter
+                boolean match = filter.isMatchedByConsumeQueue(tagsCode, new ConsumeQueueExt.CqExtUnit(tagsCode, msgStoreTime, filterBitMap)); //请求是否匹配消费队列
                 if (match && properties != null) { // 按位图匹配，当属性不为null时需要再次使用eval。match by bit map, need eval again when properties is not null.
-                    match = filter.isMatchedByCommitLog(null, properties);
+                    match = filter.isMatchedByCommitLog(null, properties); //匹配成功如果属性存在，我们需要匹配一下commitlog中的消息
                 }
 
                 //匹配，我们唤醒，来重新处理这个长轮训的请求，因为我们之前没能成功进行返回消息。
@@ -196,7 +196,7 @@ public class PullRequestHoldService extends ServiceThread {
                 continue;
             }
 
-            replayList.add(req);
+            replayList.add(req); //其他不符合的请求，我们等到下一轮
         }
 
         if (!replayList.isEmpty()) {

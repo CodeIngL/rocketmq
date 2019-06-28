@@ -31,6 +31,9 @@ import org.apache.rocketmq.store.MessageFilter;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+/**
+ * 基于表达式的过滤器
+ */
 public class ExpressionMessageFilter implements MessageFilter {
 
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.FILTER_LOGGER_NAME);
@@ -58,16 +61,16 @@ public class ExpressionMessageFilter implements MessageFilter {
 
     @Override
     public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
-        if (null == subscriptionData) {
+        if (null == subscriptionData) { //不存在订阅数据直接返回
             return true;
         }
 
-        if (subscriptionData.isClassFilterMode()) {
+        if (subscriptionData.isClassFilterMode()) { //订阅数据是class模式，匹配
             return true;
         }
 
         // by tags code.
-        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) { //是tag类型
 
             if (tagsCode == null) {
                 return true;
@@ -77,9 +80,9 @@ public class ExpressionMessageFilter implements MessageFilter {
                 return true;
             }
 
-            return subscriptionData.getCodeSet().contains(tagsCode.intValue());
+            return subscriptionData.getCodeSet().contains(tagsCode.intValue()); //是否包含这个tag的hashcode
         } else {
-            // no expression or no bloom
+            // no expression or no bloom //没有表达式以及没有bloom过滤器
             if (consumerFilterData == null || consumerFilterData.getExpression() == null
                 || consumerFilterData.getCompiledExpression() == null || consumerFilterData.getBloomFilterData() == null) {
                 return true;
@@ -91,6 +94,7 @@ public class ExpressionMessageFilter implements MessageFilter {
                 return true;
             }
 
+            //bloom过滤器
             byte[] filterBitMap = cqExtUnit.getFilterBitMap();
             BloomFilter bloomFilter = this.consumerFilterManager.getBloomFilter();
             if (filterBitMap == null || !this.bloomDataValid
@@ -115,7 +119,7 @@ public class ExpressionMessageFilter implements MessageFilter {
 
     @Override
     public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
-        if (subscriptionData == null) {
+        if (subscriptionData == null) { 
             return true;
         }
 
