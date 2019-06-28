@@ -77,12 +77,14 @@ extFields | HashMap<String, String> | 请求自定义扩展信息 | 响应自定
 (4) 消息主体数据：消息主体的二进制字节数据内容；
 
 #### 2.3 消息的通信方式和流程
+
 在RocketMQ消息队列中支持通信的方式主要有同步(sync)、异步(async)、单向(oneway)
 三种。其中“单向”通信模式相对简单，一般用在发送心跳包场景下，无需关注其Response。这里，主要介绍RocketMQ的异步通信流程。
 
 ![](image/rocketmq_design_5.png)
 
 #### 2.4 Reactor多线程设计
+
 RocketMQ的RPC通信采用Netty组件作为底层通信库，同样也遵循了Reactor多线程模型，同时又在这之上做了一些扩展和优化。
 
 ![](image/rocketmq_design_6.png)
