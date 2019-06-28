@@ -29,13 +29,10 @@ import org.apache.rocketmq.client.consumer.DefaultMQPullConsumer;
 import org.apache.rocketmq.client.consumer.MQPullConsumer;
 import org.apache.rocketmq.client.consumer.MQPullConsumerScheduleService;
 import org.apache.rocketmq.client.consumer.PullResult;
-import org.apache.rocketmq.client.consumer.PullTaskCallback;
-import org.apache.rocketmq.client.consumer.PullTaskContext;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.impl.consumer.ProcessQueue;
 import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 
@@ -126,6 +123,10 @@ public class PullConsumerImpl implements PullConsumer {
         return rmqMsg == null ? null : OMSUtil.msgConvert(rmqMsg);
     }
 
+    /**
+     * 拉取方式ack，对持有的缓存进行操作
+     * @param messageId
+     */
     @Override
     public void ack(final String messageId) {
         localMessageCache.ack(messageId);
@@ -154,18 +155,24 @@ public class PullConsumerImpl implements PullConsumer {
      * @param targetQueueName
      */
     private void registerPullTaskCallback(final String targetQueueName) {
+        //我们将目标消费队列和拉取回调类注册在callback表中
         this.pullConsumerScheduleService.registerPullTaskCallback(targetQueueName, (mq, context) -> {
             MQPullConsumer consumer = context.getPullConsumer();
             try {
+                //获得下一个要拉取开始的offset
                 long offset = localMessageCache.nextPullOffset(mq);
 
+                //拉取结果
                 PullResult pullResult = consumer.pull(mq, "*", offset, localMessageCache.nextPullBatchNums());
+                //得到内存的快照
                 ProcessQueue pq = rocketmqPullConsumer.getDefaultMQPullConsumerImpl().getRebalanceImpl().getProcessQueueTable().get(mq);
                 switch (pullResult.getPullStatus()) {
-                    case FOUND:
+                    case FOUND: //存在消息
                         if (pq != null) {
+                            //放置消息
                             pq.putMessage(pullResult.getMsgFoundList());
                             for (final MessageExt messageExt : pullResult.getMsgFoundList()) {
+                                //cache中提交待消耗的请求
                                 localMessageCache.submitConsumeRequest(new ConsumeRequest(messageExt, mq, pq));
                             }
                         }
@@ -173,6 +180,7 @@ public class PullConsumerImpl implements PullConsumer {
                     default:
                         break;
                 }
+                //更新该队列下一次要拉取请求的offset
                 localMessageCache.updatePullOffset(mq, pullResult.getNextBeginOffset());
             } catch (Exception e) {
                 log.error("A error occurred in pull message process.", e);

@@ -47,7 +47,10 @@ import org.apache.rocketmq.logging.InternalLogger;
  * 消息缓存
  */
 class LocalMessageCache implements ServiceLifecycle {
+
+    //本地缓存中待消费的请求
     private final BlockingQueue<ConsumeRequest> consumeRequestCache;
+    //消息id和消费请求的映射
     private final Map<String, ConsumeRequest> consumedRequest;
     private final ConcurrentHashMap<MessageQueue, Long> pullOffsetTable;
     private final DefaultMQPullConsumer rocketmqPullConsumer;
@@ -86,6 +89,10 @@ class LocalMessageCache implements ServiceLifecycle {
         pullOffsetTable.put(remoteQueue, nextPullOffset);
     }
 
+    /**
+     * 提交待消费的请求
+     * @param consumeRequest
+     */
     void submitConsumeRequest(ConsumeRequest consumeRequest) {
         try {
             consumeRequestCache.put(consumeRequest);
@@ -105,8 +112,14 @@ class LocalMessageCache implements ServiceLifecycle {
         return poll(currentPollTimeout);
     }
 
+    /**
+     * 拉取带消费的消息
+     * @param timeout
+     * @return
+     */
     private MessageExt poll(long timeout) {
         try {
+            //从缓存中拉取相关消息，进行消费，并将这个消息放入map中，等待被移除
             ConsumeRequest consumeRequest = consumeRequestCache.poll(timeout, TimeUnit.MILLISECONDS);
             if (consumeRequest != null) {
                 MessageExt messageExt = consumeRequest.getMessageExt();
@@ -121,7 +134,7 @@ class LocalMessageCache implements ServiceLifecycle {
     }
 
     /**
-     * 消费确认
+     * 消费确认从map中删除这个消息映射
      * @param messageId
      */
     void ack(final String messageId) {
@@ -129,6 +142,7 @@ class LocalMessageCache implements ServiceLifecycle {
         if (consumeRequest != null) {
             long offset = consumeRequest.getProcessQueue().removeMessage(Collections.singletonList(consumeRequest.getMessageExt()));
             try {
+                //调用更新我们的offset，可能只是更新本地offset，或者是推进对远程的更新
                 rocketmqPullConsumer.updateConsumeOffset(consumeRequest.getMessageQueue(), offset);
             } catch (MQClientException e) {
                 log.error("A error occurred in update consume offset process.", e);
@@ -148,12 +162,7 @@ class LocalMessageCache implements ServiceLifecycle {
 
     @Override
     public void startup() {
-        this.cleanExpireMsgExecutors.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                cleanExpireMsg();
-            }
-        }, clientConfig.getRmqMessageConsumeTimeout(), clientConfig.getRmqMessageConsumeTimeout(), TimeUnit.MINUTES);
+        this.cleanExpireMsgExecutors.scheduleAtFixedRate(() -> cleanExpireMsg(), clientConfig.getRmqMessageConsumeTimeout(), clientConfig.getRmqMessageConsumeTimeout(), TimeUnit.MINUTES);
     }
 
     @Override
