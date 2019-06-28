@@ -111,6 +111,10 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
         return -1;
     }
 
+    /**
+     * 持久化的时候
+     * @param mqs
+     */
     @Override
     public void persistAll(Set<MessageQueue> mqs) {
         if (null == mqs || mqs.isEmpty())
@@ -148,6 +152,10 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
         }
     }
 
+    /**
+     * 单个持久化
+     * @param mq
+     */
     @Override
     public void persist(MessageQueue mq) {
         AtomicLong offset = this.offsetTable.get(mq);
@@ -202,14 +210,16 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
     @Override
     public void updateConsumeOffsetToBroker(MessageQueue mq, long offset, boolean isOneway) throws RemotingException,
         MQBrokerException, InterruptedException, MQClientException {
+        //找到相关的broker
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());
         if (null == findBrokerResult) {
-
+            //更新相关topic的信息
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
             findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());
         }
 
         if (findBrokerResult != null) {
+            //构造更新请求
             UpdateConsumerOffsetRequestHeader requestHeader = new UpdateConsumerOffsetRequestHeader();
             requestHeader.setTopic(mq.getTopic());
             requestHeader.setConsumerGroup(this.groupName);

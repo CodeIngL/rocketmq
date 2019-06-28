@@ -35,29 +35,37 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
+import static java.io.File.separator;
+
 /**
  * Local storage implementation
  */
 public class LocalFileOffsetStore implements OffsetStore {
-    public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty(
-        "rocketmq.client.localOffsetStoreDir",
-        System.getProperty("user.home") + File.separator + ".rocketmq_offsets");
+    //存储目录
+    public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty("rocketmq.client.localOffsetStoreDir",
+        System.getProperty("user.home") + separator + ".rocketmq_offsets");
     private final static InternalLogger log = ClientLogger.getLog();
+    //网络客户端
     private final MQClientInstance mQClientFactory;
+    //消费组
     private final String groupName;
+    //存储路径，默认${user.home}/.rocketmq_offsets/${clientId}/${consumerGroup}/offsets.json
     private final String storePath;
-    private ConcurrentMap<MessageQueue, AtomicLong> offsetTable =
-        new ConcurrentHashMap<MessageQueue, AtomicLong>();
+    //内存中消费表，消息队列和其对应offset，会在一定时候重新持久化到内存中
+    private ConcurrentMap<MessageQueue, AtomicLong> offsetTable = new ConcurrentHashMap<MessageQueue, AtomicLong>();
 
     public LocalFileOffsetStore(MQClientInstance mQClientFactory, String groupName) {
         this.mQClientFactory = mQClientFactory;
+        //消费组
         this.groupName = groupName;
-        this.storePath = LOCAL_OFFSET_STORE_DIR + File.separator +
-            this.mQClientFactory.getClientId() + File.separator +
-            this.groupName + File.separator +
-            "offsets.json";
+        //存储路径，默认${user.home}/.rocketmq_offsets/${clientId}/${consumerGroup}/offsets.json
+        this.storePath = LOCAL_OFFSET_STORE_DIR + separator + this.mQClientFactory.getClientId() + separator + this.groupName + separator + "offsets.json";
     }
 
+    /**
+     * load
+     * @throws MQClientException
+     */
     @Override
     public void load() throws MQClientException {
         OffsetSerializeWrapper offsetSerializeWrapper = this.readLocalOffset();
@@ -66,28 +74,32 @@ public class LocalFileOffsetStore implements OffsetStore {
 
             for (MessageQueue mq : offsetSerializeWrapper.getOffsetTable().keySet()) {
                 AtomicLong offset = offsetSerializeWrapper.getOffsetTable().get(mq);
-                log.info("load consumer's offset, {} {} {}",
-                    this.groupName,
-                    mq,
-                    offset.get());
+                log.info("load consumer's offset, {} {} {}", this.groupName, mq, offset.get());
             }
         }
     }
 
+    /**
+     * 本地更新offset，只是内存上的更新
+     * @param mq
+     * @param offset
+     * @param increaseOnly
+     */
     @Override
     public void updateOffset(MessageQueue mq, long offset, boolean increaseOnly) {
-        if (mq != null) {
-            AtomicLong offsetOld = this.offsetTable.get(mq);
-            if (null == offsetOld) {
-                offsetOld = this.offsetTable.putIfAbsent(mq, new AtomicLong(offset));
-            }
+        if (mq == null){
+            return;
+        }
+        AtomicLong offsetOld = this.offsetTable.get(mq);
+        if (null == offsetOld) {
+            offsetOld = this.offsetTable.putIfAbsent(mq, new AtomicLong(offset));
+        }
 
-            if (null != offsetOld) {
-                if (increaseOnly) {
-                    MixAll.compareAndIncreaseOnly(offsetOld, offset);
-                } else {
-                    offsetOld.set(offset);
-                }
+        if (null != offsetOld) {
+            if (increaseOnly) {
+                MixAll.compareAndIncreaseOnly(offsetOld, offset);
+            } else {
+                offsetOld.set(offset);
             }
         }
     }
@@ -128,6 +140,7 @@ public class LocalFileOffsetStore implements OffsetStore {
         return -1;
     }
 
+    //本地的持久化
     @Override
     public void persistAll(Set<MessageQueue> mqs) {
         if (null == mqs || mqs.isEmpty())
@@ -180,6 +193,12 @@ public class LocalFileOffsetStore implements OffsetStore {
         return cloneOffsetTable;
     }
 
+    /**
+     * 读取当前文件偏移
+     * 从文件中直接读取内容即可，如果是发生了未知，从备份文件中恢复相关内容。
+     * @return
+     * @throws MQClientException
+     */
     private OffsetSerializeWrapper readLocalOffset() throws MQClientException {
         String content = null;
         try {
@@ -192,8 +211,7 @@ public class LocalFileOffsetStore implements OffsetStore {
         } else {
             OffsetSerializeWrapper offsetSerializeWrapper = null;
             try {
-                offsetSerializeWrapper =
-                    OffsetSerializeWrapper.fromJson(content, OffsetSerializeWrapper.class);
+                offsetSerializeWrapper = OffsetSerializeWrapper.fromJson(content, OffsetSerializeWrapper.class);
             } catch (Exception e) {
                 log.warn("readLocalOffset Exception, and try to correct", e);
                 return this.readLocalOffsetBak();
