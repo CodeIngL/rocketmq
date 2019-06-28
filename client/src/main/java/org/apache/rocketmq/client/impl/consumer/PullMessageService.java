@@ -36,7 +36,7 @@ public class PullMessageService extends ServiceThread {
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<>();
     //网络客户端
     private final MQClientInstance mQClientFactory;
-    //调度服务
+    //调度服务，用于再次构造一个延时来进行任务的执行
     private final ScheduledExecutorService scheduledService = newSingleThreadScheduledExecutor(r -> new Thread(r, "PullMessageServiceScheduledThread"));
 
     public PullMessageService(MQClientInstance mQClientFactory) {
@@ -89,9 +89,9 @@ public class PullMessageService extends ServiceThread {
     @Override
     public void run() {
         log.info(this.getServiceName() + " service started");
-
         while (!this.isStopped()) {
             try {
+                //从拉取的请求中获得相关的拉取请求，然后发起拉取
                 PullRequest pullRequest = this.pullRequestQueue.take();
                 this.pullMessage(pullRequest);
             } catch (InterruptedException ignored) {

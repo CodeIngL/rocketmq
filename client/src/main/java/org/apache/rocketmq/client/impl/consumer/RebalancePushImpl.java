@@ -86,8 +86,10 @@ public class RebalancePushImpl extends RebalanceImpl {
 
     @Override
     public boolean removeUnnecessaryMessageQueue(MessageQueue mq, ProcessQueue pq) {
-        this.defaultMQPushConsumerImpl.getOffsetStore().persist(mq);
-        this.defaultMQPushConsumerImpl.getOffsetStore().removeOffset(mq);
+        OffsetStore store = defaultMQPushConsumerImpl.getOffsetStore();
+        store.persist(mq);
+        store.removeOffset(mq);
+        //如果是集群顺序消费
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly() && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
                 if (pq.getLockConsume().tryLock(1000, TimeUnit.MILLISECONDS)) {
@@ -97,31 +99,23 @@ public class RebalancePushImpl extends RebalanceImpl {
                         pq.getLockConsume().unlock();
                     }
                 } else {
-                    log.warn("[WRONG]mq is consuming, so can not unlock it, {}. maybe hanged for a while, {}",
-                        mq,
-                        pq.getTryUnlockTimes());
-
+                    log.warn("[WRONG]mq is consuming, so can not unlock it, {}. maybe hanged for a while, {}", mq, pq.getTryUnlockTimes());
                     pq.incTryUnlockTimes();
                 }
             } catch (Exception e) {
                 log.error("removeUnnecessaryMessageQueue Exception", e);
             }
-
-            return false;
+            return false; //不能删除
         }
         return true;
     }
 
     private boolean unlockDelay(final MessageQueue mq, final ProcessQueue pq) {
-
         if (pq.hasTempMessage()) {
             log.info("[{}]unlockDelay, begin {} ", mq.hashCode(), mq);
-            this.defaultMQPushConsumerImpl.getmQClientFactory().getScheduledExecutorService().schedule(new Runnable() {
-                @Override
-                public void run() {
-                    log.info("[{}]unlockDelay, execute at once {}", mq.hashCode(), mq);
-                    RebalancePushImpl.this.unlock(mq, true);
-                }
+            this.defaultMQPushConsumerImpl.getmQClientFactory().getScheduledExecutorService().schedule(() -> {
+                log.info("[{}]unlockDelay, execute at once {}", mq.hashCode(), mq);
+                RebalancePushImpl.this.unlock(mq, true);
             }, UNLOCK_DELAY_TIME_MILLS, TimeUnit.MILLISECONDS);
         } else {
             this.unlock(mq, true);
@@ -139,6 +133,11 @@ public class RebalancePushImpl extends RebalanceImpl {
         this.defaultMQPushConsumerImpl.getOffsetStore().removeOffset(mq);
     }
 
+    /**
+     * 从消息队列推测出应该从哪里进行消费
+     * @param mq
+     * @return
+     */
     @Override
     public long computePullFromWhere(MessageQueue mq) {
         long result = -1;

@@ -48,14 +48,20 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
  */
 public abstract class RebalanceImpl {
     protected static final InternalLogger log = ClientLogger.getLog();
+
+    //消费队列和其快照对应
     protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<MessageQueue, ProcessQueue>(64);
-    protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable =
-        new ConcurrentHashMap<String, Set<MessageQueue>>();
+    //topic和对应的消费队列集合
+    protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable = new ConcurrentHashMap<String, Set<MessageQueue>>();
     //topic和订阅信息
     protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner = new ConcurrentHashMap<String, SubscriptionData>();
+    //消费组
     protected String consumerGroup;
+    //消费方式
     protected MessageModel messageModel;
+    //分配消息队列的策略
     protected AllocateMessageQueueStrategy allocateMessageQueueStrategy;
+    //网络客户端
     protected MQClientInstance mQClientFactory;
 
     public RebalanceImpl(String consumerGroup, MessageModel messageModel,
@@ -70,17 +76,14 @@ public abstract class RebalanceImpl {
     public void unlock(final MessageQueue mq, final boolean oneway) {
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
         if (findBrokerResult != null) {
-            UnlockBatchRequestBody requestBody = new UnlockBatchRequestBody();
-            requestBody.setConsumerGroup(this.consumerGroup);
-            requestBody.setClientId(this.mQClientFactory.getClientId());
-            requestBody.getMqSet().add(mq);
+            UnlockBatchRequestBody reqBody = new UnlockBatchRequestBody();
+            reqBody.setConsumerGroup(this.consumerGroup);
+            reqBody.setClientId(this.mQClientFactory.getClientId());
+            reqBody.getMqSet().add(mq);
 
             try {
-                this.mQClientFactory.getMQClientAPIImpl().unlockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000, oneway);
-                log.warn("unlock messageQueue. group:{}, clientId:{}, mq:{}",
-                    this.consumerGroup,
-                    this.mQClientFactory.getClientId(),
-                    mq);
+                this.mQClientFactory.getMQClientAPIImpl().unlockBatchMQ(findBrokerResult.getBrokerAddr(), reqBody, 1000, oneway);
+                log.warn("unlock messageQueue. group:{}, clientId:{}, mq:{}", consumerGroup, mQClientFactory.getClientId(), mq);
             } catch (Exception e) {
                 log.error("unlockBatchMQ exception, " + mq, e);
             }
@@ -236,7 +239,7 @@ public abstract class RebalanceImpl {
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
         if (subTable != null) {
             for (final Map.Entry<String, SubscriptionData> entry : subTable.entrySet()) {
-                final String topic = entry.getKey();
+                String topic = entry.getKey();
                 try {
                     this.rebalanceByTopic(topic, isOrder); //对每一个topic进行负载均衡
                 } catch (Throwable e) {
@@ -401,7 +404,7 @@ public abstract class RebalanceImpl {
 
             this.removeDirtyOffset(mq); //删除这个队列对应的offset
             ProcessQueue pq = new ProcessQueue(); //构建新的副本
-            long nextOffset = this.computePullFromWhere(mq); //计算下一个offset
+            long nextOffset = this.computePullFromWhere(mq); //计算下一个offset，pull方式总是0，push则是会进行相关的计算
             if (nextOffset >= 0) {
                 ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq); //更新放置
                 if (pre != null) { //先前存在
@@ -424,7 +427,7 @@ public abstract class RebalanceImpl {
         /**
          * 分发处理的结果
          */
-        this.dispatchPullRequest(pullRequestList); //分发拉取的请求列表
+        this.dispatchPullRequest(pullRequestList); //分发拉取的请求列表，因为pull上面是0，因此构建这里也是不进行相关的处理
 
         return changed;
     }

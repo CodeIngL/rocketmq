@@ -125,6 +125,11 @@ public class ProcessQueue {
         }
     }
 
+    /**
+     * 将消息投递到内部的结构中，等待被消费
+     * @param msgs
+     * @return
+     */
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
         try {
@@ -132,6 +137,7 @@ public class ProcessQueue {
             try {
                 int validMsgCnt = 0;
                 for (MessageExt msg : msgs) {
+                    //遍历放置
                     MessageExt old = msgTreeMap.put(msg.getQueueOffset(), msg);
                     if (null == old) {
                         validMsgCnt++;
@@ -152,6 +158,7 @@ public class ProcessQueue {
                     if (property != null) {
                         long accTotal = Long.parseLong(property) - messageExt.getQueueOffset();
                         if (accTotal > 0) {
+                            //消息累计量
                             this.msgAccCnt = accTotal;
                         }
                     }

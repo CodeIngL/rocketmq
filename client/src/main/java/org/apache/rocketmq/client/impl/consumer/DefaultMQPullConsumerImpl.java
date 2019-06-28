@@ -57,6 +57,8 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
+import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTERING;
+
 public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     private final InternalLogger log = ClientLogger.getLog();
     private final DefaultMQPullConsumer defaultMQPullConsumer;
@@ -354,6 +356,9 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         this.rebalanceImpl.doRebalance(false); //pull方式负载均衡，这里使用是共同的基类方法，内部在委托回各自的实现
     }
 
+    /**
+     *
+     */
     @Override
     public void persistConsumerOffset() {
         try {
@@ -604,75 +609,80 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
      * @throws MQClientException
      */
     public synchronized void start() throws MQClientException {
-        switch (this.serviceState) {
+        String consumerGroup = defaultMQPullConsumer.getConsumerGroup();
+        MessageModel messageModel = defaultMQPullConsumer.getMessageModel(); //消息订阅模式
+        switch (serviceState) {
             case CREATE_JUST: //仅仅是创建
-                this.serviceState = ServiceState.START_FAILED;
+                serviceState = ServiceState.START_FAILED;
 
                 //检查配置
-                this.checkConfig();
+                checkConfig();
 
                 //copy订阅的相关信息
-                this.copySubscription();
+                copySubscription();
 
                 //集群消费方式，默认方式
-                if (this.defaultMQPullConsumer.getMessageModel() == MessageModel.CLUSTERING) {
-                    this.defaultMQPullConsumer.changeInstanceNameToPID();
+                if (messageModel == CLUSTERING) {
+                    defaultMQPullConsumer.changeInstanceNameToPID();
                 }
 
-                //mq的网络客户端
-                this.mQClientFactory = MQClientManager.getInstance().getAndCreateMQClientInstance(this.defaultMQPullConsumer, this.rpcHook);
+                //构建mq的网络客户端
+                mQClientFactory = MQClientManager.getInstance().getAndCreateMQClientInstance(defaultMQPullConsumer, rpcHook);
+
+                //构建消费端负载均衡
 
                 //设置集群组
-                this.rebalanceImpl.setConsumerGroup(this.defaultMQPullConsumer.getConsumerGroup());
+                rebalanceImpl.setConsumerGroup(consumerGroup);
                 //设置消费方式
-                this.rebalanceImpl.setMessageModel(this.defaultMQPullConsumer.getMessageModel());
-                //
-                this.rebalanceImpl.setAllocateMessageQueueStrategy(this.defaultMQPullConsumer.getAllocateMessageQueueStrategy());
+                rebalanceImpl.setMessageModel(defaultMQPullConsumer.getMessageModel());
+                //设置消息队列分配策略
+                rebalanceImpl.setAllocateMessageQueueStrategy(defaultMQPullConsumer.getAllocateMessageQueueStrategy());
                 //设置客户端
-                this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
+                rebalanceImpl.setmQClientFactory(mQClientFactory);
 
-                this.pullAPIWrapper = new PullAPIWrapper(mQClientFactory,
-                    this.defaultMQPullConsumer.getConsumerGroup(), isUnitMode());
-                this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
+                //构建核心拉取方式
 
-                if (this.defaultMQPullConsumer.getOffsetStore() != null) {
-                    this.offsetStore = this.defaultMQPullConsumer.getOffsetStore(); //使用用户自己设置的存储
+                pullAPIWrapper = new PullAPIWrapper(mQClientFactory, consumerGroup, isUnitMode());
+                pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
+
+                //构建控制消费offset的offset存储
+                if (defaultMQPullConsumer.getOffsetStore() != null) {//有自己的消息存储，使用自己的消息存储，否则根据具体的模型进行存储的使用
+                    offsetStore = defaultMQPullConsumer.getOffsetStore(); //使用用户自己设置的存储
                 } else {
-                    switch (this.defaultMQPullConsumer.getMessageModel()) {
-                        case BROADCASTING: //广播方式
-                            this.offsetStore = new LocalFileOffsetStore(this.mQClientFactory, this.defaultMQPullConsumer.getConsumerGroup());
+                    switch (messageModel) {
+                        case BROADCASTING: //广播模式下的offset存储，使用了本地的消息存储
+                            offsetStore = new LocalFileOffsetStore(mQClientFactory, consumerGroup);
                             break;
-                        case CLUSTERING: //远程的方式
-                            this.offsetStore = new RemoteBrokerOffsetStore(this.mQClientFactory, this.defaultMQPullConsumer.getConsumerGroup());
+                        case CLUSTERING: //集群模式下的offset存储，使用了交互式的基于远程的消息存储
+                            offsetStore = new RemoteBrokerOffsetStore(mQClientFactory, consumerGroup);
                             break;
                         default:
                             break;
                     }
-                    this.defaultMQPullConsumer.setOffsetStore(this.offsetStore);
+                    defaultMQPullConsumer.setOffsetStore(offsetStore);
                 }
+                offsetStore.load(); //存储加载
 
-                this.offsetStore.load(); //存储加载
+                //注册
 
-                boolean registerOK = mQClientFactory.registerConsumer(this.defaultMQPullConsumer.getConsumerGroup(), this);
+                boolean registerOK = mQClientFactory.registerConsumer(consumerGroup, this);
                 if (!registerOK) {
-                    this.serviceState = ServiceState.CREATE_JUST;
-
-                    throw new MQClientException("The consumer group[" + this.defaultMQPullConsumer.getConsumerGroup()
-                        + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
+                    serviceState = ServiceState.CREATE_JUST;
+                    throw new MQClientException("The consumer group[" + consumerGroup + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
                         null);
                 }
 
                 //开启
                 mQClientFactory.start();
-                log.info("the consumer [{}] start OK", this.defaultMQPullConsumer.getConsumerGroup());
-                this.serviceState = ServiceState.RUNNING;
+                log.info("the consumer [{}] start OK", consumerGroup);
+                serviceState = ServiceState.RUNNING;
                 break;
             case RUNNING:
             case START_FAILED:
             case SHUTDOWN_ALREADY:
                 //错误的状态
                 throw new MQClientException("The PullConsumer service state not OK, maybe started once, "
-                    + this.serviceState
+                    + serviceState
                     + FAQUrl.suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
                     null);
             default:
@@ -682,11 +692,12 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     }
 
     private void checkConfig() throws MQClientException {
+        String consumerGroup = defaultMQPullConsumer.getConsumerGroup();
         // check consumerGroup
-        Validators.checkGroup(this.defaultMQPullConsumer.getConsumerGroup());
+        Validators.checkGroup(consumerGroup);
 
         // consumerGroup
-        if (null == this.defaultMQPullConsumer.getConsumerGroup()) {
+        if (null == consumerGroup) {
             throw new MQClientException(
                 "consumerGroup is null"
                     + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
@@ -694,7 +705,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
 
         // consumerGroup
-        if (this.defaultMQPullConsumer.getConsumerGroup().equals(MixAll.DEFAULT_CONSUMER_GROUP)) {
+        if (consumerGroup.equals(MixAll.DEFAULT_CONSUMER_GROUP)) {
             throw new MQClientException(
                 "consumerGroup can not equal "
                     + MixAll.DEFAULT_CONSUMER_GROUP
@@ -704,7 +715,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
 
         // messageModel
-        if (null == this.defaultMQPullConsumer.getMessageModel()) {
+        if (null == defaultMQPullConsumer.getMessageModel()) {
             throw new MQClientException(
                 "messageModel is null"
                     + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
@@ -712,7 +723,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
 
         // allocateMessageQueueStrategy
-        if (null == this.defaultMQPullConsumer.getAllocateMessageQueueStrategy()) {
+        if (null == defaultMQPullConsumer.getAllocateMessageQueueStrategy()) {
             throw new MQClientException(
                 "allocateMessageQueueStrategy is null"
                     + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
@@ -720,7 +731,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
 
         // allocateMessageQueueStrategy
-        if (this.defaultMQPullConsumer.getConsumerTimeoutMillisWhenSuspend() < this.defaultMQPullConsumer.getBrokerSuspendMaxTimeMillis()) {
+        if (defaultMQPullConsumer.getConsumerTimeoutMillisWhenSuspend() < defaultMQPullConsumer.getBrokerSuspendMaxTimeMillis()) {
             throw new MQClientException(
                 "Long polling mode, the consumer consumerTimeoutMillisWhenSuspend must greater than brokerSuspendMaxTimeMillis"
                     + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
@@ -730,12 +741,12 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
     private void copySubscription() throws MQClientException {
         try {
-            Set<String> registerTopics = this.defaultMQPullConsumer.getRegisterTopics();
+            Set<String> registerTopics = defaultMQPullConsumer.getRegisterTopics();
             if (registerTopics != null) {
                 for (final String topic : registerTopics) {
-                    SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(this.defaultMQPullConsumer.getConsumerGroup(),
+                    SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(defaultMQPullConsumer.getConsumerGroup(),
                         topic, SubscriptionData.SUB_ALL);
-                    this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
+                    rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
                 }
             }
         } catch (Exception e) {
@@ -743,6 +754,12 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * 更新offset
+     * @param mq
+     * @param offset
+     * @throws MQClientException
+     */
     public void updateConsumeOffset(MessageQueue mq, long offset) throws MQClientException {
         this.makeSureStateOK();
         this.offsetStore.updateOffset(mq, offset, false);

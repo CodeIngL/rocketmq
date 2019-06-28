@@ -28,6 +28,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
  */
 public class MessageQueueLock {
 
+    //消息队列锁，保证顺序消费
     private ConcurrentMap<MessageQueue, Object> mqLockTable = new ConcurrentHashMap<MessageQueue, Object>();
 
     public Object fetchLockObject(final MessageQueue mq) {
