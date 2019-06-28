@@ -196,7 +196,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
                 return this.getConsumerStatus(ctx, request);
             case RequestCode.QUERY_TOPIC_CONSUME_BY_WHO:
                 return this.queryTopicConsumeByWho(ctx, request);
-            case RequestCode.REGISTER_FILTER_SERVER:
+            case RequestCode.REGISTER_FILTER_SERVER: //注册filterServer
                 return this.registerFilterServer(ctx, request);
             case RequestCode.QUERY_CONSUME_TIME_SPAN:
                 return this.queryConsumeTimeSpan(ctx, request);
@@ -468,23 +468,30 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    /**
+     * 批量锁住mq
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
     private RemotingCommand lockBatchMQ(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(null);
-        LockBatchRequestBody requestBody = LockBatchRequestBody.decode(request.getBody(), LockBatchRequestBody.class);
+        RemotingCommand req) throws RemotingCommandException {
+        final RemotingCommand resp = createResponseCommand(null);
+        LockBatchRequestBody reqBody = LockBatchRequestBody.decode(req.getBody(), LockBatchRequestBody.class);
 
         Set<MessageQueue> lockOKMQSet = this.brokerController.getRebalanceLockManager().tryLockBatch(
-            requestBody.getConsumerGroup(),
-            requestBody.getMqSet(),
-            requestBody.getClientId());
+            reqBody.getConsumerGroup(),
+            reqBody.getMqSet(),
+            reqBody.getClientId());
 
-        LockBatchResponseBody responseBody = new LockBatchResponseBody();
-        responseBody.setLockOKMQSet(lockOKMQSet);
+        LockBatchResponseBody respBody = new LockBatchResponseBody();
+        respBody.setLockOKMQSet(lockOKMQSet);
 
-        response.setBody(responseBody.encode());
-        response.setCode(SUCCESS);
-        response.setRemark(null);
-        return response;
+        resp.setBody(respBody.encode());
+        resp.setCode(SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
     private RemotingCommand unlockBatchMQ(ChannelHandlerContext ctx,

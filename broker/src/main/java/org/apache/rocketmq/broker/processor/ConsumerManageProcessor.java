@@ -108,55 +108,57 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
     /**
      * 更新offset
      * @param ctx
-     * @param request
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
-    private RemotingCommand updateConsumerOffset(ChannelHandlerContext ctx, RemotingCommand request)
+    private RemotingCommand updateConsumerOffset(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(UpdateConsumerOffsetResponseHeader.class);
-        final UpdateConsumerOffsetRequestHeader requestHeader = (UpdateConsumerOffsetRequestHeader) request.decodeCommandCustomHeader(UpdateConsumerOffsetRequestHeader.class);
-        this.brokerController.getConsumerOffsetManager().commitOffset(parseChannelRemoteAddr(ctx.channel()), requestHeader.getConsumerGroup(),
-            requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getCommitOffset());
-        response.setCode(ResponseCode.SUCCESS);
-        response.setRemark(null);
-        return response;
+        final RemotingCommand resp = createResponseCommand(UpdateConsumerOffsetResponseHeader.class);
+        final UpdateConsumerOffsetRequestHeader reqHeader = (UpdateConsumerOffsetRequestHeader) req.decodeCommandCustomHeader(UpdateConsumerOffsetRequestHeader.class);
+        this.brokerController.getConsumerOffsetManager().commitOffset(parseChannelRemoteAddr(ctx.channel()), reqHeader.getConsumerGroup(),
+            reqHeader.getTopic(), reqHeader.getQueueId(), reqHeader.getCommitOffset());
+        resp.setCode(ResponseCode.SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
-    private RemotingCommand queryConsumerOffset(ChannelHandlerContext ctx, RemotingCommand request)
+    /**
+     * 查询要消费的offset
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
+    private RemotingCommand queryConsumerOffset(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
-        final RemotingCommand response =
-            createResponseCommand(QueryConsumerOffsetResponseHeader.class);
-        final QueryConsumerOffsetResponseHeader responseHeader =
-            (QueryConsumerOffsetResponseHeader) response.readCustomHeader();
-        final QueryConsumerOffsetRequestHeader requestHeader =
-            (QueryConsumerOffsetRequestHeader) request
-                .decodeCommandCustomHeader(QueryConsumerOffsetRequestHeader.class);
+        final RemotingCommand resp = createResponseCommand(QueryConsumerOffsetResponseHeader.class);
+        final QueryConsumerOffsetResponseHeader respHeader = (QueryConsumerOffsetResponseHeader) resp.readCustomHeader();
+        final QueryConsumerOffsetRequestHeader reqHeader = (QueryConsumerOffsetRequestHeader) req.decodeCommandCustomHeader(QueryConsumerOffsetRequestHeader.class);
 
-        long offset =
-            this.brokerController.getConsumerOffsetManager().queryOffset(
-                requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
+        //查询相关offset
+        long offset = this.brokerController.getConsumerOffsetManager().queryOffset(reqHeader.getConsumerGroup(), reqHeader.getTopic(), reqHeader.getQueueId());
 
         if (offset >= 0) {
-            responseHeader.setOffset(offset);
-            response.setCode(ResponseCode.SUCCESS);
-            response.setRemark(null);
+            respHeader.setOffset(offset);
+            resp.setCode(ResponseCode.SUCCESS);
+            resp.setRemark(null);
         } else {
             long minOffset =
-                this.brokerController.getMessageStore().getMinOffsetInQueue(requestHeader.getTopic(),
-                    requestHeader.getQueueId());
+                this.brokerController.getMessageStore().getMinOffsetInQueue(reqHeader.getTopic(),
+                    reqHeader.getQueueId());
             if (minOffset <= 0
                 && !this.brokerController.getMessageStore().checkInDiskByConsumeOffset(
-                requestHeader.getTopic(), requestHeader.getQueueId(), 0)) {
-                responseHeader.setOffset(0L);
-                response.setCode(ResponseCode.SUCCESS);
-                response.setRemark(null);
+                reqHeader.getTopic(), reqHeader.getQueueId(), 0)) {
+                respHeader.setOffset(0L);
+                resp.setCode(ResponseCode.SUCCESS);
+                resp.setRemark(null);
             } else {
-                response.setCode(ResponseCode.QUERY_NOT_FOUND);
-                response.setRemark("Not found, V3_0_6_SNAPSHOT maybe this group consumer boot first");
+                resp.setCode(ResponseCode.QUERY_NOT_FOUND);
+                resp.setRemark("Not found, V3_0_6_SNAPSHOT maybe this group consumer boot first");
             }
         }
 
-        return response;
+        return resp;
     }
 }

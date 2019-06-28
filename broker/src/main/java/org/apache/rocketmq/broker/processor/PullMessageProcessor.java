@@ -138,6 +138,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         //获得topic消息
         String topic =  reqHeader.getTopic();
+        //获得topic的配置项
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(topic);
         if (checkTopicConfig(channel, resp, topic, topicConfig)) return resp;
 
@@ -157,6 +158,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             try {
                 subscriptionData = build(topic, subscription, expressionType); //构建订阅的数据
                 if (!isTagType(subscriptionData.getExpressionType())) { //是sql92类型的，或者其他的类型
+                    //构建消费过滤数据
                     consumerFilterData = ConsumerFilterManager.build(topic, consumerGroup, subscription, expressionType, subVersion);
                     assert consumerFilterData != null;
                 }
@@ -169,35 +171,35 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         } else {
             //消费组
             ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(consumerGroup);
-            if (null == consumerGroupInfo) {
+            if (null == consumerGroupInfo) { //消费组部存在
                 log.warn("the consumer's group info not exist, group: {}", consumerGroup);
                 resp.setCode(SUBSCRIPTION_NOT_EXIST);
                 resp.setRemark("the consumer's group info not exist" + suggestTodo(FAQUrl.SAME_GROUP_DIFFERENT_TOPIC));
                 return resp;
             }
 
-            if (!subscriptionGroupConfig.isConsumeBroadcastEnable() && (consumerGroupInfo.getMessageModel() == BROADCASTING)) {
+            if (!subscriptionGroupConfig.isConsumeBroadcastEnable() && (consumerGroupInfo.getMessageModel() == BROADCASTING)) { //广播的检查
                 resp.setCode(NO_PERMISSION);
                 resp.setRemark("the consumer group[" + consumerGroup + "] can not consume by broadcast way");
                 return resp;
             }
 
-            //可以从消息组获得订阅的相关消息
+            //可以从消息组获得订阅的相关消息，如果存在订阅关系，我们知道是构建了相关的订阅数据
             subscriptionData = consumerGroupInfo.findSubscriptionData(topic);
-            if (null == subscriptionData) {
+            if (null == subscriptionData) {//如果不提供订阅标记，消息组必须在broker中获得相关订阅关系，否则，出错
                 log.warn("the consumer's subscription not exist, group: {}, topic:{}", consumerGroup, topic);
                 resp.setCode(SUBSCRIPTION_NOT_EXIST);
                 resp.setRemark("the consumer's subscription not exist" + suggestTodo(FAQUrl.SAME_GROUP_DIFFERENT_TOPIC));
                 return resp;
             }
 
-            if (subscriptionData.getSubVersion() < subVersion) {
+            if (subscriptionData.getSubVersion() < subVersion) { //版本问题
                 log.warn("The broker's subscription is not latest, group: {} {}", consumerGroup, subscriptionData.getSubString());
                 resp.setCode(SUBSCRIPTION_NOT_LATEST);
                 resp.setRemark("the consumer's subscription not latest");
                 return resp;
             }
-            if (!isTagType(subscriptionData.getExpressionType())) {
+            if (!isTagType(subscriptionData.getExpressionType())) { //不是tag订阅，同理我们要获得相关消费过滤数据，如果不存在，则会报错，前面我们知道，如果是存在订阅标记，我们是通过构建处理
                 consumerFilterData = this.brokerController.getConsumerFilterManager().get(topic, consumerGroup);
                 if (consumerFilterData == null) {
                     resp.setCode(FILTER_DATA_NOT_EXIST);
@@ -222,10 +224,10 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         //消息过滤器
         MessageFilter messageFilter;
-        if (this.brokerController.getBrokerConfig().isFilterSupportRetry()) {
-            messageFilter = new ExpressionForRetryMessageFilter(subscriptionData, consumerFilterData, this.brokerController.getConsumerFilterManager());
+        if (this.brokerController.getBrokerConfig().isFilterSupportRetry()) { //是否支持重试
+            messageFilter = new ExpressionForRetryMessageFilter(subscriptionData, consumerFilterData, this.brokerController.getConsumerFilterManager()); //支持重试
         } else {
-            messageFilter = new ExpressionMessageFilter(subscriptionData, consumerFilterData, this.brokerController.getConsumerFilterManager());
+            messageFilter = new ExpressionMessageFilter(subscriptionData, consumerFilterData, this.brokerController.getConsumerFilterManager()); //不支持重试
         }
 
         BrokerConfig brokerConfig = this.brokerController.getBrokerConfig();
@@ -241,7 +243,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
             respHeader.setMaxOffset(result.getMaxOffset()); //最大的offset
 
             if (result.isSuggestPullingFromSlave()) { //建议从slave去消费
-                respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
+                respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly()); //消费满，建议去其他节点
             } else { //masterId
                 respHeader.setSuggestWhichBrokerId(MASTER_ID);
             }
@@ -258,11 +260,11 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                     break;
             }
 
-            if (brokerConfig.isSlaveReadEnable()) {
+            if (brokerConfig.isSlaveReadEnable()) { //如果指出的slave读
                 // consume too slow ,redirect to another machine
                 // 消费太慢了，重定向到其他的机器上
                 if (result.isSuggestPullingFromSlave()) {
-                    respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
+                    respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly()); //消费满，建议去其他节点
                 }
                 // consume ok
                 else {
@@ -375,7 +377,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                         final byte[] r = this.readGetMessageResult(result, consumerGroup, topic, queueId);
                         this.brokerController.getBrokerStatsManager().incGroupGetLatency(consumerGroup, topic, queueId, (int) (messageStore.now() - beginTimeMills));
                         resp.setBody(r);
-                    } else {
+                    } else { //直接发送
                         try {
                             FileRegion fileRegion = new ManyMessageTransfer(resp.encodeHeader(result.getBufferTotalSize()), result);
                             channel.writeAndFlush(fileRegion).addListener((ChannelFutureListener) future -> {
@@ -402,7 +404,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
                         long offset = reqHeader.getQueueOffset();
                         PullRequest pullRequest = new PullRequest(req, channel, pollingTimeMills, messageStore.now(), offset, subscriptionData, messageFilter);
-                        this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest);
+                        this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest); //添加到挂起的请求
                         resp = null;
                         break;
                     }
