@@ -47,6 +47,11 @@ public class MQPullConsumerScheduleService {
         this.defaultMQPullConsumer.setMessageModel(MessageModel.CLUSTERING);
     }
 
+    /**
+     * 构建任务放入任务表中
+     * @param topic
+     * @param mqNewSet
+     */
     public void putTask(String topic, Set<MessageQueue> mqNewSet) {
         Iterator<Entry<MessageQueue, PullTaskImpl>> it = this.taskTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -59,6 +64,7 @@ public class MQPullConsumerScheduleService {
             }
         }
 
+        //任务表中存在相关任务，进行调度浙西任务
         for (MessageQueue mq : mqNewSet) {
             if (!this.taskTable.containsKey(mq)) {
                 PullTaskImpl command = new PullTaskImpl(mq);
@@ -69,19 +75,20 @@ public class MQPullConsumerScheduleService {
         }
     }
 
+    /**
+     * 基于pull方式调度服务开启
+     * @throws MQClientException
+     */
     public void start() throws MQClientException {
         final String group = this.defaultMQPullConsumer.getConsumerGroup();
-        this.scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(
-            this.pullThreadNums,
-            new ThreadFactoryImpl("PullMsgThread-" + group)
-        );
+        this.scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(this.pullThreadNums, new ThreadFactoryImpl("PullMsgThread-" + group));
 
+        //设置消费使用的监听消费端
         this.defaultMQPullConsumer.setMessageQueueListener(this.messageQueueListener);
 
         this.defaultMQPullConsumer.start();
 
-        log.info("MQPullConsumerScheduleService start OK, {} {}",
-            this.defaultMQPullConsumer.getConsumerGroup(), this.callbackTable);
+        log.info("MQPullConsumerScheduleService start OK, {} {}", group, this.callbackTable);
     }
 
     public void registerPullTaskCallback(final String topic, final PullTaskCallback callback) {
@@ -149,6 +156,9 @@ public class MQPullConsumerScheduleService {
         }
     }
 
+    /**
+     * 新的消息队列构造任务，我们需要去拉取任务
+     */
     class PullTaskImpl implements Runnable {
         private final MessageQueue messageQueue;
         private volatile boolean cancelled = false;
@@ -161,12 +171,15 @@ public class MQPullConsumerScheduleService {
         public void run() {
             String topic = this.messageQueue.getTopic();
             if (!this.isCancelled()) {
+                //存在相关构造回调
                 PullTaskCallback pullTaskCallback =
                     MQPullConsumerScheduleService.this.callbackTable.get(topic);
                 if (pullTaskCallback != null) {
+                    //构建上下文
                     final PullTaskContext context = new PullTaskContext();
                     context.setPullConsumer(MQPullConsumerScheduleService.this.defaultMQPullConsumer);
                     try {
+                        //调用执行
                         pullTaskCallback.doPullTask(this.messageQueue, context);
                     } catch (Throwable e) {
                         context.setPullNextDelayTimeMillis(1000);
@@ -174,8 +187,7 @@ public class MQPullConsumerScheduleService {
                     }
 
                     if (!this.isCancelled()) {
-                        MQPullConsumerScheduleService.this.scheduledThreadPoolExecutor.schedule(this,
-                            context.getPullNextDelayTimeMillis(), TimeUnit.MILLISECONDS);
+                        MQPullConsumerScheduleService.this.scheduledThreadPoolExecutor.schedule(this, context.getPullNextDelayTimeMillis(), TimeUnit.MILLISECONDS);
                     } else {
                         log.warn("The Pull Task is cancelled after doPullTask, {}", messageQueue);
                     }

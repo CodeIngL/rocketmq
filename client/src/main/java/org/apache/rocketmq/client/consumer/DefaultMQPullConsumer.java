@@ -226,7 +226,7 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
     }
 
     /**
-     * 开始消费
+     * 开始消费，委托给impl启动
      * @throws MQClientException
      */
     @Override

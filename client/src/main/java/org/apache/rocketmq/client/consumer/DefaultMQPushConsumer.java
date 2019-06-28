@@ -596,6 +596,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      */
     @Override
     public void start() throws MQClientException {
+        //委托给impl启动
         this.defaultMQPushConsumerImpl.start();
         if (null != traceDispatcher) {
             try {
