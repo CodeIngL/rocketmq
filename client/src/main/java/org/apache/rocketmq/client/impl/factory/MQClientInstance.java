@@ -102,9 +102,9 @@ public class MQClientInstance {
     /**
      * 组名和生产者
      */
-    private final ConcurrentMap<String/* group */, MQProducerInner> producerTable = new ConcurrentHashMap<String, MQProducerInner>();
-    private final ConcurrentMap<String/* group */, MQConsumerInner> consumerTable = new ConcurrentHashMap<String, MQConsumerInner>();
-    private final ConcurrentMap<String/* group */, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<String, MQAdminExtInner>();
+    private final ConcurrentMap<String/* group */, MQProducerInner> producerTable = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String/* group */, MQConsumerInner> consumerTable = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String/* group */, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<>();
     private final NettyClientConfig nettyClientConfig;
 
 
@@ -124,6 +124,7 @@ public class MQClientInstance {
         }
     });
     private final ClientRemotingProcessor clientRemotingProcessor;
+    //拉取消息服务
     private final PullMessageService pullMessageService;
     private final RebalanceService rebalanceService;
     private final DefaultMQProducer defaultMQProducer;
@@ -331,7 +332,7 @@ public class MQClientInstance {
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
         /**
-         * 调度服务
+         * 调度服务，定时将消费消息游标持久化到本地
          */
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
@@ -449,38 +450,41 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 检查客户端
+     * @throws MQClientException
+     */
     public void checkClientInBroker() throws MQClientException {
-        Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
-
-        while (it.hasNext()) {
-            Entry<String, MQConsumerInner> entry = it.next();
+        //消费端，group和各自的消费接口
+        for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
+            //订阅的信息
             Set<SubscriptionData> subscriptionInner = entry.getValue().subscriptions();
             if (subscriptionInner == null || subscriptionInner.isEmpty()) {
                 return;
             }
 
             for (SubscriptionData subscriptionData : subscriptionInner) {
+                //基于tag更新，忽略
                 if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
                     continue;
                 }
                 // may need to check one broker every cluster...
                 // assume that the configs of every broker in cluster are the the same.
+                // 可能需要检查一个代理每个集群假设集群中每个代理的配置是相同的。
                 String addr = findBrokerAddrByTopic(subscriptionData.getTopic());
-
-                if (addr != null) {
-                    try {
-                        this.getMQClientAPIImpl().checkClientInBroker(
-                            addr, entry.getKey(), this.clientId, subscriptionData, 3 * 1000
-                        );
-                    } catch (Exception e) {
-                        if (e instanceof MQClientException) {
-                            throw (MQClientException) e;
-                        } else {
-                            throw new MQClientException("Check client in broker error, maybe because you use "
+                if (addr == null){
+                    continue;
+                }
+                try {
+                    getMQClientAPIImpl().checkClientInBroker(addr, entry.getKey(), this.clientId, subscriptionData, 3 * 1000);
+                } catch (Exception e) {
+                    if (e instanceof MQClientException) {
+                        throw (MQClientException) e;
+                    } else {
+                        throw new MQClientException("Check client in broker error, maybe because you use "
                                 + subscriptionData.getExpressionType() + " to filter message, but server has not been upgraded to support!"
                                 + "This error would not affect the launch of consumer, but may has impact on message receiving if you " +
                                 "have use the new features which are not supported by server, please check the log!", e);
-                        }
                     }
                 }
             }
@@ -578,39 +582,39 @@ public class MQClientInstance {
             return;
         }
         long times = this.sendHeartbeatTimesTotal.getAndIncrement(); //统计次数++
-        Iterator<Entry<String, HashMap<Long, String>>> it = this.brokerAddrTable.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, HashMap<Long, String>> entry = it.next();
+        for (Entry<String, HashMap<Long, String>> entry : this.brokerAddrTable.entrySet()) {
             String brokerName = entry.getKey();
             HashMap<Long, String> oneTable = entry.getValue();
-            if (oneTable != null) {
-                for (Map.Entry<Long, String> entry1 : oneTable.entrySet()) {
-                    Long id = entry1.getKey();
-                    String addr = entry1.getValue();
-                    if (addr != null) {
-                        if (consumerEmpty) {
-                            if (id != MixAll.MASTER_ID)
-                                continue;
-                        }
+            if (oneTable == null){
+                continue;
+            }
+            for (Entry<Long, String> entry1 : oneTable.entrySet()) {
+                Long id = entry1.getKey();
+                String addr = entry1.getValue();
+                if (addr == null){
+                    continue;
+                }
+                if (consumerEmpty) {
+                    if (id != MixAll.MASTER_ID)
+                        continue;
+                }
 
-                        try {
-                            int version = this.mQClientAPIImpl.sendHearbeat(addr, heartbeatData, 3000);
-                            if (!this.brokerVersionTable.containsKey(brokerName)) {
-                                this.brokerVersionTable.put(brokerName, new HashMap<String, Integer>(4));
-                            }
-                            this.brokerVersionTable.get(brokerName).put(addr, version);
-                            if (times % 20 == 0) {
-                                log.info("send heart beat to broker[{} {} {}] success", brokerName, id, addr);
-                                log.info(heartbeatData.toString());
-                            }
-                        } catch (Exception e) {
-                            if (this.isBrokerInNameServer(addr)) {
-                                log.info("send heart beat to broker[{} {} {}] failed", brokerName, id, addr, e);
-                            } else {
-                                log.info("send heart beat to broker[{} {} {}] exception, because the broker not up, forget it", brokerName,
-                                        id, addr, e);
-                            }
-                        }
+                try {
+                    int version = this.mQClientAPIImpl.sendHearbeat(addr, heartbeatData, 3000);
+                    if (!this.brokerVersionTable.containsKey(brokerName)) {
+                        this.brokerVersionTable.put(brokerName, new HashMap<String, Integer>(4));
+                    }
+                    this.brokerVersionTable.get(brokerName).put(addr, version);
+                    if (times % 20 == 0) {
+                        log.info("send heart beat to broker[{} {} {}] success", brokerName, id, addr);
+                        log.info(heartbeatData.toString());
+                    }
+                } catch (Exception e) {
+                    if (this.isBrokerInNameServer(addr)) {
+                        log.info("send heart beat to broker[{} {} {}] failed", brokerName, id, addr, e);
+                    } else {
+                        log.info("send heart beat to broker[{} {} {}] exception, because the broker not up, forget it", brokerName,
+                                id, addr, e);
                     }
                 }
             }
@@ -618,7 +622,7 @@ public class MQClientInstance {
     }
 
     /**
-     * 上传基于ClassFilter的操作
+     * 上传基于ClassFilter的操作,已经被废弃
      */
     private void uploadFilterClassSource() {
         Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
@@ -685,13 +689,11 @@ public class MQClientInstance {
                             }
 
                             // Update Pub info
-                            // 更新发布的信息
+                            // 更新发布的信息，让提供方自己更新
                             {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true); //已经存在了topicInfo信息，而不仅仅是一个空壳子
-                                Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator(); //发送的table
-                                while (it.hasNext()) {
-                                    Entry<String, MQProducerInner> entry = it.next();
+                                for (Entry<String, MQProducerInner> entry : this.producerTable.entrySet()) {
                                     MQProducerInner impl = entry.getValue();
                                     if (impl != null) {
                                         impl.updateTopicPublishInfo(topic, publishInfo); //调用发送的实现，进行更改相关的topic和相应的topicInfo
@@ -700,12 +702,10 @@ public class MQClientInstance {
                             }
 
                             // Update sub info
-                            //更新相关的订阅的相关的信息
+                            //更新相关的订阅的相关的信息，让消费方自己更新
                             {
                                 Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
-                                Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator(); //接收的订阅相关的信息
-                                while (it.hasNext()) {
-                                    Entry<String, MQConsumerInner> entry = it.next();
+                                for (Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
                                     MQConsumerInner impl = entry.getValue();
                                     if (impl != null) {
                                         impl.updateTopicSubscribeInfo(topic, subscribeInfo); //调用消费的实现，进行更改相关的topic和相应的订阅info
@@ -866,6 +866,7 @@ public class MQClientInstance {
      */
     private boolean isNeedUpdateTopicRouteInfo(final String topic) {
         boolean result = false;
+        //提供方的变更
         {
             Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator();
             while (it.hasNext() && !result) {
@@ -876,6 +877,7 @@ public class MQClientInstance {
                 }
             }
         }
+        //消费端的变更
 
         {
             Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
@@ -1166,7 +1168,7 @@ public class MQClientInstance {
     public List<String> findConsumerIdList(final String topic, final String group) {
         String brokerAddr = this.findBrokerAddrByTopic(topic); //查找topic对应的broker
         if (null == brokerAddr) { //地址为空，
-            this.updateTopicRouteInfoFromNameServer(topic); //从nameserver中更新一下
+            this.updateTopicRouteInfoFromNameServer(topic); //从nameServer中更新一下
             brokerAddr = this.findBrokerAddrByTopic(topic); //再次调用找到相关的数据
         }
         if (null == brokerAddr){

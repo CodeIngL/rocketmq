@@ -86,6 +86,9 @@ public class ClientConfig {
         this.instanceName = instanceName;
     }
 
+    /**
+     * 实例名转换为PID
+     */
     public void changeInstanceNameToPID() {
         if (this.instanceName.equals("DEFAULT")) {
             this.instanceName = String.valueOf(UtilAll.getPid());

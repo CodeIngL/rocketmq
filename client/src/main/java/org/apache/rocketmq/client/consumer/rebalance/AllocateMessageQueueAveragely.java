@@ -25,6 +25,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
  * Average Hashing queue algorithm
+ * 默认的分配算法
  */
 public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
@@ -52,13 +53,14 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
         }
 
         int index = cidAll.indexOf(currentCID); //当前id在列表中的位置
-        int mod = mqAll.size() % cidAll.size();
+        int mod = mqAll.size() % cidAll.size();//消费队列取模消费者数量
+        //消息队列小于消费者，为1，否则消费队列数/消费者数，一般来说消费队列远远大于消费者数量
+        // 平均一个消费者拖多个消费队列，不足补1，足就不用补
         int averageSize =
-            mqAll.size() <= cidAll.size() ? 1 : (mod > 0 && index < mod ? mqAll.size() / cidAll.size()
-                + 1 : mqAll.size() / cidAll.size());
+            mqAll.size() <= cidAll.size() ? 1 : (mod > 0 && index < mod ? mqAll.size() / cidAll.size() + 1 : mqAll.size() / cidAll.size());
         int startIndex = (mod > 0 && index < mod) ? index * averageSize : index * averageSize + mod;
         int range = Math.min(averageSize, mqAll.size() - startIndex);
-        for (int i = 0; i < range; i++) {
+        for (int i = 0; i < range; i++) { //范围
             result.add(mqAll.get((startIndex + i) % mqAll.size()));
         }
         return result;

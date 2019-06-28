@@ -924,10 +924,10 @@ public class MQClientAPIImpl {
 
     public long queryConsumerOffset(
         final String addr,
-        final QueryConsumerOffsetRequestHeader requestHeader,
+        final QueryConsumerOffsetRequestHeader reqHeader,
         final long timeoutMillis
     ) throws RemotingException, MQBrokerException, InterruptedException {
-        RemotingCommand req = createRequestCommand(RequestCode.QUERY_CONSUMER_OFFSET, requestHeader);
+        RemotingCommand req = createRequestCommand(RequestCode.QUERY_CONSUMER_OFFSET, reqHeader);
 
         RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
             req, timeoutMillis);
@@ -946,16 +946,25 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
+    /**
+     * 推荐远程offset的更新
+     * @param addr
+     * @param requestHeader
+     * @param timeoutMillis
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     public void updateConsumerOffset(
         final String addr,
         final UpdateConsumerOffsetRequestHeader requestHeader,
         final long timeoutMillis
     ) throws RemotingException, MQBrokerException, InterruptedException {
-        RemotingCommand request = createRequestCommand(RequestCode.UPDATE_CONSUMER_OFFSET, requestHeader);
+        RemotingCommand req = createRequestCommand(UPDATE_CONSUMER_OFFSET, requestHeader);
 
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
-        assert response != null;
-        switch (response.getCode()) {
+        RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), req, timeoutMillis);
+        assert resp != null;
+        switch (resp.getCode()) {
             case SUCCESS: {
                 return;
             }
@@ -963,7 +972,7 @@ public class MQClientAPIImpl {
                 break;
         }
 
-        throw new MQBrokerException(response.getCode(), response.getRemark());
+        throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
     public void updateConsumerOffsetOneway(
@@ -972,7 +981,7 @@ public class MQClientAPIImpl {
         final long timeoutMillis
     ) throws RemotingConnectException, RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException,
         InterruptedException {
-        RemotingCommand request = createRequestCommand(RequestCode.UPDATE_CONSUMER_OFFSET, requestHeader);
+        RemotingCommand request = createRequestCommand(UPDATE_CONSUMER_OFFSET, requestHeader);
 
         this.remotingClient.invokeOneway(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
     }
@@ -1715,6 +1724,21 @@ public class MQClientAPIImpl {
         throw new MQClientException(response.getCode(), response.getRemark());
     }
 
+    /**
+     * 注册filter服务
+     * @param addr
+     * @param consumerGroup
+     * @param topic
+     * @param className
+     * @param classCRC
+     * @param classBody
+     * @param timeoutMillis
+     * @throws RemotingConnectException
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     * @throws InterruptedException
+     * @throws MQBrokerException
+     */
     public void registerMessageFilterClass(final String addr,
         final String consumerGroup,
         final String topic,
@@ -2219,21 +2243,21 @@ public class MQClientAPIImpl {
         final long timeoutMillis)
         throws InterruptedException, RemotingTimeoutException, RemotingSendRequestException,
         RemotingConnectException, MQClientException {
-        RemotingCommand request = createRequestCommand(RequestCode.CHECK_CLIENT_CONFIG, null);
+        RemotingCommand req = createRequestCommand(RequestCode.CHECK_CLIENT_CONFIG, null);
 
-        CheckClientRequestBody requestBody = new CheckClientRequestBody();
-        requestBody.setClientId(clientId);
-        requestBody.setGroup(consumerGroup);
-        requestBody.setSubscriptionData(subscriptionData);
+        CheckClientRequestBody reqBody = new CheckClientRequestBody();
+        reqBody.setClientId(clientId);
+        reqBody.setGroup(consumerGroup);
+        reqBody.setSubscriptionData(subscriptionData);
 
-        request.setBody(requestBody.encode());
+        req.setBody(reqBody.encode());
 
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), brokerAddr), request, timeoutMillis);
+        RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), brokerAddr), req, timeoutMillis);
 
-        assert response != null;
+        assert resp != null;
 
-        if (SUCCESS != response.getCode()) {
-            throw new MQClientException(response.getCode(), response.getRemark());
+        if (SUCCESS != resp.getCode()) {
+            throw new MQClientException(resp.getCode(), resp.getRemark());
         }
     }
 }
