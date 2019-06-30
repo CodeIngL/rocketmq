@@ -27,6 +27,9 @@ import org.apache.rocketmq.tools.monitor.DefaultMonitorListener;
 import org.apache.rocketmq.tools.monitor.MonitorConfig;
 import org.apache.rocketmq.tools.monitor.MonitorService;
 
+/**
+ * 启动监控的命令
+ */
 public class StartMonitoringSubCommand implements SubCommand {
     private final InternalLogger log = ClientLogger.getLog();
 
@@ -48,9 +51,7 @@ public class StartMonitoringSubCommand implements SubCommand {
     @Override
     public void execute(CommandLine commandLine, Options options, RPCHook rpcHook) throws SubCommandException {
         try {
-            MonitorService monitorService =
-                new MonitorService(new MonitorConfig(), new DefaultMonitorListener(), rpcHook);
-
+            MonitorService monitorService = new MonitorService(new MonitorConfig(), new DefaultMonitorListener(), rpcHook);
             monitorService.start();
         } catch (Exception e) {
             throw new SubCommandException(this.getClass().getSimpleName() + " command failed", e);

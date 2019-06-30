@@ -21,11 +21,31 @@ import org.apache.commons.cli.Options;
 import org.apache.rocketmq.remoting.RPCHook;
 
 public interface SubCommand {
+    /**
+     * 命令名
+     * @return
+     */
     String commandName();
 
+    /**
+     * 命令描述
+     * @return
+     */
     String commandDesc();
 
+    /**
+     * 构建命令选项
+     * @param options
+     * @return
+     */
     Options buildCommandlineOptions(final Options options);
 
+    /**
+     * 执行
+     * @param commandLine
+     * @param options
+     * @param rpcHook
+     * @throws SubCommandException
+     */
     void execute(final CommandLine commandLine, final Options options, RPCHook rpcHook) throws SubCommandException;
 }

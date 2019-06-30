@@ -19,6 +19,9 @@ package org.apache.rocketmq.tools.monitor;
 
 import org.apache.rocketmq.common.MixAll;
 
+/**
+ * 监控配置信息，我们需要监控nameserver的what
+ */
 public class MonitorConfig {
     private String namesrvAddr = System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY,
         System.getenv(MixAll.NAMESRV_ADDR_ENV));

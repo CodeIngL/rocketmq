@@ -79,7 +79,11 @@ import org.apache.rocketmq.tools.command.topic.UpdateTopicPermSubCommand;
 import org.apache.rocketmq.tools.command.topic.UpdateTopicSubCommand;
 import org.slf4j.LoggerFactory;
 
+/**
+ * mq管理端启动
+ */
 public class MQAdminStartup {
+
     protected static List<SubCommand> subCommandList = new ArrayList<SubCommand>();
 
     public static void main(String[] args) {
@@ -87,10 +91,10 @@ public class MQAdminStartup {
     }
 
     public static void main0(String[] args, RPCHook rpcHook) {
+
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
 
-        //PackageConflictDetect.detectFastjson();
-
+        //初始化命令
         initCommand();
 
         try {
@@ -143,8 +147,14 @@ public class MQAdminStartup {
         }
     }
 
+
+    /**
+     * 初始化的命令
+     */
     public static void initCommand() {
+        //更新topic的命令
         initCommand(new UpdateTopicSubCommand());
+        //删除topic的命令
         initCommand(new DeleteTopicSubCommand());
         initCommand(new UpdateSubGroupSubCommand());
         initCommand(new DeleteSubscriptionGroupCommand());
@@ -202,9 +212,12 @@ public class MQAdminStartup {
         initCommand(new ConsumeMessageCommand());
     }
 
+    /**
+     * 初始化logback
+     * @throws JoranException
+     */
     private static void initLogback() throws JoranException {
         String rocketmqHome = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
-
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
         JoranConfigurator configurator = new JoranConfigurator();
         configurator.setContext(lc);
@@ -212,6 +225,9 @@ public class MQAdminStartup {
         configurator.doConfigure(rocketmqHome + "/conf/logback_tools.xml");
     }
 
+    /**
+     * 打印相关的帮助信息
+     */
     private static void printHelp() {
         System.out.printf("The most commonly used mqadmin commands are:%n");
         for (SubCommand cmd : subCommandList) {
@@ -221,13 +237,17 @@ public class MQAdminStartup {
         System.out.printf("%nSee 'mqadmin help <command>' for more information on a specific command.%n");
     }
 
+    /**
+     * 查找相关的命令
+     * @param name
+     * @return
+     */
     private static SubCommand findSubCommand(final String name) {
         for (SubCommand cmd : subCommandList) {
             if (cmd.commandName().toUpperCase().equals(name.toUpperCase())) {
                 return cmd;
             }
         }
-
         return null;
     }
 

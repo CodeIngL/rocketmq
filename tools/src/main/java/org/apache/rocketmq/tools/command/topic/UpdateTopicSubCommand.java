@@ -30,6 +30,9 @@ import org.apache.rocketmq.tools.command.CommandUtil;
 import org.apache.rocketmq.tools.command.SubCommand;
 import org.apache.rocketmq.tools.command.SubCommandException;
 
+/**
+ * 更新topic命令
+ */
 public class UpdateTopicSubCommand implements SubCommand {
 
     @Override

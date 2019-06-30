@@ -62,8 +62,10 @@ public class MonitorService {
     private final MonitorListener monitorListener;
 
     private final DefaultMQAdminExt defaultMQAdminExt;
+    //tools相关的group
     private final DefaultMQPullConsumer defaultMQPullConsumer = new DefaultMQPullConsumer(
         MixAll.TOOLS_CONSUMER_GROUP);
+    //监控相关的group
     private final DefaultMQPushConsumer defaultMQPushConsumer = new DefaultMQPushConsumer(
         MixAll.MONITOR_CONSUMER_GROUP);
 
@@ -71,38 +73,35 @@ public class MonitorService {
         this.monitorConfig = monitorConfig;
         this.monitorListener = monitorListener;
 
+        //建立和nameServer连接
         this.defaultMQAdminExt = new DefaultMQAdminExt(rpcHook);
         this.defaultMQAdminExt.setInstanceName(instanceName());
         this.defaultMQAdminExt.setNamesrvAddr(monitorConfig.getNamesrvAddr());
 
+        //设置
         this.defaultMQPullConsumer.setInstanceName(instanceName());
         this.defaultMQPullConsumer.setNamesrvAddr(monitorConfig.getNamesrvAddr());
 
+        //设置
         this.defaultMQPushConsumer.setInstanceName(instanceName());
         this.defaultMQPushConsumer.setNamesrvAddr(monitorConfig.getNamesrvAddr());
         try {
             this.defaultMQPushConsumer.setConsumeThreadMin(1);
             this.defaultMQPushConsumer.setConsumeThreadMax(1);
             this.defaultMQPushConsumer.subscribe(MixAll.OFFSET_MOVED_EVENT, "*");
-            this.defaultMQPushConsumer.registerMessageListener(new MessageListenerConcurrently() {
+            this.defaultMQPushConsumer.registerMessageListener((MessageListenerConcurrently) (msgs, context) -> {
+                try {
+                    OffsetMovedEvent ome = OffsetMovedEvent.decode(msgs.get(0).getBody(), OffsetMovedEvent.class);
 
-                @Override
-                public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
-                    ConsumeConcurrentlyContext context) {
-                    try {
-                        OffsetMovedEvent ome =
-                            OffsetMovedEvent.decode(msgs.get(0).getBody(), OffsetMovedEvent.class);
+                    DeleteMsgsEvent deleteMsgsEvent = new DeleteMsgsEvent();
+                    deleteMsgsEvent.setOffsetMovedEvent(ome);
+                    deleteMsgsEvent.setEventTimestamp(msgs.get(0).getStoreTimestamp());
 
-                        DeleteMsgsEvent deleteMsgsEvent = new DeleteMsgsEvent();
-                        deleteMsgsEvent.setOffsetMovedEvent(ome);
-                        deleteMsgsEvent.setEventTimestamp(msgs.get(0).getStoreTimestamp());
-
-                        MonitorService.this.monitorListener.reportDeleteMsgsEvent(deleteMsgsEvent);
-                    } catch (Exception e) {
-                    }
-
-                    return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+                    MonitorService.this.monitorListener.reportDeleteMsgsEvent(deleteMsgsEvent);
+                } catch (Exception e) {
                 }
+                //消费成功
+                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             });
         } catch (MQClientException e) {
         }
@@ -133,8 +132,7 @@ public class MonitorService {
     }
 
     private String instanceName() {
-        String name =
-            System.currentTimeMillis() + new Random().nextInt() + this.monitorConfig.getNamesrvAddr();
+        String name = System.currentTimeMillis() + new Random().nextInt() + this.monitorConfig.getNamesrvAddr();
 
         return "MonitorService_" + name.hashCode();
     }
@@ -153,14 +151,11 @@ public class MonitorService {
     }
 
     private void startScheduleTask() {
-        this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    MonitorService.this.doMonitorWork();
-                } catch (Exception e) {
-                    log.error("doMonitorWork Exception", e);
-                }
+        this.scheduledExecutorService.scheduleAtFixedRate(() -> {
+            try {
+                MonitorService.this.doMonitorWork();
+            } catch (Exception e) {
+                log.error("doMonitorWork Exception", e);
             }
         }, 1000 * 20, this.monitorConfig.getRoundInterval(), TimeUnit.MILLISECONDS);
     }
@@ -192,6 +187,10 @@ public class MonitorService {
         log.info("Execute one round monitor work, spent timemills: {}", spentTimeMills);
     }
 
+    /**
+     * 报告没有完成的消息
+     * @param consumerGroup
+     */
     private void reportUndoneMsgs(final String consumerGroup) {
         ConsumeStats cs = null;
         try {
