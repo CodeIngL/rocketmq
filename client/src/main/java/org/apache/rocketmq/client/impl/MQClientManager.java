@@ -25,6 +25,9 @@ import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.RPCHook;
 
+/**
+ * 单例模式，提供了整个网络端点中相关id和对应网络映射关系，他总是单例存在。
+ */
 public class MQClientManager {
     private final static InternalLogger log = ClientLogger.getLog();
     private static MQClientManager instance = new MQClientManager();
@@ -34,9 +37,7 @@ public class MQClientManager {
      */
     private ConcurrentMap<String/* clientId */, MQClientInstance> factoryTable = new ConcurrentHashMap<String, MQClientInstance>();
 
-    private MQClientManager() {
-
-    }
+    private MQClientManager() { }
 
     public static MQClientManager getInstance() {
         return instance;

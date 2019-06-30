@@ -674,10 +674,10 @@ public class MQClientAPIImpl {
     public PullResult pullMessage(final String addr, final PullMessageRequestHeader reqHeader, final long timeoutMillis, final CommunicationMode communicationMode, final PullCallback callback) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand req = createRequestCommand(PULL_MESSAGE, reqHeader);
         switch (communicationMode) {
-            case ASYNC:
+            case ASYNC: //异步
                 pullMessageAsync(addr, req, timeoutMillis, callback);
                 return null;
-            case SYNC:
+            case SYNC: //同步
                 return pullMessageSync(addr, req, timeoutMillis);
             case ONEWAY:
             default:
@@ -922,8 +922,17 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(response.getCode(), response.getRemark());
     }
 
-    public long queryConsumerOffset(
-        final String addr,
+    /**
+     * 查询消费
+     * @param addr
+     * @param reqHeader
+     * @param timeoutMillis
+     * @return
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
+    public long queryConsumerOffset(final String addr,
         final QueryConsumerOffsetRequestHeader reqHeader,
         final long timeoutMillis
     ) throws RemotingException, MQBrokerException, InterruptedException {
@@ -1274,13 +1283,13 @@ public class MQClientAPIImpl {
         throws RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException,
         MQBrokerException, UnsupportedEncodingException {
 
-        RemotingCommand request = createRequestCommand(RequestCode.UPDATE_BROKER_CONFIG, null);
+        RemotingCommand req = createRequestCommand(RequestCode.UPDATE_BROKER_CONFIG, null);
 
         String str = MixAll.properties2String(properties);
         if (str != null && str.length() > 0) {
-            request.setBody(str.getBytes(MixAll.DEFAULT_CHARSET));
+            req.setBody(str.getBytes(MixAll.DEFAULT_CHARSET));
             RemotingCommand response = this.remotingClient
-                .invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
+                .invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), req, timeoutMillis);
             switch (response.getCode()) {
                 case SUCCESS: {
                     return;
