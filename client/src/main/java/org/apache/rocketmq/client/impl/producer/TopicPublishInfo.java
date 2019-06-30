@@ -43,6 +43,10 @@ public class TopicPublishInfo {
         this.orderTopic = orderTopic;
     }
 
+    /**
+     * 一个topic发布信息是ok，需要他来保证其消息队列是存在的
+     * @return 是否有消息队列的信息
+     */
     public boolean ok() {
         return null != this.messageQueueList && !this.messageQueueList.isEmpty();
     }

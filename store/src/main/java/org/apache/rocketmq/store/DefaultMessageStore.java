@@ -628,17 +628,19 @@ public class DefaultMessageStore implements MessageStore {
             } else {
                 //获得offset对应的映射buffer
                 SelectMappedBufferResult bufferConsumeQueue = cq.getIndexBuffer(offset);
-                if (bufferConsumeQueue != null) { //index索引存在相关
+                if (bufferConsumeQueue != null) { //索引存在相关
                     try {
-                        status = NO_MATCHED_MESSAGE;
+                        status = NO_MATCHED_MESSAGE; //状态，初始没有任何匹配
 
-                        long nextPhyFileStartOffset = Long.MIN_VALUE;
-                        long maxPhyOffsetPulling = 0;
+                        long nextPhyFileStartOffset = Long.MIN_VALUE;//初始值
+                        long maxPhyOffsetPulling = 0; //初始值
 
                         int i = 0;
-                        //最大量
+                        //最大过滤量
                         final int maxFilterMessageCount = Math.max(16000, maxMsgNums * ConsumeQueue.CQ_STORE_UNIT_SIZE);
+                        //
                         final boolean diskFallRecorded = this.messageStoreConfig.isDiskFallRecorded();
+
                         //扩展属性
                         ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
                         for (; i < bufferConsumeQueue.getSize() && i < maxFilterMessageCount; i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
@@ -657,6 +659,7 @@ public class DefaultMessageStore implements MessageStore {
                                     continue;
                             }
 
+                            //是否在磁盘中
                             boolean isInDisk = checkInDiskByCommitOffset(offsetPy, maxOffsetPy);
 
                             if (this.isTheBatchFull(sizePy, maxMsgNums, result.getBufferTotalSize(), result.getMessageCount(), isInDisk)) {
@@ -711,16 +714,16 @@ public class DefaultMessageStore implements MessageStore {
                             nextPhyFileStartOffset = Long.MIN_VALUE;
                         }
 
-                        if (diskFallRecorded) {
-                            long fallBehind = maxOffsetPy - maxPhyOffsetPulling; //落后来了
+                        if (diskFallRecorded) { //记录落后
+                            long fallBehind = maxOffsetPy - maxPhyOffsetPulling; //落后长度
                             brokerStatsManager.recordDiskFallBehindSize(group, topic, queueId, fallBehind); //记录一下
                         }
 
                         nextBeginOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE); //下一个开始
 
-                        long diff = maxOffsetPy - maxPhyOffsetPulling; //差距
-                        long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0)); //内存
-                        result.setSuggestPullingFromSlave(diff > memory); //是否建议从其他slave进行拉取
+                        long diff = maxOffsetPy - maxPhyOffsetPulling; //最大内存-最大拉取offset
+                        long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0)); //内存大小
+                        result.setSuggestPullingFromSlave(diff > memory); //是否建议从其他slave进行拉取，差距过大，可能master很麻烦，我们尝试从slave读取
                     } finally {
                         bufferConsumeQueue.release();
                     }
@@ -1297,7 +1300,9 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     private boolean checkInDiskByCommitOffset(long offsetPy, long maxOffsetPy) {
+        //最大内存
         long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
+        //是否大，大在磁盘中
         return (maxOffsetPy - offsetPy) > memory;
     }
 
