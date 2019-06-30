@@ -59,6 +59,10 @@ import java.util.concurrent.ConcurrentMap;
 
 import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTERING;
 
+/**
+ * 内部承载pull形式消费消息核心流程类
+ * @see DefaultMQPushConsumerImpl
+ */
 public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     private final InternalLogger log = ClientLogger.getLog();
     private final DefaultMQPullConsumer defaultMQPullConsumer;

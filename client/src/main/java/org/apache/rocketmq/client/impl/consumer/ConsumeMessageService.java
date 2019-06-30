@@ -22,7 +22,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 
 /**
- * 消费服务
+ * 消费服务，和push方式结合
  */
 public interface ConsumeMessageService {
 

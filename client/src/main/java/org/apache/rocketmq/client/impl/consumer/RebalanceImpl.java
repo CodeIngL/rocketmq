@@ -349,7 +349,7 @@ public abstract class RebalanceImpl {
     /**
      * 更新重平衡结果，同样，pull模式不支持顺序消费，push模式按照设置可以支持相关的顺序消费
      * @param topic 主题
-     * @param mqSet 获得的消息队列，目前topic在本机上对应的消费队列集合
+     * @param mqSet 获得的消息队列，目前topic在本机上对应的消费队列集合，也就是新的消息队列
      * @param isOrder 是否是顺序消费
      * @return
      */
@@ -373,7 +373,7 @@ public abstract class RebalanceImpl {
                     }
                 } else if (pq.isPullExpired()) { //拉取超时
                     switch (this.consumeType()) { //类型
-                        case CONSUME_ACTIVELY: //活跃
+                        case CONSUME_ACTIVELY: //活跃，pull模式不关注
                             break;
                         case CONSUME_PASSIVELY: //不活跃
                             pq.setDropped(true); //丢弃

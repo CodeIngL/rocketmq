@@ -87,6 +87,10 @@ import static org.apache.rocketmq.common.help.FAQUrl.*;
 import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTERING;
 import static org.apache.rocketmq.common.sysflag.PullSysFlag.buildSysFlag;
 
+/**
+ * 内部承载push形式消费消息核心流程类
+ * @see DefaultMQPullConsumerImpl
+ */
 public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     /**
      * Delay some time when exception occur
@@ -301,6 +305,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             }
         }
 
+        //获得订阅的信息
         final SubscriptionData subscriptionData = this.rebalanceImpl.getSubscriptionInner().get(pullRequest.getMessageQueue().getTopic());
         if (null == subscriptionData) {
             this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_EXCEPTION);
@@ -414,7 +419,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         boolean commitOffsetEnable = false;
         long commitOffsetValue = 0L;
         if (CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) { //集群方式支持
-            commitOffsetValue = this.offsetStore.readOffset(pullRequest.getMessageQueue(), READ_FROM_MEMORY);
+            commitOffsetValue = this.offsetStore.readOffset(pullRequest.getMessageQueue(), READ_FROM_MEMORY); //从内存中获取offset
             if (commitOffsetValue > 0) {
                 commitOffsetEnable = true;
             }
@@ -699,6 +704,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
         //以下是other的区别
 
+
+        //push方式根据自己订阅的数据，尝试更新路由信息后，立即开始other操作
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
         if (subTable != null) {
             for (final Map.Entry<String, SubscriptionData> entry : subTable.entrySet()) {
@@ -862,8 +869,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
      * @throws MQClientException
      */
     private void copySubscription() throws MQClientException {
+        //获得消费组
         String consumerGroup = this.defaultMQPushConsumer.getConsumerGroup();
         try {
+            //遍历toic和订阅组的映射
             Map<String, String> sub = this.defaultMQPushConsumer.getSubscription();
             if (sub != null) {
                 for (final Map.Entry<String, String> entry : sub.entrySet()) {

@@ -198,6 +198,7 @@ public class PullAPIWrapper {
         final CommunicationMode communicationMode,
         final PullCallback pullCallback
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        //发现broker
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
         if (null == findBrokerResult) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
@@ -219,6 +220,7 @@ public class PullAPIWrapper {
                 sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
             }
 
+            //构建拉取请求
             PullMessageRequestHeader reqHeader = new PullMessageRequestHeader();
             reqHeader.setConsumerGroup(this.consumerGroup);
             reqHeader.setTopic(mq.getTopic());
@@ -233,10 +235,11 @@ public class PullAPIWrapper {
             reqHeader.setExpressionType(expressionType);
 
             String brokerAddr = findBrokerResult.getBrokerAddr();
-            if (hasClassFilterFlag(sysFlagInner)) {
+            if (hasClassFilterFlag(sysFlagInner)) { //存在filterServer
                 brokerAddr = computePullFromWhichFilterServer(mq.getTopic(), brokerAddr);
             }
 
+            //获得消息
             PullResult pullResult = this.mQClientFactory.getMQClientAPIImpl().pullMessage(
                 brokerAddr,
                 reqHeader,

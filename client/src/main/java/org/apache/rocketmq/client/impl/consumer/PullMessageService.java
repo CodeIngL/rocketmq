@@ -28,9 +28,10 @@ import org.apache.rocketmq.common.utils.ThreadUtils;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 /**
- * 拉取消息的服务
+ * 拉取消息的服务，由网络客户端发起，即使在其他场景中会有使用到的情况，但是only push方式才能有意义
  */
 public class PullMessageService extends ServiceThread {
+
     private final InternalLogger log = ClientLogger.getLog();
     //拉取请求队列
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<>();
@@ -91,7 +92,7 @@ public class PullMessageService extends ServiceThread {
         log.info(this.getServiceName() + " service started");
         while (!this.isStopped()) {
             try {
-                //从拉取的请求中获得相关的拉取请求，然后发起拉取
+                //从拉取的请求中获得相关的拉取请求，然后向远程的broker发起请求
                 PullRequest pullRequest = this.pullRequestQueue.take();
                 this.pullMessage(pullRequest);
             } catch (InterruptedException ignored) {
