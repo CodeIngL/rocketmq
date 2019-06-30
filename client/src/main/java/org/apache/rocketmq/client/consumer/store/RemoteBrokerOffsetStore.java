@@ -73,12 +73,18 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
         }
     }
 
+    /**
+     * 读取存储的offset
+     * @param mq
+     * @param type
+     * @return
+     */
     @Override
     public long readOffset(final MessageQueue mq, final ReadOffsetType type) {
         if (mq != null) {
             switch (type) {
                 case MEMORY_FIRST_THEN_STORE:
-                case READ_FROM_MEMORY: {
+                case READ_FROM_MEMORY: { //内存优先，
                     AtomicLong offset = this.offsetTable.get(mq);
                     if (offset != null) {
                         return offset.get();
@@ -86,11 +92,11 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                         return -1;
                     }
                 }
-                case READ_FROM_STORE: {
+                case READ_FROM_STORE: { //存储优先
                     try {
-                        long brokerOffset = this.fetchConsumeOffsetFromBroker(mq);
+                        long brokerOffset = this.fetchConsumeOffsetFromBroker(mq); //获得broker的offset
                         AtomicLong offset = new AtomicLong(brokerOffset);
-                        this.updateOffset(mq, offset.get(), false);
+                        this.updateOffset(mq, offset.get(), false); //更新
                         return brokerOffset;
                     }
                     // No offset in broker
@@ -206,6 +212,9 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
     /**
      * Update the Consumer Offset synchronously, once the Master is off, updated to Slave,
      * here need to be optimized.
+     * <p>
+     *     同步更新Consumer Offset，一旦Master关闭，更新为Slave，这里需要进行优化。
+     * </p>
      */
     @Override
     public void updateConsumeOffsetToBroker(MessageQueue mq, long offset, boolean isOneway) throws RemotingException,
@@ -238,23 +247,30 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
         }
     }
 
+    /**
+     * 从broker中获取消费存储
+     * @param mq
+     * @return
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     * @throws MQClientException
+     */
     private long fetchConsumeOffsetFromBroker(MessageQueue mq) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException {
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());
         if (null == findBrokerResult) {
-
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
             findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());
         }
 
         if (findBrokerResult != null) {
-            QueryConsumerOffsetRequestHeader requestHeader = new QueryConsumerOffsetRequestHeader();
-            requestHeader.setTopic(mq.getTopic());
-            requestHeader.setConsumerGroup(this.groupName);
-            requestHeader.setQueueId(mq.getQueueId());
+            QueryConsumerOffsetRequestHeader reqHeader = new QueryConsumerOffsetRequestHeader();
+            reqHeader.setTopic(mq.getTopic());
+            reqHeader.setConsumerGroup(this.groupName);
+            reqHeader.setQueueId(mq.getQueueId());
 
-            return this.mQClientFactory.getMQClientAPIImpl().queryConsumerOffset(
-                findBrokerResult.getBrokerAddr(), requestHeader, 1000 * 5);
+            return this.mQClientFactory.getMQClientAPIImpl().queryConsumerOffset(findBrokerResult.getBrokerAddr(), reqHeader, 1000 * 5);
         } else {
             throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);
         }

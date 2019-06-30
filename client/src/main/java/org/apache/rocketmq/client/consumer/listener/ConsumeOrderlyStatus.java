@@ -33,6 +33,7 @@ public enum ConsumeOrderlyStatus {
     COMMIT,
     /**
      * Suspend current queue a moment
+     * 暂停当前队列
      */
     SUSPEND_CURRENT_QUEUE_A_MOMENT;
 }
