@@ -215,6 +215,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             }
 
             log.warn("the topic {} not exist, producer: {}", reqHeader.getTopic(), ctx.channel().remoteAddress());
+            //构建消息重发的topic
             topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageMethod(
                 reqHeader.getTopic(),
                 reqHeader.getDefaultTopic(),

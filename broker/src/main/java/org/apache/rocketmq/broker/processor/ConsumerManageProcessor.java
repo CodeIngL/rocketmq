@@ -59,7 +59,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
                 return this.getConsumerListByGroup(ctx, req);
             case UPDATE_CONSUMER_OFFSET:
                 return this.updateConsumerOffset(ctx, req);
-            case QUERY_CONSUMER_OFFSET:
+            case QUERY_CONSUMER_OFFSET: //查询消费offset
                 return this.queryConsumerOffset(ctx, req);
             default:
                 break;

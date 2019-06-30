@@ -62,7 +62,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
     public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
         switch (req.getCode()) {
-            case HEART_BEAT:
+            case HEART_BEAT: //处理心跳
                 return this.heartBeat(ctx, req);
             case UNREGISTER_CLIENT:
                 return this.unregisterClient(ctx, req);
@@ -91,8 +91,8 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         //客户网络信息
         ClientChannelInfo channelInfo = new ClientChannelInfo(ctx.channel(), heartbeatData.getClientID(), req.getLanguage(), req.getVersion());
 
-        for (ConsumerData data : heartbeatData.getConsumerDataSet()) {
-            SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName());
+        for (ConsumerData data : heartbeatData.getConsumerDataSet()) { //处理消费方的数据
+            SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName()); //发现消费组对应订阅数据
             boolean isNotifyConsumerIdsChangedEnable = true;
             if (null != subscriptionGroupConfig) {
                 isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
@@ -170,41 +170,47 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         return resp;
     }
 
-    public RemotingCommand checkClientConfig(ChannelHandlerContext ctx, RemotingCommand request)
+    /**
+     * 校验客户端的配置
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
+    public RemotingCommand checkClientConfig(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        final RemotingCommand resp = RemotingCommand.createResponseCommand(null);
 
-        CheckClientRequestBody requestBody = CheckClientRequestBody.decode(request.getBody(),
-            CheckClientRequestBody.class);
+        CheckClientRequestBody reqBody = CheckClientRequestBody.decode(req.getBody(), CheckClientRequestBody.class);
 
-        if (requestBody != null && requestBody.getSubscriptionData() != null) {
-            SubscriptionData subscriptionData = requestBody.getSubscriptionData();
+        if (reqBody != null && reqBody.getSubscriptionData() != null) {
+            SubscriptionData subscriptionData = reqBody.getSubscriptionData();
 
-            if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
-                response.setCode(ResponseCode.SUCCESS);
-                response.setRemark(null);
-                return response;
+            if (ExpressionType.isTagType(subscriptionData.getExpressionType())) { //tag
+                resp.setCode(ResponseCode.SUCCESS);
+                resp.setRemark(null);
+                return resp;
             }
 
-            if (!this.brokerController.getBrokerConfig().isEnablePropertyFilter()) {
-                response.setCode(ResponseCode.SYSTEM_ERROR);
-                response.setRemark("The broker does not support consumer to filter message by " + subscriptionData.getExpressionType());
-                return response;
+            if (!this.brokerController.getBrokerConfig().isEnablePropertyFilter()) { //不支持属性filter，错误
+                resp.setCode(ResponseCode.SYSTEM_ERROR);
+                resp.setRemark("The broker does not support consumer to filter message by " + subscriptionData.getExpressionType());
+                return resp;
             }
 
             try {
-                FilterFactory.INSTANCE.get(subscriptionData.getExpressionType()).compile(subscriptionData.getSubString());
+                FilterFactory.INSTANCE.get(subscriptionData.getExpressionType()).compile(subscriptionData.getSubString()); //测试一下没有问题
             } catch (Exception e) {
                 log.warn("Client {}@{} filter message, but failed to compile expression! sub={}, error={}",
-                    requestBody.getClientId(), requestBody.getGroup(), requestBody.getSubscriptionData(), e.getMessage());
-                response.setCode(ResponseCode.SUBSCRIPTION_PARSE_FAILED);
-                response.setRemark(e.getMessage());
-                return response;
+                    reqBody.getClientId(), reqBody.getGroup(), reqBody.getSubscriptionData(), e.getMessage());
+                resp.setCode(ResponseCode.SUBSCRIPTION_PARSE_FAILED);
+                resp.setRemark(e.getMessage());
+                return resp;
             }
         }
 
-        response.setCode(ResponseCode.SUCCESS);
-        response.setRemark(null);
-        return response;
+        resp.setCode(ResponseCode.SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 }
