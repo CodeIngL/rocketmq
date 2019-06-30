@@ -39,7 +39,7 @@ public class FilterAPI {
     }
 
     /**
-     * 构建订阅数据
+     * 构建订阅数据，订阅数据的构建，发现消费组是没什么乱用的
      * @param consumerGroup 消费组
      * @param topic 主题
      * @param subString 内容
