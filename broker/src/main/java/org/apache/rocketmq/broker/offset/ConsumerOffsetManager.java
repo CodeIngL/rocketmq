@@ -123,7 +123,7 @@ public class ConsumerOffsetManager extends ConfigManager {
     }
 
     /**
-     * offset有更新，我们需要更新一下心得offset
+     * offset有更新，我们需要更新一下新的offset
      * @param clientHost
      * @param group
      * @param topic
@@ -158,6 +158,13 @@ public class ConsumerOffsetManager extends ConfigManager {
         }
     }
 
+    /**
+     * 查询offset
+     * @param group
+     * @param topic
+     * @param queueId
+     * @return
+     */
     public long queryOffset(final String group, final String topic, final int queueId) {
         // topic@group
         String key = topic + TOPIC_GROUP_SEPARATOR + group;
@@ -168,7 +175,6 @@ public class ConsumerOffsetManager extends ConfigManager {
             if (offset != null)
                 return offset;
         }
-
         return -1;
     }
 

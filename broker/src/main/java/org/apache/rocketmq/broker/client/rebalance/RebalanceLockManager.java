@@ -33,6 +33,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
 public class RebalanceLockManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.REBALANCE_LOCK_LOGGER_NAME);
     private final static long REBALANCE_LOCK_MAX_LIVE_TIME = Long.parseLong(System.getProperty("rocketmq.broker.rebalance.lockMaxLiveTime", "60000")); //锁定时间最多60s
+    //锁定
     private final Lock lock = new ReentrantLock();
     private final ConcurrentMap<String/* group */, ConcurrentHashMap<MessageQueue, LockEntry>> mqLockTable =
         new ConcurrentHashMap<String, ConcurrentHashMap<MessageQueue, LockEntry>>(1024);
@@ -143,7 +144,7 @@ public class RebalanceLockManager {
             }
         }
 
-        if (!notLockedMqs.isEmpty()) {//存在为上锁的mq
+        if (!notLockedMqs.isEmpty()) {//存在未上锁的mq
             try {
                 this.lock.lockInterruptibly();
                 try {

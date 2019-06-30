@@ -69,6 +69,7 @@ public class BrokerOuterAPI {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final RemotingClient remotingClient;
     private final TopAddressing topAddressing = new TopAddressing(MixAll.getWSAddr());
+    //服务端地址
     private String nameSrvAddr = null;
     private BrokerFixedThreadPoolExecutor brokerOuterExecutor = new BrokerFixedThreadPoolExecutor(4, 10, 1, TimeUnit.MINUTES,
             new ArrayBlockingQueue<>(32), new ThreadFactoryImpl("brokerOutApi_thread_", true));
@@ -108,13 +109,16 @@ public class BrokerOuterAPI {
         return nameSrvAddr;
     }
 
+    /**
+     * 更新as的list分号是；分开
+     * @param addrs
+     */
     public void updateNameServerAddressList(final String addrs) {
         List<String> lst = new ArrayList<String>();
         String[] addrArray = addrs.split(";");
         for (String addr : addrArray) {
             lst.add(addr);
         }
-
         this.remotingClient.updateNameServerAddressList(lst);
     }
 
