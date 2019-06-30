@@ -33,9 +33,14 @@ import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
 
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
 
+/**
+ * 集群下的支持
+ */
 public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
+    //管理端
     private final DefaultMQAdminExt adminExt;
+    //环境名
     private final String productEnvName;
 
     public ClusterTestRequestProcessor(NamesrvController namesrvController, String productEnvName) {
@@ -54,19 +59,19 @@ public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
     @Override
     public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
         RemotingCommand req) throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(null);
-        final GetRouteInfoRequestHeader requestHeader =
-            (GetRouteInfoRequestHeader) req.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
+        final RemotingCommand resp = createResponseCommand(null);
+        final GetRouteInfoRequestHeader reqHeader = (GetRouteInfoRequestHeader) req.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
-        TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(requestHeader.getTopic());
+        TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(reqHeader.getTopic());
         if (topicRouteData != null) {
+            //有顺序的topic配置
             String orderTopicConf =
                 this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG,
-                    requestHeader.getTopic());
+                    reqHeader.getTopic());
             topicRouteData.setOrderTopicConf(orderTopicConf);
         } else {
             try {
-                topicRouteData = adminExt.examineTopicRouteInfo(requestHeader.getTopic());
+                topicRouteData = adminExt.examineTopicRouteInfo(reqHeader.getTopic());
             } catch (Exception e) {
                 log.info("get route info by topic from product environment failed. envName={},", productEnvName);
             }
@@ -74,15 +79,15 @@ public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
 
         if (topicRouteData != null) {
             byte[] content = topicRouteData.encode();
-            response.setBody(content);
-            response.setCode(ResponseCode.SUCCESS);
-            response.setRemark(null);
-            return response;
+            resp.setBody(content);
+            resp.setCode(ResponseCode.SUCCESS);
+            resp.setRemark(null);
+            return resp;
         }
 
-        response.setCode(ResponseCode.TOPIC_NOT_EXIST);
-        response.setRemark("No topic route info in name server for the topic: " + requestHeader.getTopic()
+        resp.setCode(ResponseCode.TOPIC_NOT_EXIST);
+        resp.setRemark("No topic route info in name server for the topic: " + reqHeader.getTopic()
             + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
-        return response;
+        return resp;
     }
 }

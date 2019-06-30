@@ -19,7 +19,11 @@ package org.apache.rocketmq.namesrv.kvconfig;
 import java.util.HashMap;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+/**
+ * 配置文件在内存中的形式，总是使用命名空间和对应的kv配置
+ */
 public class KVConfigSerializeWrapper extends RemotingSerializable {
+    
     private HashMap<String/* Namespace */, HashMap<String/* Key */, String/* Value */>> configTable;
 
     public HashMap<String, HashMap<String, String>> getConfigTable() {

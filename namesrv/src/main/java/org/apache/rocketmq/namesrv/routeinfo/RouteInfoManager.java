@@ -52,10 +52,15 @@ public class RouteInfoManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    //topic和其队列数据
     private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;
+    //brokerName和其数据
     private final HashMap<String/* brokerName */, BrokerData> brokerAddrTable;
+    //集群name和集群下的broker
     private final HashMap<String/* clusterName */, Set<String/* brokerName */>> clusterAddrTable;
+    //broker地址和生存信息
     private final HashMap<String/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
+    //broker地址和其filterServer的信息
     private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 
     public RouteInfoManager() {
@@ -380,20 +385,22 @@ public class RouteInfoManager {
      * @return
      */
     public TopicRouteData pickupTopicRouteData(final String topic) {
+        //初始化对象
         TopicRouteData topicRouteData = new TopicRouteData();
         boolean foundQueueData = false;
         boolean foundBrokerData = false;
-        Set<String> brokerNameSet = new HashSet<String>();
-        List<BrokerData> brokerDataList = new LinkedList<BrokerData>();
+        Set<String> brokerNameSet = new HashSet<>();
+        List<BrokerData> brokerDataList = new LinkedList<>();
         topicRouteData.setBrokerDatas(brokerDataList);
 
-        HashMap<String, List<String>> filterServerMap = new HashMap<String, List<String>>();
+        HashMap<String, List<String>> filterServerMap = new HashMap<>();
         topicRouteData.setFilterServerTable(filterServerMap);
 
+        //尝试从自己已经有的信息中构建关于topic路由的信息
         try {
             try {
                 this.lock.readLock().lockInterruptibly();
-                List<QueueData> queueDataList = this.topicQueueTable.get(topic);
+                List<QueueData> queueDataList = this.topicQueueTable.get(topic); //获得队列信息
                 if (queueDataList != null) {
                     topicRouteData.setQueueDatas(queueDataList);
                     foundQueueData = true;
@@ -403,7 +410,7 @@ public class RouteInfoManager {
                         QueueData qd = it.next();
                         brokerNameSet.add(qd.getBrokerName());
                     }
-
+                    //队列中相关的broker名字
                     for (String brokerName : brokerNameSet) {
                         BrokerData brokerData = this.brokerAddrTable.get(brokerName);
                         if (null != brokerData) {
@@ -411,7 +418,7 @@ public class RouteInfoManager {
                                 .getBrokerAddrs().clone());
                             brokerDataList.add(brokerDataClone);
                             foundBrokerData = true;
-                            for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) {
+                            for (final String brokerAddr : brokerDataClone.getBrokerAddrs().values()) { //broker中的filterServer信息
                                 List<String> filterServerList = this.filterServerTable.get(brokerAddr);
                                 filterServerMap.put(brokerAddr, filterServerList);
                             }
@@ -427,7 +434,7 @@ public class RouteInfoManager {
 
         log.debug("pickupTopicRouteData {} {}", topic, topicRouteData);
 
-        if (foundBrokerData && foundQueueData) {
+        if (foundBrokerData && foundQueueData) { //只要找到broker切队列信息也有，才是有数据的
             return topicRouteData;
         }
 

@@ -59,6 +59,7 @@ import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 import org.apache.rocketmq.remoting.netty.NettyRequestProcessor;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+import static org.apache.rocketmq.common.protocol.RequestCode.*;
 import static org.apache.rocketmq.common.protocol.ResponseCode.TOPIC_NOT_EXIST;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
 
@@ -94,48 +95,48 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
 
 
         switch (request.getCode()) {
-            case RequestCode.PUT_KV_CONFIG:
+            case PUT_KV_CONFIG:
                 return this.putKVConfig(ctx, request);
-            case RequestCode.GET_KV_CONFIG:
+            case GET_KV_CONFIG:
                 return this.getKVConfig(ctx, request);
-            case RequestCode.DELETE_KV_CONFIG:
+            case DELETE_KV_CONFIG:
                 return this.deleteKVConfig(ctx, request);
-            case RequestCode.QUERY_DATA_VERSION:
+            case QUERY_DATA_VERSION:
                 return queryBrokerTopicConfig(ctx, request);
-            case RequestCode.REGISTER_BROKER:
+            case REGISTER_BROKER: //注册broker
                 Version brokerVersion = MQVersion.value2Version(request.getVersion());
                 if (brokerVersion.ordinal() >= MQVersion.Version.V3_0_11.ordinal()) {
-                    return this.registerBrokerWithFilterServer(ctx, request);
+                    return this.registerBrokerWithFilterServer(ctx, request);//3.0.11以上存在filterServer
                 } else {
-                    return this.registerBroker(ctx, request);
+                    return this.registerBroker(ctx, request); //一般注册
                 }
-            case RequestCode.UNREGISTER_BROKER:
+            case UNREGISTER_BROKER:
                 return this.unregisterBroker(ctx, request);
-            case RequestCode.GET_ROUTEINTO_BY_TOPIC:
+            case GET_ROUTEINTO_BY_TOPIC:
                 return this.getRouteInfoByTopic(ctx, request);
-            case RequestCode.GET_BROKER_CLUSTER_INFO:
+            case GET_BROKER_CLUSTER_INFO:
                 return this.getBrokerClusterInfo(ctx, request);
-            case RequestCode.WIPE_WRITE_PERM_OF_BROKER:
+            case WIPE_WRITE_PERM_OF_BROKER:
                 return this.wipeWritePermOfBroker(ctx, request);
-            case RequestCode.GET_ALL_TOPIC_LIST_FROM_NAMESERVER:
+            case GET_ALL_TOPIC_LIST_FROM_NAMESERVER:
                 return getAllTopicListFromNameserver(ctx, request);
-            case RequestCode.DELETE_TOPIC_IN_NAMESRV:
+            case DELETE_TOPIC_IN_NAMESRV:
                 return deleteTopicInNamesrv(ctx, request);
-            case RequestCode.GET_KVLIST_BY_NAMESPACE:
+            case GET_KVLIST_BY_NAMESPACE:
                 return this.getKVListByNamespace(ctx, request);
-            case RequestCode.GET_TOPICS_BY_CLUSTER:
+            case GET_TOPICS_BY_CLUSTER:
                 return this.getTopicsByCluster(ctx, request);
-            case RequestCode.GET_SYSTEM_TOPIC_LIST_FROM_NS:
+            case GET_SYSTEM_TOPIC_LIST_FROM_NS:
                 return this.getSystemTopicListFromNs(ctx, request);
-            case RequestCode.GET_UNIT_TOPIC_LIST:
+            case GET_UNIT_TOPIC_LIST:
                 return this.getUnitTopicList(ctx, request);
-            case RequestCode.GET_HAS_UNIT_SUB_TOPIC_LIST:
+            case GET_HAS_UNIT_SUB_TOPIC_LIST:
                 return this.getHasUnitSubTopicList(ctx, request);
-            case RequestCode.GET_HAS_UNIT_SUB_UNUNIT_TOPIC_LIST:
+            case GET_HAS_UNIT_SUB_UNUNIT_TOPIC_LIST:
                 return this.getHasUnitSubUnUnitTopicList(ctx, request);
-            case RequestCode.UPDATE_NAMESRV_CONFIG:
+            case UPDATE_NAMESRV_CONFIG:
                 return this.updateConfig(ctx, request);
-            case RequestCode.GET_NAMESRV_CONFIG:
+            case GET_NAMESRV_CONFIG:
                 return this.getConfig(ctx, request);
             default:
                 break;
@@ -205,24 +206,24 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    public RemotingCommand registerBrokerWithFilterServer(ChannelHandlerContext ctx, RemotingCommand request)
+    public RemotingCommand registerBrokerWithFilterServer(ChannelHandlerContext ctx, RemotingCommand req)
             throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(RegisterBrokerResponseHeader.class);
-        final RegisterBrokerResponseHeader responseHeader = (RegisterBrokerResponseHeader) response.readCustomHeader();
-        final RegisterBrokerRequestHeader requestHeader =
-                (RegisterBrokerRequestHeader) request.decodeCommandCustomHeader(RegisterBrokerRequestHeader.class);
+        final RemotingCommand resp = createResponseCommand(RegisterBrokerResponseHeader.class);
+        final RegisterBrokerResponseHeader respHeader = (RegisterBrokerResponseHeader) resp.readCustomHeader();
+        final RegisterBrokerRequestHeader reqHeader =
+                (RegisterBrokerRequestHeader) req.decodeCommandCustomHeader(RegisterBrokerRequestHeader.class);
 
-        if (!checksum(ctx, request, requestHeader)) {
-            response.setCode(ResponseCode.SYSTEM_ERROR);
-            response.setRemark("crc32 not match");
-            return response;
+        if (!checksum(ctx, req, reqHeader)) {
+            resp.setCode(ResponseCode.SYSTEM_ERROR);
+            resp.setRemark("crc32 not match");
+            return resp;
         }
 
         RegisterBrokerBody registerBrokerBody = new RegisterBrokerBody();
 
-        if (request.getBody() != null) {
+        if (req.getBody() != null) {
             try {
-                registerBrokerBody = RegisterBrokerBody.decode(request.getBody(), requestHeader.isCompressed());
+                registerBrokerBody = RegisterBrokerBody.decode(req.getBody(), reqHeader.isCompressed());
             } catch (Exception e) {
                 throw new RemotingCommandException("Failed to decode RegisterBrokerBody", e);
             }
@@ -232,24 +233,24 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         }
 
         RegisterBrokerResult result = this.namesrvController.getRouteInfoManager().registerBroker(
-                requestHeader.getClusterName(),
-                requestHeader.getBrokerAddr(),
-                requestHeader.getBrokerName(),
-                requestHeader.getBrokerId(),
-                requestHeader.getHaServerAddr(),
+                reqHeader.getClusterName(),
+                reqHeader.getBrokerAddr(),
+                reqHeader.getBrokerName(),
+                reqHeader.getBrokerId(),
+                reqHeader.getHaServerAddr(),
                 registerBrokerBody.getTopicConfigSerializeWrapper(),
                 registerBrokerBody.getFilterServerList(),
                 ctx.channel());
 
-        responseHeader.setHaServerAddr(result.getHaServerAddr());
-        responseHeader.setMasterAddr(result.getMasterAddr());
+        respHeader.setHaServerAddr(result.getHaServerAddr());
+        respHeader.setMasterAddr(result.getMasterAddr());
 
         byte[] jsonValue = this.namesrvController.getKvConfigManager().getKVListByNamespace(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG);
-        response.setBody(jsonValue);
+        resp.setBody(jsonValue);
 
-        response.setCode(ResponseCode.SUCCESS);
-        response.setRemark(null);
-        return response;
+        resp.setCode(ResponseCode.SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
     private boolean checksum(ChannelHandlerContext ctx, RemotingCommand request,
@@ -350,36 +351,35 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
     }
 
     /**
-     * 获得topic的路由信息，
+     * 获得topic的路由信息，从nameServer中获得相关的信息
      * @param ctx
      * @param req
      * @return
      * @throws RemotingCommandException
      */
     public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(null);
+        final RemotingCommand resp = createResponseCommand(null);
         final GetRouteInfoRequestHeader reqHeader = (GetRouteInfoRequestHeader) req.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
         //根据topic选择相关的路由信息
         TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(reqHeader.getTopic());
 
         if (topicRouteData != null) {
-            if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
-                String orderTopicConf = this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG,
-                                reqHeader.getTopic());
+            if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) { //nameserver配置支持顺序消费
+                String orderTopicConf = this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, reqHeader.getTopic());
                 topicRouteData.setOrderTopicConf(orderTopicConf);
             }
 
             byte[] content = topicRouteData.encode();
-            response.setBody(content);
-            response.setCode(ResponseCode.SUCCESS);
-            response.setRemark(null);
-            return response;
+            resp.setBody(content);
+            resp.setCode(ResponseCode.SUCCESS);
+            resp.setRemark(null);
+            return resp;
         }
 
-        response.setCode(TOPIC_NOT_EXIST);
-        response.setRemark("No topic route info in name server for the topic: " + reqHeader.getTopic() + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
-        return response;
+        resp.setCode(TOPIC_NOT_EXIST);
+        resp.setRemark("No topic route info in name server for the topic: " + reqHeader.getTopic() + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
+        return resp;
     }
 
     private RemotingCommand getBrokerClusterInfo(ChannelHandlerContext ctx, RemotingCommand request) {
