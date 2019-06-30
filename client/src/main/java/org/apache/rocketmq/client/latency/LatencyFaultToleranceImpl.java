@@ -29,10 +29,17 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
 
+    /**
+     * 更新一下容错的item
+     * @param name
+     * @param currentLatency
+     * @param notAvailableDuration
+     */
     @Override
     public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
+        //老的容错项
         FaultItem old = this.faultItemTable.get(name);
-        if (null == old) {
+        if (null == old) {//不存在，直接更新
             final FaultItem faultItem = new FaultItem(name);
             faultItem.setCurrentLatency(currentLatency);
             faultItem.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);

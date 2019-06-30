@@ -102,7 +102,7 @@ public class MQFaultStrategy {
     }
 
     /**
-     * 更新容错项
+     * 更新容错项，支持发送成功
      * @param brokerName broker的名字
      * @param currentLatency 当前的延迟
      * @param isolation 隔离
@@ -121,7 +121,7 @@ public class MQFaultStrategy {
      */
     private long computeNotAvailableDuration(final long currentLatency) {
         for (int i = latencyMax.length - 1; i >= 0; i--) {
-            if (currentLatency >= latencyMax[i])
+            if (currentLatency >= latencyMax[i]) //如果持续时间大于值，我们选择一个值
                 return this.notAvailableDuration[i];
         }
         return 0;
