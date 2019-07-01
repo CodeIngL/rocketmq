@@ -314,6 +314,11 @@ public class ProcessQueue {
         }
     }
 
+    /**
+     * 获得一批消息
+     * @param batchSize
+     * @return
+     */
     public List<MessageExt> takeMessags(final int batchSize) {
         List<MessageExt> result = new ArrayList<MessageExt>(batchSize);
         final long now = System.currentTimeMillis();

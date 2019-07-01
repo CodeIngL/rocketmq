@@ -156,8 +156,7 @@ public abstract class RebalanceImpl {
         requestBody.getMqSet().add(mq);
 
         try {
-            Set<MessageQueue> lockedMq =
-                    this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
+            Set<MessageQueue> lockedMq = this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
             for (MessageQueue mmqq : lockedMq) {
                 ProcessQueue processQueue = this.processQueueTable.get(mmqq);
                 if (processQueue != null) {
@@ -167,10 +166,7 @@ public abstract class RebalanceImpl {
             }
 
             boolean lockOK = lockedMq.contains(mq);
-            log.info("the message queue lock {}, {} {}",
-                    lockOK ? "OK" : "Failed",
-                    this.consumerGroup,
-                    mq);
+            log.info("the message queue lock {}, {} {}", lockOK ? "OK" : "Failed", this.consumerGroup, mq);
             return lockOK;
         } catch (Exception e) {
             log.error("lockBatchMQ exception, " + mq, e);
@@ -401,6 +397,9 @@ public abstract class RebalanceImpl {
                 continue;
             }
 
+            //新建操作
+
+            //删除脏副本
             this.removeDirtyOffset(mq); //删除这个队列对应的offset
             ProcessQueue pq = new ProcessQueue(); //构建新的副本
             long nextOffset = this.computePullFromWhere(mq); //计算下一个offset，pull方式总是0，push则是会进行相关的计算

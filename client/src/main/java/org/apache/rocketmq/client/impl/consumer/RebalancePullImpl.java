@@ -39,6 +39,12 @@ public class RebalancePullImpl extends RebalanceImpl {
         this.defaultMQPullConsumerImpl = defaultMQPullConsumerImpl;
     }
 
+    /**
+     * 传播监听事件给监听器
+     * @param topic
+     * @param mqAll
+     * @param mqDivided
+     */
     @Override
     public void messageQueueChanged(String topic, Set<MessageQueue> mqAll, Set<MessageQueue> mqDivided) {
         MessageQueueListener messageQueueListener = this.defaultMQPullConsumerImpl.getDefaultMQPullConsumer().getMessageQueueListener();
