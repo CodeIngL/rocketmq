@@ -662,7 +662,9 @@ public class MQClientInstance {
     }
 
     /**
-     * 从nameServer中获得相关的路由信息
+     * 从nameServer中获得相关的路由信息，
+     * 从nameServer中获得吗，topicRoute
+     *
      * @param topic
      * @param isDefault
      * @param defaultMQProducer

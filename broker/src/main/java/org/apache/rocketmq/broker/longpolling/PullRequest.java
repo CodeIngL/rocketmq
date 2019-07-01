@@ -30,9 +30,13 @@ public class PullRequest {
     //channel
     private final Channel clientChannel;
     private final long timeoutMillis;
+    //挂起的时间
     private final long suspendTimestamp;
+    //
     private final long pullFromThisOffset;
+    //订阅的数据
     private final SubscriptionData subscriptionData;
+    //消息过滤器
     private final MessageFilter messageFilter;
 
     public PullRequest(RemotingCommand requestCommand, Channel clientChannel, long timeoutMillis, long suspendTimestamp,
