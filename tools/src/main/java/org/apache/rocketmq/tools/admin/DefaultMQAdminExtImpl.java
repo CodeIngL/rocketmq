@@ -724,11 +724,21 @@ public class DefaultMQAdminExtImpl implements MQAdminExt, MQAdminExtInner {
         return null;
     }
 
+    /**
+     * 直接消费消息
+     * @param consumerGroup
+     * @param clientId
+     * @param msgId
+     * @return
+     * @throws RemotingException
+     * @throws MQClientException
+     * @throws InterruptedException
+     * @throws MQBrokerException
+     */
     @Override
     public ConsumeMessageDirectlyResult consumeMessageDirectly(String consumerGroup, String clientId, String msgId)
         throws RemotingException, MQClientException, InterruptedException, MQBrokerException {
         MessageExt msg = this.viewMessage(msgId);
-
         return this.mqClientInstance.getMQClientAPIImpl().consumeMessageDirectly(RemotingUtil.socketAddress2String(msg.getStoreHost()),
             consumerGroup, clientId, msgId, timeoutMillis * 3);
     }

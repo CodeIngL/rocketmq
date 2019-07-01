@@ -262,11 +262,18 @@ public class QueryMsgByIdSubCommand implements SubCommand {
         }
     }
 
+    /**
+     * 发送消息
+     * @param defaultMQAdminExt
+     * @param consumerGroup
+     * @param clientId
+     * @param msgId
+     */
     private void pushMsg(final DefaultMQAdminExt defaultMQAdminExt, final String consumerGroup, final String clientId,
         final String msgId) {
         try {
-            ConsumeMessageDirectlyResult result =
-                defaultMQAdminExt.consumeMessageDirectly(consumerGroup, clientId, msgId);
+            //返回消费者直接消费结果
+            ConsumeMessageDirectlyResult result = defaultMQAdminExt.consumeMessageDirectly(consumerGroup, clientId, msgId);
             System.out.printf("%s", result);
         } catch (Exception e) {
             e.printStackTrace();

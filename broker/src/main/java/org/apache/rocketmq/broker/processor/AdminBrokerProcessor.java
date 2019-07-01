@@ -475,11 +475,11 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
      * @return
      * @throws RemotingCommandException
      */
-    private RemotingCommand lockBatchMQ(ChannelHandlerContext ctx,
-        RemotingCommand req) throws RemotingCommandException {
+    private RemotingCommand lockBatchMQ(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(null);
         LockBatchRequestBody reqBody = LockBatchRequestBody.decode(req.getBody(), LockBatchRequestBody.class);
 
+        //获得成功被锁定的消息队列
         Set<MessageQueue> lockOKMQSet = this.brokerController.getRebalanceLockManager().tryLockBatch(
             reqBody.getConsumerGroup(),
             reqBody.getMqSet(),
@@ -1034,20 +1034,26 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         return response;
     }
 
-    private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
-        final ConsumeMessageDirectlyResultRequestHeader requestHeader = (ConsumeMessageDirectlyResultRequestHeader) request
-            .decodeCommandCustomHeader(ConsumeMessageDirectlyResultRequestHeader.class);
+    /**
+     * 直接消费消息
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
+    private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
+        final ConsumeMessageDirectlyResultRequestHeader reqHeader = (ConsumeMessageDirectlyResultRequestHeader) req.decodeCommandCustomHeader(ConsumeMessageDirectlyResultRequestHeader.class);
 
-        request.getExtFields().put("brokerName", this.brokerController.getBrokerConfig().getBrokerName());
+        req.getExtFields().put("brokerName", this.brokerController.getBrokerConfig().getBrokerName());
         SelectMappedBufferResult selectMappedBufferResult = null;
         try {
-            MessageId messageId = MessageDecoder.decodeMessageId(requestHeader.getMsgId());
+            //消息id
+            MessageId messageId = MessageDecoder.decodeMessageId(reqHeader.getMsgId());
             selectMappedBufferResult = this.brokerController.getMessageStore().selectOneMessageByOffset(messageId.getOffset());
 
             byte[] body = new byte[selectMappedBufferResult.getSize()];
             selectMappedBufferResult.getByteBuffer().get(body);
-            request.setBody(body);
+            req.setBody(body);
         } catch (UnknownHostException e) {
         } finally {
             if (selectMappedBufferResult != null) {
@@ -1055,8 +1061,8 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
             }
         }
 
-        return this.callConsumer(RequestCode.CONSUME_MESSAGE_DIRECTLY, request, requestHeader.getConsumerGroup(),
-            requestHeader.getClientId());
+        //调用直接消息消息
+        return this.callConsumer(RequestCode.CONSUME_MESSAGE_DIRECTLY, req, reqHeader.getConsumerGroup(), reqHeader.getClientId());
     }
 
     private RemotingCommand cloneGroupOffset(ChannelHandlerContext ctx,
@@ -1294,12 +1300,18 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         return runtimeInfo;
     }
 
-    private RemotingCommand callConsumer(
-        final int requestCode,
-        final RemotingCommand request,
-        final String consumerGroup,
-        final String clientId) throws RemotingCommandException {
+    /**
+     * 调用消费者来消费这个歌消息
+     * @param requestCode
+     * @param req
+     * @param consumerGroup
+     * @param clientId
+     * @return
+     * @throws RemotingCommandException
+     */
+    private RemotingCommand callConsumer(final int requestCode, final RemotingCommand req, final String consumerGroup, final String clientId) throws RemotingCommandException {
         final RemotingCommand response = createResponseCommand(null);
+        //找到对应的channel
         ClientChannelInfo clientChannelInfo = this.brokerController.getConsumerManager().findChannel(consumerGroup, clientId);
 
         if (null == clientChannelInfo) {
@@ -1308,19 +1320,19 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
             return response;
         }
 
-        if (clientChannelInfo.getVersion() < MQVersion.Version.V3_1_8_SNAPSHOT.ordinal()) {
+        if (clientChannelInfo.getVersion() < MQVersion.Version.V3_1_8_SNAPSHOT.ordinal()) { //3.1.8才出现的特征
             response.setCode(SYSTEM_ERROR);
             response.setRemark(String.format("The Consumer <%s> Version <%s> too low to finish, please upgrade it to V3_1_8_SNAPSHOT",
-                clientId,
-                MQVersion.getVersionDesc(clientChannelInfo.getVersion())));
+                clientId, MQVersion.getVersionDesc(clientChannelInfo.getVersion())));
             return response;
         }
 
         try {
             RemotingCommand newRequest = createRequestCommand(requestCode, null);
-            newRequest.setExtFields(request.getExtFields());
-            newRequest.setBody(request.getBody());
+            newRequest.setExtFields(req.getExtFields());
+            newRequest.setBody(req.getBody());
 
+            //调用
             return this.brokerController.getBroker2Client().callClient(clientChannelInfo.getChannel(), newRequest);
         } catch (RemotingTimeoutException e) {
             response.setCode(ResponseCode.CONSUME_MSG_TIMEOUT);
