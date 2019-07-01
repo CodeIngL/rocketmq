@@ -332,14 +332,13 @@ public abstract class RebalanceImpl {
      * 尝试清理不是我的topic的消息队列
      */
     private void truncateMessageQueueNotMyTopic() {
-        Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
+        Map<String, SubscriptionData> subTable = this.getSubscriptionInner(); //获得我订阅的
 
-        for (MessageQueue mq : this.processQueueTable.keySet()) {
-            if (!subTable.containsKey(mq.getTopic())) {
-
+        for (MessageQueue mq : this.processQueueTable.keySet()) { //遍历存储
+            if (!subTable.containsKey(mq.getTopic())) { //不是我的
                 ProcessQueue pq = this.processQueueTable.remove(mq);
                 if (pq != null) {
-                    pq.setDropped(true);
+                    pq.setDropped(true); //设置，
                     log.info("doRebalance, {}, truncateMessageQueueNotMyTopic remove unnecessary mq, {}", consumerGroup, mq);
                 }
             }

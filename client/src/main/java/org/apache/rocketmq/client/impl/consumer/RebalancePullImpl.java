@@ -51,6 +51,12 @@ public class RebalancePullImpl extends RebalanceImpl {
         }
     }
 
+    /**
+     * 删除不在订阅的就是将相关信心进行持久化
+     * @param mq
+     * @param pq
+     * @return
+     */
     @Override
     public boolean removeUnnecessaryMessageQueue(MessageQueue mq, ProcessQueue pq) {
         defaultMQPullConsumerImpl.getOffsetStore().persist(mq);

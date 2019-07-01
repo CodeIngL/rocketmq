@@ -62,30 +62,30 @@ public class RebalancePushImpl extends RebalanceImpl {
          * </p>
          */
         SubscriptionData subscriptionData = this.subscriptionInner.get(topic);
-        long newVersion = System.currentTimeMillis();
+        long newVersion = System.currentTimeMillis(); //新的版本
         log.info("{} Rebalance changed, also update version: {}, {}", topic, subscriptionData.getSubVersion(), newVersion);
         subscriptionData.setSubVersion(newVersion);
 
-        int currentQueueCount = this.processQueueTable.size();
+        int currentQueueCount = this.processQueueTable.size(); //当前的queue数量
         DefaultMQPushConsumer pushConsumer =  this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer();
         if (currentQueueCount != 0) {
             int pullThresholdForTopic = pushConsumer.getPullThresholdForTopic();
             if (pullThresholdForTopic != -1) {
                 int newVal = Math.max(1, pullThresholdForTopic / currentQueueCount);
                 log.info("The pullThresholdForQueue is changed from {} to {}", pushConsumer.getPullThresholdForQueue(), newVal);
-                pushConsumer.setPullThresholdForQueue(newVal);
+                pushConsumer.setPullThresholdForQueue(newVal); //新的阈值
             }
 
             int pullThresholdSizeForTopic = pushConsumer.getPullThresholdSizeForTopic();
             if (pullThresholdSizeForTopic != -1) {
-                int newVal = Math.max(1, pullThresholdSizeForTopic / currentQueueCount);
+                int newVal = Math.max(1, pullThresholdSizeForTopic / currentQueueCount); //新的阈值
                 log.info("The pullThresholdSizeForQueue is changed from {} to {}", pushConsumer.getPullThresholdSizeForQueue(), newVal);
                 pushConsumer.setPullThresholdSizeForQueue(newVal);
             }
         }
 
         // notify broker
-        this.getmQClientFactory().sendHeartbeatToAllBrokerWithLock();
+        this.getmQClientFactory().sendHeartbeatToAllBrokerWithLock(); //通知broker
     }
 
     @Override
@@ -96,6 +96,7 @@ public class RebalancePushImpl extends RebalanceImpl {
         //如果是集群顺序消费
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly() && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
+                //尝试加锁
                 if (pq.getLockConsume().tryLock(1000, TimeUnit.MILLISECONDS)) {
                     try {
                         return this.unlockDelay(mq, pq);

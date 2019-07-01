@@ -115,10 +115,10 @@ public class PullAPIWrapper {
                 //事务消息
                 String traFlag = msg.getProperty(PROPERTY_TRANSACTION_PREPARED);
                 if (traFlag != null && Boolean.parseBoolean(traFlag)) {
-                    msg.setTransactionId(msg.getProperty(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
+                    msg.setTransactionId(msg.getProperty(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX)); //设置事物id
                 }
-                putProperty(msg, PROPERTY_MIN_OFFSET, Long.toString(pullResult.getMinOffset()));
-                putProperty(msg, PROPERTY_MAX_OFFSET, Long.toString(pullResult.getMaxOffset()));
+                putProperty(msg, PROPERTY_MIN_OFFSET, Long.toString(pullResult.getMinOffset())); //最小的offset
+                putProperty(msg, PROPERTY_MAX_OFFSET, Long.toString(pullResult.getMaxOffset())); //最大的offset
             }
 
             //拉取结果可以匹配消息

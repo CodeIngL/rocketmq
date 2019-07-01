@@ -348,7 +348,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
     }
 
     /**
-     * 消费请求
+     * 消费请求，包装了消息，消息的存储，消息队列
      */
     class ConsumeRequest implements Runnable {
         private final List<MessageExt> msgs;
