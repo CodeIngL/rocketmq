@@ -70,7 +70,6 @@ public class MQPullConsumerScheduleService {
                 PullTaskImpl command = new PullTaskImpl(mq);
                 this.taskTable.put(mq, command);
                 this.scheduledThreadPoolExecutor.schedule(command, 0, TimeUnit.MILLISECONDS);
-
             }
         }
     }
@@ -145,9 +144,11 @@ public class MQPullConsumerScheduleService {
                 MQPullConsumerScheduleService.this.defaultMQPullConsumer.getMessageModel();
             switch (messageModel) {
                 case BROADCASTING:
+                    //广播模式
                     MQPullConsumerScheduleService.this.putTask(topic, mqAll);
                     break;
                 case CLUSTERING:
+                    //集群模式
                     MQPullConsumerScheduleService.this.putTask(topic, mqDivided);
                     break;
                 default:
@@ -172,12 +173,11 @@ public class MQPullConsumerScheduleService {
             String topic = this.messageQueue.getTopic();
             if (!this.isCancelled()) {
                 //存在相关构造回调
-                PullTaskCallback pullTaskCallback =
-                    MQPullConsumerScheduleService.this.callbackTable.get(topic);
+                PullTaskCallback pullTaskCallback = callbackTable.get(topic);
                 if (pullTaskCallback != null) {
                     //构建上下文
                     final PullTaskContext context = new PullTaskContext();
-                    context.setPullConsumer(MQPullConsumerScheduleService.this.defaultMQPullConsumer);
+                    context.setPullConsumer(defaultMQPullConsumer);
                     try {
                         //调用执行
                         pullTaskCallback.doPullTask(this.messageQueue, context);

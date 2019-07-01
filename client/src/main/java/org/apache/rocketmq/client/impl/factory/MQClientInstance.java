@@ -1323,17 +1323,21 @@ public class MQClientInstance {
         return topicRouteTable;
     }
 
-    public ConsumeMessageDirectlyResult consumeMessageDirectly(final MessageExt msg,
-        final String consumerGroup,
-        final String brokerName) {
-        MQConsumerInner mqConsumerInner = this.consumerTable.get(consumerGroup);
+    /**
+     * 直接消费消息
+     * @param msg
+     * @param consumerGroup
+     * @param brokerName
+     * @return
+     */
+    public ConsumeMessageDirectlyResult consumeMessageDirectly(final MessageExt msg, final String consumerGroup, final String brokerName) {
+        MQConsumerInner mqConsumerInner = this.consumerTable.get(consumerGroup); //获得消费端
         if (null != mqConsumerInner) {
             DefaultMQPushConsumerImpl consumer = (DefaultMQPushConsumerImpl) mqConsumerInner;
-
+            //直接使用消费服务进行直接的消费
             ConsumeMessageDirectlyResult result = consumer.getConsumeMessageService().consumeMessageDirectly(msg, brokerName);
             return result;
         }
-
         return null;
     }
 

@@ -764,8 +764,7 @@ public class MQClientAPIImpl {
 
         PullMessageResponseHeader respHeader = (PullMessageResponseHeader) resp.decodeCommandCustomHeader(PullMessageResponseHeader.class);
 
-        return new PullResultExt(pullStatus, respHeader.getNextBeginOffset(), respHeader.getMinOffset(),
-            respHeader.getMaxOffset(), null, respHeader.getSuggestWhichBrokerId(), resp.getBody());
+        return new PullResultExt(pullStatus, respHeader.getNextBeginOffset(), respHeader.getMinOffset(), respHeader.getMaxOffset(), null, respHeader.getSuggestWhichBrokerId(), resp.getBody());
     }
 
     public MessageExt viewMessage(final String addr, final long phyoffset, final long timeoutMillis)
@@ -1116,10 +1115,7 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
-    public Set<MessageQueue> lockBatchMQ(
-        final String addr,
-        final LockBatchRequestBody reqBody,
-        final long timeoutMillis) throws RemotingException, MQBrokerException, InterruptedException {
+    public Set<MessageQueue> lockBatchMQ(final String addr, final LockBatchRequestBody reqBody, final long timeoutMillis) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand req = createRequestCommand(LOCK_BATCH_MQ, null);
 
         req.setBody(reqBody.encode());
@@ -1889,6 +1885,18 @@ public class MQClientAPIImpl {
         throw new MQClientException(response.getCode(), response.getRemark());
     }
 
+    /**
+     * 直接消费消息
+     * @param addr
+     * @param consumerGroup
+     * @param clientId
+     * @param msgId
+     * @param timeoutMillis
+     * @return
+     * @throws RemotingException
+     * @throws MQClientException
+     * @throws InterruptedException
+     */
     public ConsumeMessageDirectlyResult consumeMessageDirectly(final String addr,
         String consumerGroup,
         String clientId,

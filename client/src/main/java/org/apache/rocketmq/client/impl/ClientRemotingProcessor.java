@@ -204,15 +204,21 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return resp;
     }
 
-    private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx,
-        RemotingCommand req) throws RemotingCommandException {
+    /**
+     * 直接消费消息
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
+    private RemotingCommand consumeMessageDirectly(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(null);
         final ConsumeMessageDirectlyResultRequestHeader reqHeader = (ConsumeMessageDirectlyResultRequestHeader) req.decodeCommandCustomHeader(ConsumeMessageDirectlyResultRequestHeader.class);
 
         final MessageExt msg = MessageDecoder.decode(ByteBuffer.wrap(req.getBody()));
 
-        ConsumeMessageDirectlyResult result =
-            this.mqClientFactory.consumeMessageDirectly(msg, reqHeader.getConsumerGroup(), reqHeader.getBrokerName());
+        //直接写消费消息
+        ConsumeMessageDirectlyResult result = this.mqClientFactory.consumeMessageDirectly(msg, reqHeader.getConsumerGroup(), reqHeader.getBrokerName());
 
         if (null != result) {
             resp.setCode(ResponseCode.SUCCESS);
