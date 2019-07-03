@@ -50,9 +50,9 @@ public class RemotingServerTest {
         RemotingServer remotingServer = new NettyRemotingServer(config);
         remotingServer.registerProcessor(0, new NettyRequestProcessor() {
             @Override
-            public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request) {
-                request.setRemark("Hi " + ctx.channel().remoteAddress());
-                return request;
+            public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req) {
+                req.setRemark("Hi " + ctx.channel().remoteAddress());
+                return req;
             }
 
             @Override
