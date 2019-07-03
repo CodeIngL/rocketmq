@@ -406,7 +406,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 thisHeader.setProducerGroup(producerGroup);
                 //设置事务状态的偏移量
                 thisHeader.setTranStateTableOffset(checkRequestHeader.getTranStateTableOffset());
-                //设置已经被校验过了标记
+                //设置已经被校验过了标记，是由回查引起的
                 thisHeader.setFromTransactionCheck(true);
 
                 //唯一的

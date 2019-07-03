@@ -72,17 +72,17 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
         RemotingCommand req) throws RemotingCommandException {
         switch (req.getCode()) {
-            case CHECK_TRANSACTION_STATE: //校验事务状态
+            case CHECK_TRANSACTION_STATE: //校验事务状态，由broker进行对客户端的回查
                 return this.checkTransactionState(ctx, req);
-            case NOTIFY_CONSUMER_IDS_CHANGED:
+            case NOTIFY_CONSUMER_IDS_CHANGED: //消费端发生更改，由broker进行对客户端的通知
                 return this.notifyConsumerIdsChanged(ctx, req);
-            case RESET_CONSUMER_CLIENT_OFFSET:
+            case RESET_CONSUMER_CLIENT_OFFSET: //重置消费客户端的offset的，由broker要求，broker则是由相关管理端要求
                 return this.resetOffset(ctx, req);
-            case GET_CONSUMER_STATUS_FROM_CLIENT:
+            case GET_CONSUMER_STATUS_FROM_CLIENT://获得消费客户端的状态，有broker要求，broker则是由相关管理端要求
                 return this.getConsumeStatus(ctx, req);
-            case GET_CONSUMER_RUNNING_INFO:
+            case GET_CONSUMER_RUNNING_INFO://获得消费客户端的运行时状态，有broker要求，broker则是由相关管理端要求
                 return this.getConsumerRunningInfo(ctx, req);
-            case CONSUME_MESSAGE_DIRECTLY: //直接消费消息
+            case CONSUME_MESSAGE_DIRECTLY: //要求消费客户端直接消费消息，有broker要求，broker则是由相关管理端要求
                 return this.consumeMessageDirectly(ctx, req);
             default:
                 break;
