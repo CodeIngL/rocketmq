@@ -47,11 +47,16 @@ import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCC
 /**
  * EndTransaction processor: process commit and rollback message
  * <p>
- *     EndTransaction处理器：负责处理提交和回滚消息
+ *     EndTransaction处理器：负责处理提交和回滚消息，并处理由回查引起的事务提交和回滚，
+ *     两者本质上是一样，唯一的区别将在req中的fromTransactionCheck的体现
+ *     仅仅处理一个码
+ *     RequestCode.END_TRANSACTION
  * </p>
  */
 public class EndTransactionProcessor implements NettyRequestProcessor {
+
     private static final InternalLogger LOGGER = InternalLoggerFactory.getLogger(LoggerName.TRANSACTION_LOGGER_NAME);
+
     private final BrokerController brokerController;
 
     public EndTransactionProcessor(final BrokerController brokerController) {
@@ -64,15 +69,17 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
         final RemotingCommand resp = RemotingCommand.createResponseCommand(null);
         final EndTransactionRequestHeader reqHeader = (EndTransactionRequestHeader)req.decodeCommandCustomHeader(EndTransactionRequestHeader.class);
         LOGGER.info("Transaction request:{}", reqHeader);
-        if (BrokerRole.SLAVE == brokerController.getMessageStoreConfig().getBrokerRole()) {//slave节点禁止处理事务消息
+        //slave节点不支持处理事务消息
+        if (BrokerRole.SLAVE == brokerController.getMessageStoreConfig().getBrokerRole()) {
             resp.setCode(SLAVE_NOT_AVAILABLE);
             LOGGER.warn("Message store is slave mode, so end transaction is forbidden. ");
             return resp;
         }
 
+        //获得事务类型
         Integer transactionType = reqHeader.getCommitOrRollback();
 
-        if (reqHeader.getFromTransactionCheck()) {
+        if (reqHeader.getFromTransactionCheck()) { //事务的结束是由事务回查得到的
             switch (transactionType) {
                 case TRANSACTION_NOT_TYPE: { //不是事务消息
                     LOGGER.warn("Check producer[{}] transaction state, but it's pending status.RequestHeader: {} Remark: {}",
@@ -96,7 +103,7 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
             }
         } else {
             switch (transactionType) {
-                case TRANSACTION_NOT_TYPE: {
+                case TRANSACTION_NOT_TYPE: { //不是事务消息，返回
                     LOGGER.warn("The producer[{}] end transaction in sending message,  and it's pending status.RequestHeader: {} Remark: {}",
                         parseChannelRemoteAddr(ctx.channel()), reqHeader.toString(), req.getRemark());
                     return null;
@@ -112,36 +119,41 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
                     return null;
             }
         }
+        //是事务消息的处理，可能是提交消息，可能是回滚消息
+
         //操作结果
         OperationResult result = new OperationResult();
         TransactionalMessageService transactionalService = this.brokerController.getTransactionalMessageService();
-        if (TRANSACTION_COMMIT_TYPE == transactionType) { //事务提交
-            result = transactionalService.commitMessage(reqHeader);
-            if (result.getResponseCode() == SUCCESS) {
-                RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), reqHeader);
-                if (res.getCode() == SUCCESS) {
-                    MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage());
-                    msgInner.setSysFlag(resetTransactionValue(msgInner.getSysFlag(), reqHeader.getCommitOrRollback()));
-                    msgInner.setQueueOffset(reqHeader.getTranStateTableOffset());
-                    msgInner.setPreparedTransactionOffset(reqHeader.getCommitLogOffset());
-                    msgInner.setStoreTimestamp(result.getPrepareMessage().getStoreTimestamp());
-                    RemotingCommand sendResult = sendFinalMessage(msgInner);
-                    if (sendResult.getCode() == SUCCESS) {
-                        transactionalService.deletePrepareMessage(result.getPrepareMessage());
+        switch (transactionType) {
+            case TRANSACTION_COMMIT_TYPE://事务提交
+                result = transactionalService.commitMessage(reqHeader); //提交事务
+                if (result.getResponseCode() == SUCCESS) {
+                    RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), reqHeader); //检查一致性
+                    if (res.getCode() == SUCCESS) {
+                        MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage()); //结束消息事务
+                        msgInner.setSysFlag(resetTransactionValue(msgInner.getSysFlag(), reqHeader.getCommitOrRollback()));//设置消息标记，重置事务的状态
+                        msgInner.setQueueOffset(reqHeader.getTranStateTableOffset());
+                        msgInner.setPreparedTransactionOffset(reqHeader.getCommitLogOffset());
+                        msgInner.setStoreTimestamp(result.getPrepareMessage().getStoreTimestamp());
+                        RemotingCommand sendResult = sendFinalMessage(msgInner); //发送最终消息
+                        if (sendResult.getCode() == SUCCESS) {
+                            transactionalService.deletePrepareMessage(result.getPrepareMessage()); //删除perpare消息
+                        }
+                        return sendResult;
                     }
-                    return sendResult;
+                    return res;
                 }
-                return res;
-            }
-        } else if (TRANSACTION_ROLLBACK_TYPE == transactionType) { //事务回滚
-            result = transactionalService.rollbackMessage(reqHeader);
-            if (result.getResponseCode() == SUCCESS) {
-                RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), reqHeader);
-                if (res.getCode() == SUCCESS) {
-                    transactionalService.deletePrepareMessage(result.getPrepareMessage());
+            case TRANSACTION_ROLLBACK_TYPE://事务回滚
+                result = transactionalService.rollbackMessage(reqHeader); //回滚事务
+                if (result.getResponseCode() == SUCCESS) {
+                    RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), reqHeader); //检查一致性
+                    if (res.getCode() == SUCCESS) {
+                        transactionalService.deletePrepareMessage(result.getPrepareMessage()); //删除perpare消息
+                    }
+                    return res;
                 }
-                return res;
-            }
+            default:
+                    break;
         }
         resp.setCode(result.getResponseCode());
         resp.setRemark(result.getResponseRemark());
@@ -154,41 +166,46 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
     }
 
     /**
-     * 校验prepare消息
+     * 事务提交后，我们要校验prepare消息
      * @param msgExt
-     * @param requestHeader
+     * @param reqHeader
      * @return
      */
-    private RemotingCommand checkPrepareMessage(MessageExt msgExt, EndTransactionRequestHeader requestHeader) {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
-        if (msgExt != null) {
-            final String pgroupRead = msgExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP);
-            if (!pgroupRead.equals(requestHeader.getProducerGroup())) {
-                response.setRemark("The producer group wrong");
-                return response;
-            }
-
-            if (msgExt.getQueueOffset() != requestHeader.getTranStateTableOffset()) {
-                response.setRemark("The transaction state table offset wrong");
-                return response;
-            }
-
-            if (msgExt.getCommitLogOffset() != requestHeader.getCommitLogOffset()) {
-                response.setRemark("The commit log offset wrong");
-                return response;
-            }
-        } else {
-            response.setRemark("Find prepared transaction message failed");
-            return response;
+    private RemotingCommand checkPrepareMessage(MessageExt msgExt, EndTransactionRequestHeader reqHeader) {
+        final RemotingCommand resp = RemotingCommand.createResponseCommand(null);
+        if(msgExt == null){
+            resp.setRemark("Find prepared transaction message failed");
+            return resp;
         }
-        response.setCode(SUCCESS);
-        return response;
+        final String pgroupRead = msgExt.getProperty(MessageConst.PROPERTY_PRODUCER_GROUP); //获得消息中的perpareGroup项
+        if (!pgroupRead.equals(reqHeader.getProducerGroup())) {
+            resp.setRemark("The producer group wrong");
+            return resp;
+        }
+
+        if (msgExt.getQueueOffset() != reqHeader.getTranStateTableOffset()) { //queueOffset要一致
+            resp.setRemark("The transaction state table offset wrong");
+            return resp;
+        }
+
+        if (msgExt.getCommitLogOffset() != reqHeader.getCommitLogOffset()) { //offset要一致
+            resp.setRemark("The commit log offset wrong");
+            return resp;
+        }
+        resp.setCode(SUCCESS);
+        return resp;
     }
 
+    /**
+     * 结束消息事务，从事务消息中恢复出原来的消息，也就是我们要即将投递到真实队列中
+     * tip:这里仅仅是将事务消息恢复出部分真实的消息
+     * @param msgExt
+     * @return
+     */
     private MessageExtBrokerInner endMessageTransaction(MessageExt msgExt) {
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
-        msgInner.setTopic(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_TOPIC));
-        msgInner.setQueueId(Integer.parseInt(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_QUEUE_ID)));
+        msgInner.setTopic(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_TOPIC)); //真实的topic
+        msgInner.setQueueId(Integer.parseInt(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_QUEUE_ID))); //真实的queueId
         msgInner.setBody(msgExt.getBody());
         msgInner.setFlag(msgExt.getFlag());
         msgInner.setBornTimestamp(msgExt.getBornTimestamp());
@@ -198,25 +215,25 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
         msgInner.setWaitStoreMsgOK(false);
         msgInner.setTransactionId(msgExt.getUserProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX));
         msgInner.setSysFlag(msgExt.getSysFlag());
-        TopicFilterType topicFilterType =
-            (msgInner.getSysFlag() & MessageSysFlag.MULTI_TAGS_FLAG) == MessageSysFlag.MULTI_TAGS_FLAG ? TopicFilterType.MULTI_TAG
-                : TopicFilterType.SINGLE_TAG;
+        //tag类型
+        TopicFilterType topicFilterType = (msgInner.getSysFlag() & MessageSysFlag.MULTI_TAGS_FLAG) == MessageSysFlag.MULTI_TAGS_FLAG ? TopicFilterType.MULTI_TAG : TopicFilterType.SINGLE_TAG;
         long tagsCodeValue = MessageExtBrokerInner.tagsString2tagsCode(topicFilterType, msgInner.getTags());
         msgInner.setTagsCode(tagsCodeValue);
+        //
         MessageAccessor.setProperties(msgInner, msgExt.getProperties());
         msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgExt.getProperties()));
-        MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_REAL_TOPIC);
-        MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_REAL_QUEUE_ID);
+        MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_REAL_TOPIC); //清除不要的属性
+        MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_REAL_QUEUE_ID); //清除不要的属性
         return msgInner;
     }
 
     /**
-     * 发送最终的消息，结束事务后，将真正的消息进行投递
-     * @param msgInner
+     * 发送最终的消息，事务提交，最终是将真正的消息进行投递真实队列中，投递成功后将标记对应op消息状态
+     * @param msgInner 真实的待投递的已经提交的消息
      * @return
      */
     private RemotingCommand sendFinalMessage(MessageExtBrokerInner msgInner) {
-        final RemotingCommand response = RemotingCommand.createResponseCommand(null);
+        final RemotingCommand resp = RemotingCommand.createResponseCommand(null);
         final PutMessageResult putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
         if (putMessageResult != null) {
             switch (putMessageResult.getPutMessageStatus()) {
@@ -225,37 +242,37 @@ public class EndTransactionProcessor implements NettyRequestProcessor {
                 case FLUSH_DISK_TIMEOUT:
                 case FLUSH_SLAVE_TIMEOUT:
                 case SLAVE_NOT_AVAILABLE:
-                    response.setCode(SUCCESS);
-                    response.setRemark(null);
+                    resp.setCode(SUCCESS);
+                    resp.setRemark(null);
                     break;
                 // Failed
                 case CREATE_MAPEDFILE_FAILED:
-                    response.setCode(ResponseCode.SYSTEM_ERROR);
-                    response.setRemark("Create mapped file failed.");
+                    resp.setCode(ResponseCode.SYSTEM_ERROR);
+                    resp.setRemark("Create mapped file failed.");
                     break;
                 case MESSAGE_ILLEGAL:
                 case PROPERTIES_SIZE_EXCEEDED:
-                    response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-                    response.setRemark("The message is illegal, maybe msg body or properties length not matched. msg body length limit 128k, msg properties length limit 32k.");
+                    resp.setCode(ResponseCode.MESSAGE_ILLEGAL);
+                    resp.setRemark("The message is illegal, maybe msg body or properties length not matched. msg body length limit 128k, msg properties length limit 32k.");
                     break;
                 case SERVICE_NOT_AVAILABLE:
-                    response.setCode(ResponseCode.SERVICE_NOT_AVAILABLE);
-                    response.setRemark("Service not available now.");
+                    resp.setCode(ResponseCode.SERVICE_NOT_AVAILABLE);
+                    resp.setRemark("Service not available now.");
                     break;
                 case OS_PAGECACHE_BUSY:
-                    response.setRemark("OS page cache busy, please try another machine");
+                    resp.setRemark("OS page cache busy, please try another machine");
                     break;
                 case UNKNOWN_ERROR:
-                    response.setRemark("UNKNOWN_ERROR");
+                    resp.setRemark("UNKNOWN_ERROR");
                     break;
                 default:
-                    response.setRemark("UNKNOWN_ERROR DEFAULT");
+                    resp.setRemark("UNKNOWN_ERROR DEFAULT");
                     break;
             }
-            return response;
+            return resp;
         } else {
-            response.setRemark("store putMessage return null");
+            resp.setRemark("store putMessage return null");
         }
-        return response;
+        return resp;
     }
 }

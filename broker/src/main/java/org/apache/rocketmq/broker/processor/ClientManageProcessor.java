@@ -64,9 +64,9 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         switch (req.getCode()) {
             case HEART_BEAT: //处理心跳
                 return this.heartBeat(ctx, req);
-            case UNREGISTER_CLIENT:
+            case UNREGISTER_CLIENT: //注销客户端
                 return this.unregisterClient(ctx, req);
-            case CHECK_CLIENT_CONFIG:
+            case CHECK_CLIENT_CONFIG: //校验客户端的配置
                 return this.checkClientConfig(ctx, req);
             default:
                 break;
@@ -138,10 +138,8 @@ public class ClientManageProcessor implements NettyRequestProcessor {
      * @throws RemotingCommandException
      */
     public RemotingCommand unregisterClient(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
-
         final RemotingCommand resp = RemotingCommand.createResponseCommand(UnregisterClientResponseHeader.class);
-        final UnregisterClientRequestHeader reqHeader =
-            (UnregisterClientRequestHeader) req.decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
+        final UnregisterClientRequestHeader reqHeader = (UnregisterClientRequestHeader) req.decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
 
         ClientChannelInfo channelInfo = new ClientChannelInfo(ctx.channel(), reqHeader.getClientID(), req.getLanguage(), req.getVersion());
         //注销producer
@@ -159,7 +157,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
                 SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(group);
                 boolean isNotifyConsumerIdsChangedEnable = true;
                 if (null != subscriptionGroupConfig) {
-                    isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
+                    isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable(); //是否进行通知
                 }
                 this.brokerController.getConsumerManager().unregisterConsumer(group, channelInfo, isNotifyConsumerIdsChangedEnable);
             }
@@ -177,29 +175,29 @@ public class ClientManageProcessor implements NettyRequestProcessor {
      * @return
      * @throws RemotingCommandException
      */
-    public RemotingCommand checkClientConfig(ChannelHandlerContext ctx, RemotingCommand req)
-        throws RemotingCommandException {
+    public RemotingCommand checkClientConfig(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand resp = RemotingCommand.createResponseCommand(null);
-
         CheckClientRequestBody reqBody = CheckClientRequestBody.decode(req.getBody(), CheckClientRequestBody.class);
 
+        //我们检查一个客户端的请求
         if (reqBody != null && reqBody.getSubscriptionData() != null) {
+
             SubscriptionData subscriptionData = reqBody.getSubscriptionData();
 
-            if (ExpressionType.isTagType(subscriptionData.getExpressionType())) { //tag
+            if (ExpressionType.isTagType(subscriptionData.getExpressionType())) { //tag，系统默认支持，直接返回
                 resp.setCode(ResponseCode.SUCCESS);
                 resp.setRemark(null);
                 return resp;
             }
 
-            if (!this.brokerController.getBrokerConfig().isEnablePropertyFilter()) { //不支持属性filter，错误
+            if (!this.brokerController.getBrokerConfig().isEnablePropertyFilter()) { //broker不支持属性filter，因此该broker不支持其客户端相关filter操作
                 resp.setCode(ResponseCode.SYSTEM_ERROR);
                 resp.setRemark("The broker does not support consumer to filter message by " + subscriptionData.getExpressionType());
                 return resp;
             }
 
             try {
-                FilterFactory.INSTANCE.get(subscriptionData.getExpressionType()).compile(subscriptionData.getSubString()); //测试一下没有问题
+                FilterFactory.INSTANCE.get(subscriptionData.getExpressionType()).compile(subscriptionData.getSubString()); //测试一下，本broker是否支持连上了的filter相关类型，存在并能处理，我们返回
             } catch (Exception e) {
                 log.warn("Client {}@{} filter message, but failed to compile expression! sub={}, error={}",
                     reqBody.getClientId(), reqBody.getGroup(), reqBody.getSubscriptionData(), e.getMessage());

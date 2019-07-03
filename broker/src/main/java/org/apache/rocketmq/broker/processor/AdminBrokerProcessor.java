@@ -137,89 +137,89 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     /**
      * 处理请求
      * @param ctx
-     * @param request
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
+        RemotingCommand req) throws RemotingCommandException {
         /**
          * 根据不同的命令执行不同的操作
          */
-        switch (request.getCode()) {
+        switch (req.getCode()) {
             case RequestCode.UPDATE_AND_CREATE_TOPIC: //修改或者创建topic
-                return this.updateAndCreateTopic(ctx, request);
+                return this.updateAndCreateTopic(ctx, req);
             case RequestCode.DELETE_TOPIC_IN_BROKER: //删除
-                return this.deleteTopic(ctx, request);
+                return this.deleteTopic(ctx, req);
             case RequestCode.GET_ALL_TOPIC_CONFIG: //获得所有主题的配置
-                return this.getAllTopicConfig(ctx, request);
+                return this.getAllTopicConfig(ctx, req);
             case RequestCode.UPDATE_BROKER_CONFIG: //更新broker的配置
-                return this.updateBrokerConfig(ctx, request);
+                return this.updateBrokerConfig(ctx, req);
             case RequestCode.GET_BROKER_CONFIG: //获得broker的配置
-                return this.getBrokerConfig(ctx, request);
+                return this.getBrokerConfig(ctx, req);
             case RequestCode.SEARCH_OFFSET_BY_TIMESTAMP: //通过时间搜索offser
-                return this.searchOffsetByTimestamp(ctx, request);
+                return this.searchOffsetByTimestamp(ctx, req);
             case RequestCode.GET_MAX_OFFSET:    //获得最大maxoffset
-                return this.getMaxOffset(ctx, request);
+                return this.getMaxOffset(ctx, req);
             case RequestCode.GET_MIN_OFFSET:    //获得最大minoffset
-                return this.getMinOffset(ctx, request);
+                return this.getMinOffset(ctx, req);
             case RequestCode.GET_EARLIEST_MSG_STORETIME:
-                return this.getEarliestMsgStoretime(ctx, request);
+                return this.getEarliestMsgStoretime(ctx, req);
             case RequestCode.GET_BROKER_RUNTIME_INFO:
-                return this.getBrokerRuntimeInfo(ctx, request);
+                return this.getBrokerRuntimeInfo(ctx, req);
             case RequestCode.LOCK_BATCH_MQ:
-                return this.lockBatchMQ(ctx, request);
+                return this.lockBatchMQ(ctx, req);
             case RequestCode.UNLOCK_BATCH_MQ:
-                return this.unlockBatchMQ(ctx, request);
+                return this.unlockBatchMQ(ctx, req);
             case RequestCode.UPDATE_AND_CREATE_SUBSCRIPTIONGROUP: //更新或者构建消费组对应的订阅组
-                return this.updateAndCreateSubscriptionGroup(ctx, request);
+                return this.updateAndCreateSubscriptionGroup(ctx, req);
             case RequestCode.GET_ALL_SUBSCRIPTIONGROUP_CONFIG:
-                return this.getAllSubscriptionGroup(ctx, request);
+                return this.getAllSubscriptionGroup(ctx, req);
             case RequestCode.DELETE_SUBSCRIPTIONGROUP:
-                return this.deleteSubscriptionGroup(ctx, request);
+                return this.deleteSubscriptionGroup(ctx, req);
             case RequestCode.GET_TOPIC_STATS_INFO:
-                return this.getTopicStatsInfo(ctx, request);
+                return this.getTopicStatsInfo(ctx, req);
             case RequestCode.GET_CONSUMER_CONNECTION_LIST:
-                return this.getConsumerConnectionList(ctx, request);
+                return this.getConsumerConnectionList(ctx, req);
             case RequestCode.GET_PRODUCER_CONNECTION_LIST:
-                return this.getProducerConnectionList(ctx, request);
+                return this.getProducerConnectionList(ctx, req);
             case RequestCode.GET_CONSUME_STATS:
-                return this.getConsumeStats(ctx, request);
+                return this.getConsumeStats(ctx, req);
             case RequestCode.GET_ALL_CONSUMER_OFFSET:
-                return this.getAllConsumerOffset(ctx, request);
+                return this.getAllConsumerOffset(ctx, req);
             case RequestCode.GET_ALL_DELAY_OFFSET:
-                return this.getAllDelayOffset(ctx, request);
+                return this.getAllDelayOffset(ctx, req);
             case RequestCode.INVOKE_BROKER_TO_RESET_OFFSET:
-                return this.resetOffset(ctx, request);
+                return this.resetOffset(ctx, req);
             case RequestCode.INVOKE_BROKER_TO_GET_CONSUMER_STATUS:
-                return this.getConsumerStatus(ctx, request);
+                return this.getConsumerStatus(ctx, req);
             case RequestCode.QUERY_TOPIC_CONSUME_BY_WHO:
-                return this.queryTopicConsumeByWho(ctx, request);
+                return this.queryTopicConsumeByWho(ctx, req);
             case RequestCode.REGISTER_FILTER_SERVER: //注册filterServer
-                return this.registerFilterServer(ctx, request);
+                return this.registerFilterServer(ctx, req);
             case RequestCode.QUERY_CONSUME_TIME_SPAN:
-                return this.queryConsumeTimeSpan(ctx, request);
+                return this.queryConsumeTimeSpan(ctx, req);
             case RequestCode.GET_SYSTEM_TOPIC_LIST_FROM_BROKER:
-                return this.getSystemTopicListFromBroker(ctx, request);
+                return this.getSystemTopicListFromBroker(ctx, req);
             case RequestCode.CLEAN_EXPIRED_CONSUMEQUEUE:
                 return this.cleanExpiredConsumeQueue();
             case RequestCode.CLEAN_UNUSED_TOPIC:
                 return this.cleanUnusedTopic();
             case RequestCode.GET_CONSUMER_RUNNING_INFO:
-                return this.getConsumerRunningInfo(ctx, request);
+                return this.getConsumerRunningInfo(ctx, req);
             case RequestCode.QUERY_CORRECTION_OFFSET:
-                return this.queryCorrectionOffset(ctx, request);
+                return this.queryCorrectionOffset(ctx, req);
             case RequestCode.CONSUME_MESSAGE_DIRECTLY:
-                return this.consumeMessageDirectly(ctx, request);
+                return this.consumeMessageDirectly(ctx, req);
             case RequestCode.CLONE_GROUP_OFFSET:
-                return this.cloneGroupOffset(ctx, request);
+                return this.cloneGroupOffset(ctx, req);
             case RequestCode.VIEW_BROKER_STATS_DATA:
-                return ViewBrokerStatsData(ctx, request);
+                return ViewBrokerStatsData(ctx, req);
             case RequestCode.GET_BROKER_CONSUME_STATS:
-                return fetchAllConsumeStatsInBroker(ctx, request);
+                return fetchAllConsumeStatsInBroker(ctx, req);
             case RequestCode.QUERY_CONSUME_QUEUE:
-                return queryConsumeQueue(ctx, request);
+                return queryConsumeQueue(ctx, req);
             default:
                 break;
         }

@@ -52,12 +52,13 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         this.brokerController = brokerController;
     }
 
+    //都是由消费端本身发起
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         switch (req.getCode()) {
-            case GET_CONSUMER_LIST_BY_GROUP:
+            case GET_CONSUMER_LIST_BY_GROUP: //查询消费组中消费端列表
                 return this.getConsumerListByGroup(ctx, req);
-            case UPDATE_CONSUMER_OFFSET:
+            case UPDATE_CONSUMER_OFFSET: //更新消费端的offset
                 return this.updateConsumerOffset(ctx, req);
             case QUERY_CONSUMER_OFFSET: //查询消费offset
                 return this.queryConsumerOffset(ctx, req);

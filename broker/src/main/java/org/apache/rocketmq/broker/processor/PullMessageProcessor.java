@@ -590,24 +590,23 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         Runnable run = () -> {
             try {
                 final RemotingCommand resp = PullMessageProcessor.this.processRequest(channel, req, false);
-
-                if (resp != null) {
-                    resp.setOpaque(req.getOpaque());
-                    resp.markResponseType();
-                    try {
-                        channel.writeAndFlush(resp).addListener((ChannelFutureListener) future -> {
-                            if (!future.isSuccess()) {
-                                log.error("processRequestWrapper response to {} failed",
-                                    future.channel().remoteAddress(), future.cause());
-                                log.error(req.toString());
-                                log.error(resp.toString());
-                            }
-                        });
-                    } catch (Throwable e) {
-                        log.error("processRequestWrapper process request over, but response failed", e);
-                        log.error(req.toString());
-                        log.error(resp.toString());
-                    }
+                if (resp == null){
+                    return;
+                }
+                resp.setOpaque(req.getOpaque());
+                resp.markResponseType();
+                try {
+                    channel.writeAndFlush(resp).addListener((ChannelFutureListener) future -> {
+                        if (!future.isSuccess()) {
+                            log.error("processRequestWrapper response to {} failed", future.channel().remoteAddress(), future.cause());
+                            log.error(req.toString());
+                            log.error(resp.toString());
+                        }
+                    });
+                } catch (Throwable e) {
+                    log.error("processRequestWrapper process request over, but response failed", e);
+                    log.error(req.toString());
+                    log.error(resp.toString());
                 }
             } catch (RemotingCommandException e1) {
                 log.error("excuteRequestWhenWakeup run", e1);

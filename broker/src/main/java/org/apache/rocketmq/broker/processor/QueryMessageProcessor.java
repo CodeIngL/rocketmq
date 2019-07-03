@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.broker.processor;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.FileRegion;
@@ -55,18 +54,18 @@ public class QueryMessageProcessor implements NettyRequestProcessor {
     /**
      * 查询消息处理，支持消息id和消息key方式的查询
      * @param ctx
-     * @param request
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
     @Override
-    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand request)
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req)
         throws RemotingCommandException {
-        switch (request.getCode()) {
+        switch (req.getCode()) {
             case RequestCode.QUERY_MESSAGE: //通过消息的key进行查找
-                return this.queryMessage(ctx, request);
+                return this.queryMessage(ctx, req);
             case RequestCode.VIEW_MESSAGE_BY_ID: //通过消息id进行查询
-                return this.viewMessageById(ctx, request);
+                return this.viewMessageById(ctx, req);
             default:
                 break;
         }
