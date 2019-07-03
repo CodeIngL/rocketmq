@@ -81,63 +81,63 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
      * 转换到KVConfigManager和RouteInfoManager进行处理
      *
      * @param ctx
-     * @param request
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
-                                          RemotingCommand request) throws RemotingCommandException {
+                                          RemotingCommand req) throws RemotingCommandException {
 
         if (ctx != null) {
-            log.debug("receive request, {} {} {}", request.getCode(), RemotingHelper.parseChannelRemoteAddr(ctx.channel()), request);
+            log.debug("receive request, {} {} {}", req.getCode(), RemotingHelper.parseChannelRemoteAddr(ctx.channel()), req);
         }
 
 
-        switch (request.getCode()) {
+        switch (req.getCode()) {
             case PUT_KV_CONFIG:
-                return this.putKVConfig(ctx, request);
+                return this.putKVConfig(ctx, req);
             case GET_KV_CONFIG:
-                return this.getKVConfig(ctx, request);
+                return this.getKVConfig(ctx, req);
             case DELETE_KV_CONFIG:
-                return this.deleteKVConfig(ctx, request);
+                return this.deleteKVConfig(ctx, req);
             case QUERY_DATA_VERSION:
-                return queryBrokerTopicConfig(ctx, request);
+                return queryBrokerTopicConfig(ctx, req);
             case REGISTER_BROKER: //注册broker
-                Version brokerVersion = MQVersion.value2Version(request.getVersion());
+                Version brokerVersion = MQVersion.value2Version(req.getVersion());
                 if (brokerVersion.ordinal() >= MQVersion.Version.V3_0_11.ordinal()) {
-                    return this.registerBrokerWithFilterServer(ctx, request);//3.0.11以上存在filterServer
+                    return this.registerBrokerWithFilterServer(ctx, req);//3.0.11以上存在filterServer
                 } else {
-                    return this.registerBroker(ctx, request); //一般注册
+                    return this.registerBroker(ctx, req); //一般注册
                 }
             case UNREGISTER_BROKER:
-                return this.unregisterBroker(ctx, request);
+                return this.unregisterBroker(ctx, req);
             case GET_ROUTEINTO_BY_TOPIC:
-                return this.getRouteInfoByTopic(ctx, request);
+                return this.getRouteInfoByTopic(ctx, req);
             case GET_BROKER_CLUSTER_INFO:
-                return this.getBrokerClusterInfo(ctx, request);
+                return this.getBrokerClusterInfo(ctx, req);
             case WIPE_WRITE_PERM_OF_BROKER:
-                return this.wipeWritePermOfBroker(ctx, request);
+                return this.wipeWritePermOfBroker(ctx, req);
             case GET_ALL_TOPIC_LIST_FROM_NAMESERVER:
-                return getAllTopicListFromNameserver(ctx, request);
+                return getAllTopicListFromNameserver(ctx, req);
             case DELETE_TOPIC_IN_NAMESRV:
-                return deleteTopicInNamesrv(ctx, request);
+                return deleteTopicInNamesrv(ctx, req);
             case GET_KVLIST_BY_NAMESPACE:
-                return this.getKVListByNamespace(ctx, request);
+                return this.getKVListByNamespace(ctx, req);
             case GET_TOPICS_BY_CLUSTER:
-                return this.getTopicsByCluster(ctx, request);
+                return this.getTopicsByCluster(ctx, req);
             case GET_SYSTEM_TOPIC_LIST_FROM_NS:
-                return this.getSystemTopicListFromNs(ctx, request);
+                return this.getSystemTopicListFromNs(ctx, req);
             case GET_UNIT_TOPIC_LIST:
-                return this.getUnitTopicList(ctx, request);
+                return this.getUnitTopicList(ctx, req);
             case GET_HAS_UNIT_SUB_TOPIC_LIST:
-                return this.getHasUnitSubTopicList(ctx, request);
+                return this.getHasUnitSubTopicList(ctx, req);
             case GET_HAS_UNIT_SUB_UNUNIT_TOPIC_LIST:
-                return this.getHasUnitSubUnUnitTopicList(ctx, request);
+                return this.getHasUnitSubUnUnitTopicList(ctx, req);
             case UPDATE_NAMESRV_CONFIG:
-                return this.updateConfig(ctx, request);
+                return this.updateConfig(ctx, req);
             case GET_NAMESRV_CONFIG:
-                return this.getConfig(ctx, request);
+                return this.getConfig(ctx, req);
             default:
                 break;
         }
