@@ -120,22 +120,27 @@ public class ConsumerManager {
         return r1 || r2;
     }
 
-    public void unregisterConsumer(final String group, final ClientChannelInfo clientChannelInfo,
-        boolean isNotifyConsumerIdsChangedEnable) {
+    /**
+     * 从内存中注销consumer
+     * @param group
+     * @param clientChannelInfo
+     * @param isNotifyConsumerIdsChangedEnable
+     */
+    public void unregisterConsumer(final String group, final ClientChannelInfo clientChannelInfo, boolean isNotifyConsumerIdsChangedEnable) {
         ConsumerGroupInfo consumerGroupInfo = this.consumerTable.get(group);
-        if (null != consumerGroupInfo) {
-            consumerGroupInfo.unregisterChannel(clientChannelInfo);
-            if (consumerGroupInfo.getChannelInfoTable().isEmpty()) {
-                ConsumerGroupInfo remove = this.consumerTable.remove(group);
-                if (remove != null) {
-                    log.info("unregister consumer ok, no any connection, and remove consumer group, {}", group);
-
-                    this.consumerIdsChangeListener.handle(ConsumerGroupEvent.UNREGISTER, group);
-                }
+        if (consumerGroupInfo == null){
+            return;
+        }
+        consumerGroupInfo.unregisterChannel(clientChannelInfo);
+        if (consumerGroupInfo.getChannelInfoTable().isEmpty()) {
+            ConsumerGroupInfo remove = this.consumerTable.remove(group);
+            if (remove != null) {
+                log.info("unregister consumer ok, no any connection, and remove consumer group, {}", group);
+                this.consumerIdsChangeListener.handle(ConsumerGroupEvent.UNREGISTER, group);
             }
-            if (isNotifyConsumerIdsChangedEnable) {
-                this.consumerIdsChangeListener.handle(ConsumerGroupEvent.CHANGE, group, consumerGroupInfo.getAllChannel());
-            }
+        }
+        if (isNotifyConsumerIdsChangedEnable) {
+            this.consumerIdsChangeListener.handle(ConsumerGroupEvent.CHANGE, group, consumerGroupInfo.getAllChannel());
         }
     }
 

@@ -244,9 +244,7 @@ public class Broker2Client {
         GetConsumerStatusRequestHeader requestHeader = new GetConsumerStatusRequestHeader();
         requestHeader.setTopic(topic);
         requestHeader.setGroup(group);
-        RemotingCommand request =
-            createRequestCommand(RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT,
-                requestHeader);
+        RemotingCommand request = createRequestCommand(RequestCode.GET_CONSUMER_STATUS_FROM_CLIENT, requestHeader);
 
         Map<String, Map<MessageQueue, Long>> consumerStatusTable =
             new HashMap<String, Map<MessageQueue, Long>>();
