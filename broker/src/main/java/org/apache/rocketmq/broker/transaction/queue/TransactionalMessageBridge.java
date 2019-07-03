@@ -123,8 +123,7 @@ public class TransactionalMessageBridge {
     }
 
     public void updateConsumeOffset(MessageQueue mq, long offset) {
-        this.brokerController.getConsumerOffsetManager().commitOffset(
-                parseSocketAddressAddr(this.storeHost), buildConsumerGroup(), mq.getTopic(), mq.getQueueId(), offset);
+        this.brokerController.getConsumerOffsetManager().commitOffset(parseSocketAddressAddr(this.storeHost), buildConsumerGroup(), mq.getTopic(), mq.getQueueId(), offset);
     }
 
     /**
@@ -255,12 +254,11 @@ public class TransactionalMessageBridge {
      * @return
      */
     public boolean putOpMessage(MessageExt msg, String opType) {
-        MessageQueue mq = new MessageQueue(msg.getTopic(), this.brokerController.getBrokerConfig().getBrokerName(), msg.getQueueId());
-        //删除
-        if (REMOVETAG.equals(opType)) {
-            return addRemoveTagInTransactionOp(msg, mq);
+        if (!REMOVETAG.equals(opType)){
+            return true;
         }
-        return true;
+        //添加消息的队列的OP的REMOVETAG
+        return addRemoveTagInTransactionOp(msg, new MessageQueue(msg.getTopic(), this.brokerController.getBrokerConfig().getBrokerName(), msg.getQueueId()));
     }
 
     public PutMessageResult putMessageReturnResult(MessageExtBrokerInner messageInner) {
@@ -372,6 +370,7 @@ public class TransactionalMessageBridge {
      * @param mq
      */
     private void writeOp(Message message, MessageQueue mq) {
+        //将消息写入由消息队列mq对应op队列，如果不存在我们将构建
         MessageQueue opQueue;
         if (opQueueMap.containsKey(mq)) {
             opQueue = opQueueMap.get(mq);
@@ -395,7 +394,7 @@ public class TransactionalMessageBridge {
      */
     private MessageQueue getOpQueueByHalf(MessageQueue halfMQ) {
         MessageQueue opQueue = new MessageQueue();
-        opQueue.setTopic(buildOpTopic());
+        opQueue.setTopic(buildOpTopic()); //特殊的队列
         opQueue.setBrokerName(halfMQ.getBrokerName());
         opQueue.setQueueId(halfMQ.getQueueId());
         return opQueue;

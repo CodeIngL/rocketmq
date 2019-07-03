@@ -475,6 +475,11 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
 
     }
 
+    /**
+     * 获得消息队列对应op队列
+     * @param mq
+     * @return
+     */
     private MessageQueue getOpQueue(MessageQueue mq) {
         MessageQueue opQueue = opQueueMap.get(mq);
         if (opQueue != null){
@@ -506,7 +511,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
     }
 
     /**
-     * 获得半阶段的消息，通过偏移量获得
+     * 获得一阶段的消息，通过偏移量获得
      * @param commitLogOffset
      * @return
      */
@@ -526,7 +531,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
     /**
      * 删除prepare消息,二阶段，需要删除一阶段的half消息，这里删除就是写入op消息是带有特殊标记的
      * 也就是说我们确定了一个事务消息已经被提交或者回滚的时候，我们要删除相关的一阶段的的消息也就是half消息
-     * 删除我们是通过另一种逻辑形式来实现的我们尝试进行投递一个带有特殊标记的消息也就是op消息，来标识事务的状态。
+     * 删除我们是通过另一种逻辑形式来实现的我们尝试进行投递一个带有特殊标记的消息也就是op消息，来标识事务消息的状态。用op消息来表示一条消息已经确定
      * @param msgExt
      * @return
      */
@@ -541,11 +546,21 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
         }
     }
 
+    /**
+     * 提交消息，实际上是获得一阶段消息，后续处理需要再次处理
+     * @param requestHeader Commit message request header.
+     * @return
+     */
     @Override
     public OperationResult commitMessage(EndTransactionRequestHeader requestHeader) {
         return getHalfMessageByOffset(requestHeader.getCommitLogOffset());
     }
 
+    /**
+     * 回滚消息，实际上是获得一阶段消息，后续处理需要再次处理
+     * @param requestHeader Prepare message request header.
+     * @return
+     */
     @Override
     public OperationResult rollbackMessage(EndTransactionRequestHeader requestHeader) {
         return getHalfMessageByOffset(requestHeader.getCommitLogOffset());

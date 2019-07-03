@@ -33,6 +33,9 @@ public interface TransactionalMessageService {
 
     /**
      * Delete prepare message when this message has been committed or rolled back.
+     * <p>
+     *     提交或回滚此消息时删除一阶段消息。我们已经明确了由参数说明的消息，是回滚消息or提交消息
+     * </p>
      *
      * @param messageExt
      */

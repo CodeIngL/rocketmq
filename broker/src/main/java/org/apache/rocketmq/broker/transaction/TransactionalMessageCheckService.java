@@ -24,6 +24,7 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 
 /**
  * 事务消息检查服务,我们定时的检查特殊的消息队列，来确定是否有特殊的事务消息没有处理，或者已经被处理。
+ * 核心的配置，校验间隔时间，一次校验最大量
  */
 public class TransactionalMessageCheckService extends ServiceThread {
 
