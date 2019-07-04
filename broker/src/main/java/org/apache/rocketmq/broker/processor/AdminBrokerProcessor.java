@@ -1347,39 +1347,33 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         }
     }
 
-    private RemotingCommand queryConsumeQueue(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
-        QueryConsumeQueueRequestHeader requestHeader =
-            (QueryConsumeQueueRequestHeader) request.decodeCommandCustomHeader(QueryConsumeQueueRequestHeader.class);
+    private RemotingCommand queryConsumeQueue(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
+        QueryConsumeQueueRequestHeader reqHeader = (QueryConsumeQueueRequestHeader) req.decodeCommandCustomHeader(QueryConsumeQueueRequestHeader.class);
 
-        RemotingCommand response = createResponseCommand(null);
+        RemotingCommand resp = createResponseCommand(null);
 
-        ConsumeQueue consumeQueue = this.brokerController.getMessageStore().getConsumeQueue(requestHeader.getTopic(),
-            requestHeader.getQueueId());
+        ConsumeQueue consumeQueue = this.brokerController.getMessageStore().getConsumeQueue(reqHeader.getTopic(), reqHeader.getQueueId());
         if (consumeQueue == null) {
-            response.setCode(SYSTEM_ERROR);
-            response.setRemark(String.format("%d@%s is not exist!", requestHeader.getQueueId(), requestHeader.getTopic()));
-            return response;
+            resp.setCode(SYSTEM_ERROR);
+            resp.setRemark(String.format("%d@%s is not exist!", reqHeader.getQueueId(), reqHeader.getTopic()));
+            return resp;
         }
 
         QueryConsumeQueueResponseBody body = new QueryConsumeQueueResponseBody();
-        response.setCode(SUCCESS);
-        response.setBody(body.encode());
+        resp.setCode(SUCCESS);
+        resp.setBody(body.encode());
 
         body.setMaxQueueIndex(consumeQueue.getMaxOffsetInQueue());
         body.setMinQueueIndex(consumeQueue.getMinOffsetInQueue());
 
         MessageFilter messageFilter = null;
-        if (requestHeader.getConsumerGroup() != null) {
-            SubscriptionData subscriptionData = this.brokerController.getConsumerManager().findSubscriptionData(
-                requestHeader.getConsumerGroup(), requestHeader.getTopic()
-            );
+        if (reqHeader.getConsumerGroup() != null) {
+            SubscriptionData subscriptionData = this.brokerController.getConsumerManager().findSubscriptionData(reqHeader.getConsumerGroup(), reqHeader.getTopic());
             body.setSubscriptionData(subscriptionData);
             if (subscriptionData == null) {
-                body.setFilterData(String.format("%s@%s is not online!", requestHeader.getConsumerGroup(), requestHeader.getTopic()));
+                body.setFilterData(String.format("%s@%s is not online!", reqHeader.getConsumerGroup(), reqHeader.getTopic()));
             } else {
-                ConsumerFilterData filterData = this.brokerController.getConsumerFilterManager()
-                    .get(requestHeader.getTopic(), requestHeader.getConsumerGroup());
+                ConsumerFilterData filterData = this.brokerController.getConsumerFilterManager().get(reqHeader.getTopic(), reqHeader.getConsumerGroup());
                 body.setFilterData(JSON.toJSONString(filterData, true));
 
                 messageFilter = new ExpressionMessageFilter(subscriptionData, filterData,
@@ -1387,14 +1381,14 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
             }
         }
 
-        SelectMappedBufferResult result = consumeQueue.getIndexBuffer(requestHeader.getIndex());
+        SelectMappedBufferResult result = consumeQueue.getIndexBuffer(reqHeader.getIndex());
         if (result == null) {
-            response.setRemark(String.format("Index %d of %d@%s is not exist!", requestHeader.getIndex(), requestHeader.getQueueId(), requestHeader.getTopic()));
-            return response;
+            resp.setRemark(String.format("Index %d of %d@%s is not exist!", reqHeader.getIndex(), reqHeader.getQueueId(), reqHeader.getTopic()));
+            return resp;
         }
         try {
             List<ConsumeQueueData> queues = new ArrayList<>();
-            for (int i = 0; i < result.getSize() && i < requestHeader.getCount() * ConsumeQueue.CQ_STORE_UNIT_SIZE; i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
+            for (int i = 0; i < result.getSize() && i < reqHeader.getCount() * ConsumeQueue.CQ_STORE_UNIT_SIZE; i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
                 ConsumeQueueData one = new ConsumeQueueData();
                 one.setPhysicOffset(result.getByteBuffer().getLong());
                 one.setPhysicSize(result.getByteBuffer().getInt());
@@ -1425,6 +1419,6 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
             result.release();
         }
 
-        return response;
+        return resp;
     }
 }

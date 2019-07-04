@@ -131,8 +131,7 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
      * @return
      * @throws RemotingCommandException
      */
-    private RemotingCommand queryConsumerOffset(ChannelHandlerContext ctx, RemotingCommand req)
-        throws RemotingCommandException {
+    private RemotingCommand queryConsumerOffset(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(QueryConsumerOffsetResponseHeader.class);
         final QueryConsumerOffsetResponseHeader respHeader = (QueryConsumerOffsetResponseHeader) resp.readCustomHeader();
         final QueryConsumerOffsetRequestHeader reqHeader = (QueryConsumerOffsetRequestHeader) req.decodeCommandCustomHeader(QueryConsumerOffsetRequestHeader.class);
@@ -145,12 +144,8 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
             resp.setCode(ResponseCode.SUCCESS);
             resp.setRemark(null);
         } else {
-            long minOffset =
-                this.brokerController.getMessageStore().getMinOffsetInQueue(reqHeader.getTopic(),
-                    reqHeader.getQueueId());
-            if (minOffset <= 0
-                && !this.brokerController.getMessageStore().checkInDiskByConsumeOffset(
-                reqHeader.getTopic(), reqHeader.getQueueId(), 0)) {
+            long minOffset = this.brokerController.getMessageStore().getMinOffsetInQueue(reqHeader.getTopic(), reqHeader.getQueueId());
+            if (minOffset <= 0 && !this.brokerController.getMessageStore().checkInDiskByConsumeOffset(reqHeader.getTopic(), reqHeader.getQueueId(), 0)) {
                 respHeader.setOffset(0L);
                 resp.setCode(ResponseCode.SUCCESS);
                 resp.setRemark(null);

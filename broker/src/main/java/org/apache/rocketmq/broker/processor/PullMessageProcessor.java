@@ -126,7 +126,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         //消费组概念
         String consumerGroup = reqHeader.getConsumerGroup();
-        //获得消费组对应的订阅组概念
+        //获得消费组对应的订阅组的配置概念
         SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(consumerGroup);
         if (checkSubscriptionGroupConfig(resp, consumerGroup, subscriptionGroupConfig)) return resp;
 
