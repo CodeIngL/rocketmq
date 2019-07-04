@@ -403,23 +403,22 @@ public class ConsumeQueue {
      */
     public void putMessagePositionInfoWrapper(DispatchRequest req) {
         final int maxRetries = 30; //最大投递重试的次数
-        //是否可写
+        //消息队列是否可写
         boolean canWrite = this.defaultMessageStore.getRunningFlags().isCQWriteable();
         for (int i = 0; i < maxRetries && canWrite; i++) {
-            long tagsCode = req.getTagsCode(); //tag
-            if (isExtWriteEnable()) { //可写
+            long tagsCode = req.getTagsCode(); //tagsCode
+            if (isExtWriteEnable()) { //扩展ext可写
                 ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit(); //扩展信息
                 cqExtUnit.setFilterBitMap(req.getBitMap()); //位图信息
                 cqExtUnit.setMsgStoreTime(req.getStoreTimestamp()); //存储时间
-                cqExtUnit.setTagsCode(req.getTagsCode()); //tag码
+                cqExtUnit.setTagsCode(req.getTagsCode()); //tagsCode
 
                 //投递到扩展队列中
                 long extAddr = this.consumeQueueExt.put(cqExtUnit); //扩展信息的投递，返回地址
                 if (isExtAddr(extAddr)) { //校验是扩展队列对应的地址还是消息的tag的hashcode
                     tagsCode = extAddr;
                 } else {
-                    log.warn("Save consume queue extend fail, So just save tagsCode! {}, topic:{}, queueId:{}, offset:{}", cqExtUnit,
-                        topic, queueId, req.getCommitLogOffset());
+                    log.warn("Save consume queue extend fail, So just save tagsCode! {}, topic:{}, queueId:{}, offset:{}", cqExtUnit, topic, queueId, req.getCommitLogOffset());
                 }
             }
             //consumer进行投递

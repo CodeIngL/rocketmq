@@ -600,10 +600,10 @@ public class DefaultMessageStore implements MessageStore {
         //消息存储结果
         GetMessageResult result = new GetMessageResult();
 
-        //最大偏移量
+        //消息存储当前最大偏移量
         final long maxOffsetPy = this.commitLog.getMaxOffset();
 
-        //找到对应的消费队列
+        //找到匹配的消费队列
         ConsumeQueue cq = findConsumeQueue(topic, queueId);
         if (cq != null) {
             minOffset = cq.getMinOffsetInQueue();//消费队列维持的最小offset
@@ -611,13 +611,13 @@ public class DefaultMessageStore implements MessageStore {
 
             if (maxOffset == 0) { //消费队列没有消息
                 status = NO_MESSAGE_IN_QUEUE;
-                nextBeginOffset = nextOffsetCorrection(offset, 0); //调整下一个开始的offset
+                nextBeginOffset = nextOffsetCorrection(offset, 0); //调整下一个开始的offset，为0
             } else if (offset < minOffset) { //偏移量过小
                 status = OFFSET_TOO_SMALL;
-                nextBeginOffset = nextOffsetCorrection(offset, minOffset);//调整下一个开始为最小的offset
+                nextBeginOffset = nextOffsetCorrection(offset, minOffset);//调整下一个开始为消息队列上最小的offset
             } else if (offset == maxOffset) { //偏移量超出1
                 status = OFFSET_OVERFLOW_ONE;
-                nextBeginOffset = nextOffsetCorrection(offset, offset);//不做任何处理，过大了
+                nextBeginOffset = nextOffsetCorrection(offset, offset);//不做任何处理，过大了，消费完了
             } else if (offset > maxOffset) { //太大了
                 status = OFFSET_OVERFLOW_BADLY;
                 if (0 == minOffset) {
@@ -643,12 +643,13 @@ public class DefaultMessageStore implements MessageStore {
 
                         //扩展属性
                         ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
+                        //进行遍历
                         for (; i < bufferConsumeQueue.getSize() && i < maxFilterMessageCount; i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
                             //物理的offset
                             long offsetPy = bufferConsumeQueue.getByteBuffer().getLong();
                             //物理的size
                             int sizePy = bufferConsumeQueue.getByteBuffer().getInt();
-                            //物理的taghashcode
+                            //物理的taghashcode，或者是扩展属性中的地址
                             long tagsCode = bufferConsumeQueue.getByteBuffer().getLong();
 
                             //更新
@@ -698,7 +699,7 @@ public class DefaultMessageStore implements MessageStore {
                                 continue;
                             }
 
-                            //匹配消息
+                            //匹配消息是否与存储的消息是否匹配
                             if (filter != null && !filter.isMatchedByCommitLog(selectResult.getByteBuffer().slice(), null)) {
                                 if (result.getBufferTotalSize() == 0) {
                                     status = NO_MATCHED_MESSAGE;
@@ -1306,6 +1307,15 @@ public class DefaultMessageStore implements MessageStore {
         return (maxOffsetPy - offsetPy) > memory;
     }
 
+    /**
+     * 是否批处理满？？
+     * @param sizePy 物理大小
+     * @param maxMsgNums 最大消息量
+     * @param bufferTotal 总共大小
+     * @param messageTotal 消息总共大小
+     * @param isInDisk 是否在磁盘中
+     * @return
+     */
     private boolean isTheBatchFull(int sizePy, int maxMsgNums, int bufferTotal, int messageTotal, boolean isInDisk) {
 
         if (0 == bufferTotal || 0 == messageTotal) {
@@ -1595,6 +1605,7 @@ public class DefaultMessageStore implements MessageStore {
      * @param req 分发的请求
      */
     public void putMessagePositionInfo(DispatchRequest req) {
+        //定位特定队列
         ConsumeQueue cq = this.findConsumeQueue(req.getTopic(), req.getQueueId());
         //由对应的消费队列进行操作
         cq.putMessagePositionInfoWrapper(req);
