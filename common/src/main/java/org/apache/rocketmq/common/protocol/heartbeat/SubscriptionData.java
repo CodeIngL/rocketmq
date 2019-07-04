@@ -37,7 +37,9 @@ public class SubscriptionData implements Comparable<SubscriptionData> {
      * 目前情况，*，tag，类全名，sql表达式
      */
     private String subString;
+    //tag集合
     private Set<String> tagsSet = new HashSet<String>();
+    //code集合
     private Set<Integer> codeSet = new HashSet<Integer>();
     private long subVersion = System.currentTimeMillis();
     private String expressionType = ExpressionType.TAG;

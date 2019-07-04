@@ -25,12 +25,19 @@ public class TopicConfig {
     private static final String SEPARATOR = " ";
     public static int defaultReadQueueNums = 16;
     public static int defaultWriteQueueNums = 16;
+    //topic名字
     private String topicName;
+    //可读的数量
     private int readQueueNums = defaultReadQueueNums;
+    //可写的数量
     private int writeQueueNums = defaultWriteQueueNums;
+    //权限
     private int perm = PermName.PERM_READ | PermName.PERM_WRITE;
+    //支持的类型
     private TopicFilterType topicFilterType = TopicFilterType.SINGLE_TAG;
+    //系统参数
     private int topicSysFlag = 0;
+    //是否有序
     private boolean order = false;
 
     public TopicConfig() {

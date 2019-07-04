@@ -31,14 +31,23 @@ import java.util.Collections;
  */
 public class ConsumerFilterData {
 
+    //消费组
     private String consumerGroup;
+    //topic
     private String topic;
+    //表达是
     private String expression;
+    //类型
     private String expressionType;
+    //编译后的表达式
     private transient Expression compiledExpression;
+    //诞生时间
     private long bornTime;
+    //死亡时间
     private long deadTime = 0;
+    //布隆过滤数据
     private BloomFilterData bloomFilterData;
+    //客户端版本
     private long clientVersion;
 
     public boolean isDead() {
