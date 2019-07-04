@@ -38,9 +38,13 @@ public class ExpressionMessageFilter implements MessageFilter {
 
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.FILTER_LOGGER_NAME);
 
+    //订阅数据
     protected final SubscriptionData subscriptionData;
+    //消费过滤数据
     protected final ConsumerFilterData consumerFilterData;
+    //消费管理端
     protected final ConsumerFilterManager consumerFilterManager;
+    //是否开启布隆
     protected final boolean bloomDataValid;
 
     public ExpressionMessageFilter(SubscriptionData subscriptionData, ConsumerFilterData consumerFilterData, ConsumerFilterManager consumerFilterManager) {

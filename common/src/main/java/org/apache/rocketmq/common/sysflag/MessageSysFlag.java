@@ -17,17 +17,34 @@
 package org.apache.rocketmq.common.sysflag;
 
 public class MessageSysFlag {
-    public final static int COMPRESSED_FLAG = 0x1;
-    public final static int MULTI_TAGS_FLAG = 0x1 << 1;
-    public final static int TRANSACTION_NOT_TYPE = 0;
-    public final static int TRANSACTION_PREPARED_TYPE = 0x1 << 2;
-    public final static int TRANSACTION_COMMIT_TYPE = 0x2 << 2;
-    public final static int TRANSACTION_ROLLBACK_TYPE = 0x3 << 2;
+    //压缩标记
+    public final static int COMPRESSED_FLAG = 0x1;  //0001
+    //多tag标记
+    public final static int MULTI_TAGS_FLAG = 0x1 << 1; //0010
+    //无事务类型
+    public final static int TRANSACTION_NOT_TYPE = 0;    //0000
+    //一阶段消息
+    public final static int TRANSACTION_PREPARED_TYPE = 0x1 << 2; //0100
+    //提交消息
+    public final static int TRANSACTION_COMMIT_TYPE = 0x2 << 2; //1000
+    //回滚消息
+    public final static int TRANSACTION_ROLLBACK_TYPE = 0x3 << 2; //1100
 
+    /**
+     * 获得事务的标记
+     * @param flag
+     * @return
+     */
     public static int getTransactionValue(final int flag) {
         return flag & TRANSACTION_ROLLBACK_TYPE;
     }
 
+    /**
+     * 重置事务的标记
+     * @param flag
+     * @param type
+     * @return
+     */
     public static int resetTransactionValue(final int flag, final int type) {
         return (flag & (~TRANSACTION_ROLLBACK_TYPE)) | type;
     }

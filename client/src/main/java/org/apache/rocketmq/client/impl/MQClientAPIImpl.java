@@ -931,9 +931,7 @@ public class MQClientAPIImpl {
      * @throws MQBrokerException
      * @throws InterruptedException
      */
-    public long queryConsumerOffset(final String addr,
-        final QueryConsumerOffsetRequestHeader reqHeader,
-        final long timeoutMillis
+    public long queryConsumerOffset(final String addr, final QueryConsumerOffsetRequestHeader reqHeader, final long timeoutMillis
     ) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand req = createRequestCommand(RequestCode.QUERY_CONSUMER_OFFSET, reqHeader);
 
@@ -942,8 +940,7 @@ public class MQClientAPIImpl {
         assert resp != null;
         switch (resp.getCode()) {
             case SUCCESS: {
-                QueryConsumerOffsetResponseHeader respHeader =
-                    (QueryConsumerOffsetResponseHeader) resp.decodeCommandCustomHeader(QueryConsumerOffsetResponseHeader.class);
+                QueryConsumerOffsetResponseHeader respHeader = (QueryConsumerOffsetResponseHeader) resp.decodeCommandCustomHeader(QueryConsumerOffsetResponseHeader.class);
 
                 return respHeader.getOffset();
             }
