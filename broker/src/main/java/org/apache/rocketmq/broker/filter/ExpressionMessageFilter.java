@@ -63,6 +63,12 @@ public class ExpressionMessageFilter implements MessageFilter {
         }
     }
 
+    /**
+     * 过滤指定的信息是否匹配相关的consumerQueue
+     * @param tagsCode tagsCode
+     * @param cqExtUnit extend unit of consume queue
+     * @return
+     */
     @Override
     public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
         if (null == subscriptionData) { //不存在订阅数据直接返回
@@ -85,7 +91,7 @@ public class ExpressionMessageFilter implements MessageFilter {
             }
 
             return subscriptionData.getCodeSet().contains(tagsCode.intValue()); //是否包含这个tag的hashcode
-        } else {
+        } else { //不是tag类型的
             // no expression or no bloom //没有表达式以及没有bloom过滤器
             if (consumerFilterData == null || consumerFilterData.getExpression() == null
                 || consumerFilterData.getCompiledExpression() == null || consumerFilterData.getBloomFilterData() == null) {
@@ -100,15 +106,16 @@ public class ExpressionMessageFilter implements MessageFilter {
 
             //bloom过滤器
             byte[] filterBitMap = cqExtUnit.getFilterBitMap();
+            //布隆过滤器
             BloomFilter bloomFilter = this.consumerFilterManager.getBloomFilter();
-            if (filterBitMap == null || !this.bloomDataValid
-                || filterBitMap.length * Byte.SIZE != consumerFilterData.getBloomFilterData().getBitNum()) {
+            if (filterBitMap == null || !this.bloomDataValid || filterBitMap.length * Byte.SIZE != consumerFilterData.getBloomFilterData().getBitNum()) {
                 return true;
             }
 
             BitsArray bitsArray = null;
             try {
                 bitsArray = BitsArray.create(filterBitMap);
+                //是否命中
                 boolean ret = bloomFilter.isHit(consumerFilterData.getBloomFilterData(), bitsArray);
                 log.debug("Pull {} by bit map:{}, {}, {}", ret, consumerFilterData, bitsArray, cqExtUnit);
                 return ret;
@@ -123,24 +130,23 @@ public class ExpressionMessageFilter implements MessageFilter {
 
     @Override
     public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
-        if (subscriptionData == null) { 
+        if (subscriptionData == null) {  //没有订阅数据，匹配
             return true;
         }
 
-        if (subscriptionData.isClassFilterMode()) {
+        if (subscriptionData.isClassFilterMode()) { //类模式匹配
             return true;
         }
 
-        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) { //数据tag类型，匹配
             return true;
         }
 
         ConsumerFilterData realFilterData = this.consumerFilterData;
         Map<String, String> tempProperties = properties;
 
-        // no expression
-        if (realFilterData == null || realFilterData.getExpression() == null
-            || realFilterData.getCompiledExpression() == null) {
+        // no expression 没有表达式匹配
+        if (realFilterData == null || realFilterData.getExpression() == null || realFilterData.getCompiledExpression() == null) {
             return true;
         }
 
@@ -148,6 +154,7 @@ public class ExpressionMessageFilter implements MessageFilter {
             tempProperties = MessageDecoder.decodeProperties(msgBuffer);
         }
 
+        //计算表达式，是否匹配
         Object ret = null;
         try {
             MessageEvaluationContext context = new MessageEvaluationContext(tempProperties);
