@@ -45,7 +45,7 @@ public class SubscriptionGroupConfig {
     //brokerId
     private long brokerId = MixAll.MASTER_ID;
 
-    //从slave拉的id
+    //从broker角色拉取的消息的id
     private long whichBrokerWhenConsumeSlowly = 1;
 
     //是否支持通知客户端

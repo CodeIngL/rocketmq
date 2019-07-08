@@ -18,5 +18,6 @@
 package org.apache.rocketmq.common.namesrv;
 
 public class NamesrvUtil {
+    //namespace,存储相关顺序消费的topic
     public static final String NAMESPACE_ORDER_TOPIC_CONFIG = "ORDER_TOPIC_CONFIG";
 }

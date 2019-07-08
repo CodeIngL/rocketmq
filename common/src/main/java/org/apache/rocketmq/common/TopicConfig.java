@@ -20,6 +20,7 @@ import org.apache.rocketmq.common.constant.PermName;
 
 /**
  * 配置文件中关于topic部分的配置类model
+ * 其中包含了要创建的queue的相关数量
  */
 public class TopicConfig {
     private static final String SEPARATOR = " ";
