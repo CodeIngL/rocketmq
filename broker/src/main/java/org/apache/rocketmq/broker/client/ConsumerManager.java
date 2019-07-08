@@ -74,6 +74,9 @@ public class ConsumerManager {
         return 0;
     }
 
+    /**
+     * 消费端发生关闭，我们需要进行通知客户端，发生了变更
+     */
     public void doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         Iterator<Entry<String, ConsumerGroupInfo>> it = this.consumerTable.entrySet().iterator();
         while (it.hasNext()) {

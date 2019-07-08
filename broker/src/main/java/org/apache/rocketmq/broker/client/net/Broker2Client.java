@@ -92,21 +92,23 @@ public class Broker2Client {
         return this.brokerController.getRemotingServer().invokeSync(channel, request, 10000);
     }
 
-    public void notifyConsumerIdsChanged(
-        final Channel channel,
-        final String consumerGroup) {
+    /**
+     * broker调用client来通知有相关的consumer发生状态的变更
+     * @param channel
+     * @param consumerGroup
+     */
+    public void notifyConsumerIdsChanged(final Channel channel, final String consumerGroup) {
         if (null == consumerGroup) {
             log.error("notifyConsumerIdsChanged consumerGroup is null");
             return;
         }
 
-        NotifyConsumerIdsChangedRequestHeader requestHeader = new NotifyConsumerIdsChangedRequestHeader();
-        requestHeader.setConsumerGroup(consumerGroup);
-        RemotingCommand request =
-            createRequestCommand(RequestCode.NOTIFY_CONSUMER_IDS_CHANGED, requestHeader);
+        NotifyConsumerIdsChangedRequestHeader reqHeader = new NotifyConsumerIdsChangedRequestHeader();
+        reqHeader.setConsumerGroup(consumerGroup);
+        RemotingCommand req = createRequestCommand(RequestCode.NOTIFY_CONSUMER_IDS_CHANGED, reqHeader);
 
         try {
-            this.brokerController.getRemotingServer().invokeOneway(channel, request, 10);
+            this.brokerController.getRemotingServer().invokeOneway(channel, req, 10);
         } catch (Exception e) {
             log.error("notifyConsumerIdsChanged exception, " + consumerGroup, e.getMessage());
         }

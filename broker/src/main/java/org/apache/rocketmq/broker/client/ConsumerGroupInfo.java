@@ -41,10 +41,15 @@ public class ConsumerGroupInfo {
     private final String groupName;
     //topic和订阅信息
     private final ConcurrentMap<String/* Topic */, SubscriptionData> subscriptionTable = new ConcurrentHashMap<String, SubscriptionData>();
+    //通道和对应的网络客户端信息
     private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable = new ConcurrentHashMap<Channel, ClientChannelInfo>(16);
+    //消息消费方式类型
     private volatile ConsumeType consumeType;
+    //消息消费类型
     private volatile MessageModel messageModel;
+    //消息
     private volatile ConsumeFromWhere consumeFromWhere;
+    //最后更新时间
     private volatile long lastUpdateTimestamp = System.currentTimeMillis();
 
     public ConsumerGroupInfo(String groupName, ConsumeType consumeType, MessageModel messageModel, ConsumeFromWhere consumeFromWhere) {
