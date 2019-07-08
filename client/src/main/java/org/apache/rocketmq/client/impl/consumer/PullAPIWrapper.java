@@ -184,34 +184,22 @@ public class PullAPIWrapper {
      * @throws MQBrokerException
      * @throws InterruptedException
      */
-    public PullResult pullKernelImpl(
-        final MessageQueue mq,
-        final String subExpression,
-        final String expressionType,
-        final long subVersion,
-        final long offset,
-        final int maxNums,
-        final int sysFlag,
-        final long commitOffset,
-        final long brokerSuspendMaxTimeMillis,
-        final long timeoutMillis,
-        final CommunicationMode communicationMode,
-        final PullCallback pullCallback
+    public PullResult pullKernelImpl(final MessageQueue mq, final String subExpression, final String expressionType, final long subVersion,
+        final long offset, final int maxNums, final int sysFlag, final long commitOffset, final long brokerSuspendMaxTimeMillis,
+        final long timeoutMillis, final CommunicationMode communicationMode, final PullCallback pullCallback
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         //发现broker
-        FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
+        FindBrokerResult findBrokerResult = mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
         if (null == findBrokerResult) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
-            findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
+            findBrokerResult = mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
         }
 
         if (findBrokerResult != null) {
             {
                 // check version
-                if (!ExpressionType.isTagType(expressionType)
-                    && findBrokerResult.getBrokerVersion() < MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
-                    throw new MQClientException("The broker[" + mq.getBrokerName() + ", "
-                        + findBrokerResult.getBrokerVersion() + "] does not upgrade to support for filter message by " + expressionType, null);
+                if (!ExpressionType.isTagType(expressionType) && findBrokerResult.getBrokerVersion() < MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
+                    throw new MQClientException("The broker[" + mq.getBrokerName() + ", " + findBrokerResult.getBrokerVersion() + "] does not upgrade to support for filter message by " + expressionType, null);
                 }
             }
             int sysFlagInner = sysFlag;
@@ -240,14 +228,7 @@ public class PullAPIWrapper {
             }
 
             //获得消息
-            PullResult pullResult = this.mQClientFactory.getMQClientAPIImpl().pullMessage(
-                brokerAddr,
-                reqHeader,
-                timeoutMillis,
-                communicationMode,
-                pullCallback);
-
-            return pullResult;
+            return this.mQClientFactory.getMQClientAPIImpl().pullMessage(brokerAddr, reqHeader, timeoutMillis, communicationMode, pullCallback);
         }
 
         throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);

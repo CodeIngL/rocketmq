@@ -237,6 +237,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
         this.subscriptionAutomatically(mq.getTopic());
 
+        //存在直接的订阅数据，因此我们构建中的订阅部分是true
         int sysFlag = PullSysFlag.buildSysFlag(false, block, true, false);
 
         long timeoutMillis = block ? this.defaultMQPullConsumer.getConsumerTimeoutMillisWhenSuspend() : timeout;

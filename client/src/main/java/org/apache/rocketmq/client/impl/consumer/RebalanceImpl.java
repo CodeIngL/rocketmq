@@ -426,7 +426,6 @@ public abstract class RebalanceImpl {
          * 分发处理的结果
          */
         this.dispatchPullRequest(pullRequestList); //分发拉取的请求列表，因为pull上面是0，因此构建这里也是不进行相关的处理
-
         return changed;
     }
 
