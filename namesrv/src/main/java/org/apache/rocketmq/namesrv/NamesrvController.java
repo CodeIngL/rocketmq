@@ -55,7 +55,9 @@ public class NamesrvController {
 
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "NSScheduledThread"));
+    //键值对管理器
     private final KVConfigManager kvConfigManager;
+    //路由管理器
     private final RouteInfoManager routeInfoManager;
 
     private RemotingServer remotingServer;
@@ -94,8 +96,10 @@ public class NamesrvController {
 
         this.registerProcessor();
 
+        //10s扫一次不活跃的broker
         this.scheduledExecutorService.scheduleAtFixedRate(routeInfoManager::scanNotActiveBroker, 5, 10, TimeUnit.SECONDS);
 
+        //一分钟打印一次所有的键值存储
         this.scheduledExecutorService.scheduleAtFixedRate(kvConfigManager::printAllPeriodically, 1, 10, TimeUnit.MINUTES);
 
         if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
