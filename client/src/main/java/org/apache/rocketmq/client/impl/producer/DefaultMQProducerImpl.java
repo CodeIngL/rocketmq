@@ -348,8 +348,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
      * @param header
      */
     @Override
-    public void checkTransactionState(final String addr, final MessageExt msg,
-        final CheckTransactionStateRequestHeader header) {
+    public void checkTransactionState(final String addr, final MessageExt msg, final CheckTransactionStateRequestHeader header) {
 
         Runnable request = new Runnable() {
             private final String brokerAddr = addr;

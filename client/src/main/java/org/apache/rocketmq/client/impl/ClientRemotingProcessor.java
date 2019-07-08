@@ -62,7 +62,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
     }
 
     /**
-     * 处理请求
+     * 处理来自broker的请求
      * @param ctx
      * @param req
      * @return
@@ -104,8 +104,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
      */
     public RemotingCommand checkTransactionState(ChannelHandlerContext ctx,
         RemotingCommand req) throws RemotingCommandException {
-        final CheckTransactionStateRequestHeader reqHeader =
-            (CheckTransactionStateRequestHeader) req.decodeCommandCustomHeader(CheckTransactionStateRequestHeader.class);
+        final CheckTransactionStateRequestHeader reqHeader = (CheckTransactionStateRequestHeader) req.decodeCommandCustomHeader(CheckTransactionStateRequestHeader.class);
         final ByteBuffer byteBuffer = ByteBuffer.wrap(req.getBody());
         final MessageExt messageExt = MessageDecoder.decode(byteBuffer);
         if (messageExt != null) {
@@ -136,13 +135,18 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return null;
     }
 
+    /**
+     * 通知客户端相关consumerId发生了变更。我们的rebalance需要进行及时的重新负载均衡
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
     public RemotingCommand notifyConsumerIdsChanged(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         try {
-            final NotifyConsumerIdsChangedRequestHeader reqHeader =
-                (NotifyConsumerIdsChangedRequestHeader) req.decodeCommandCustomHeader(NotifyConsumerIdsChangedRequestHeader.class);
+            final NotifyConsumerIdsChangedRequestHeader reqHeader = (NotifyConsumerIdsChangedRequestHeader) req.decodeCommandCustomHeader(NotifyConsumerIdsChangedRequestHeader.class);
             log.info("receive broker's notification[{}], the consumer group: {} changed, rebalance immediately",
-                parseChannelRemoteAddr(ctx.channel()),
-                reqHeader.getConsumerGroup());
+                parseChannelRemoteAddr(ctx.channel()), reqHeader.getConsumerGroup());
             this.mqClientFactory.rebalanceImmediately();
         } catch (Exception e) {
             log.error("notifyConsumerIdsChanged exception", RemotingHelper.exceptionSimpleDesc(e));
@@ -150,9 +154,15 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return null;
     }
 
+    /**
+     * 重置客户端的offset，这里的逻辑有客户端本身操作
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     public RemotingCommand resetOffset(ChannelHandlerContext ctx, RemotingCommand request) throws RemotingCommandException {
-        final ResetOffsetRequestHeader requestHeader =
-            (ResetOffsetRequestHeader) request.decodeCommandCustomHeader(ResetOffsetRequestHeader.class);
+        final ResetOffsetRequestHeader requestHeader = (ResetOffsetRequestHeader) request.decodeCommandCustomHeader(ResetOffsetRequestHeader.class);
         log.info("invoke reset offset operation from broker. brokerAddr={}, topic={}, group={}, timestamp={}",
             parseChannelRemoteAddr(ctx.channel()), requestHeader.getTopic(), requestHeader.getGroup(),
             requestHeader.getTimestamp());

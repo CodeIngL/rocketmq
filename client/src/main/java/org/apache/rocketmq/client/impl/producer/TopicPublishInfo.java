@@ -25,10 +25,13 @@ import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
 public class TopicPublishInfo {
 
+    //是否有序
     private boolean orderTopic = false;
 
+    //是否存在topicRoute信息，其中topicRoute信息是一个包含很多元信息的数据
     private boolean haveTopicRouterInfo = false;
 
+    //对应的消息队列
     private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
 
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();

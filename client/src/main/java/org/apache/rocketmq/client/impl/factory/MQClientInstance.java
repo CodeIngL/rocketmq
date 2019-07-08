@@ -84,8 +84,9 @@ import static org.apache.rocketmq.common.protocol.heartbeat.ConsumeType.CONSUME_
 import static org.apache.rocketmq.remoting.common.RemotingHelper.exceptionSimpleDesc;
 
 /**
- * 代表了网络端点中的客户端，因此这个广泛存在于mq消费端，mq生产端，mq代理
- * 网络交互，mq消费端<->mq代理，mq代理<->mq生产端
+ * 代表了网络端点中的mqbroker对应客户端，因此这个广泛存在于mq消费端，mq生产端
+ * 因此这里主要包括了producer，consumer，还有一个我们以管理者的身份操作，也就是admin
+ *
  */
 public class MQClientInstance {
     private final static long LOCK_TIMEOUT_MILLIS = 3000;
@@ -120,16 +121,14 @@ public class MQClientInstance {
     private final Lock lockNamesrv = new ReentrantLock();
     //心跳锁，当多个心跳时候，我们使用同步
     private final Lock lockHeartbeat = new ReentrantLock();
-    private final ConcurrentMap<String/* Broker Name */, HashMap<Long/* brokerId */, String/* address */>> brokerAddrTable =
-        new ConcurrentHashMap<String, HashMap<Long, String>>();
-    private final ConcurrentMap<String/* Broker Name */, HashMap<String/* address */, Integer>> brokerVersionTable =
-        new ConcurrentHashMap<String, HashMap<String, Integer>>();
-    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-            return new Thread(r, "MQClientFactoryScheduledThread");
-        }
-    });
+
+
+    private final ConcurrentMap<String/* Broker Name */, HashMap<Long/* brokerId */, String/* address */>> brokerAddrTable = new ConcurrentHashMap<String, HashMap<Long, String>>();
+    private final ConcurrentMap<String/* Broker Name */, HashMap<String/* address */, Integer>> brokerVersionTable = new ConcurrentHashMap<String, HashMap<String, Integer>>();
+
+    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(r -> new Thread(r, "MQClientFactoryScheduledThread"));
+
+    //处理broker对客户端的请求
     private final ClientRemotingProcessor clientRemotingProcessor;
     //拉取消息服务
     private final PullMessageService pullMessageService;
@@ -198,6 +197,7 @@ public class MQClientInstance {
 
         String orderTopicConf = route.getOrderTopicConf(); //解析顺序配置
         if (orderTopicConf != null && orderTopicConf.length() > 0) {
+            //xxx:9;xxxxx:10
             String[] brokers = orderTopicConf.split(";"); //相关的broker
             for (String broker : brokers) {
                 String[] item = broker.split(":"); //该broker上的项
@@ -675,10 +675,11 @@ public class MQClientInstance {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
-                    if (isDefault && defaultMQProducer != null) { //存在后面的两个选项
+                    if (isDefault && defaultMQProducer != null) { //存在后面的两个选项，使用默认的topickey // TBW102
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(), 1000 * 3);
                         if (topicRouteData != null) {
                             for (QueueData data : topicRouteData.getQueueDatas()) {
+                                //使用本地默认数量和远程数据的数量进行比较，选取其中小的
                                 int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums()); //4和设定值中选取小的
                                 data.setReadQueueNums(queueNums);
                                 data.setWriteQueueNums(queueNums);
@@ -1063,6 +1064,9 @@ public class MQClientInstance {
         this.adminExtTable.remove(group);
     }
 
+    /**
+     * 唤醒正处于睡眠的负载均衡服务
+     */
     public void rebalanceImmediately() {
         this.rebalanceService.wakeup();
     }
