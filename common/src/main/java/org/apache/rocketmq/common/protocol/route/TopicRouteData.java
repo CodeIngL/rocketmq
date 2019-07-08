@@ -39,14 +39,14 @@ public class TopicRouteData extends RemotingSerializable {
     //broker信息
     private List<BrokerData> brokerDatas;
 
-    //filterserver的信息
+    //filterserver的信息，broker地址和支持filteServer服务，带废弃
     private HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 
     public TopicRouteData cloneTopicRouteData() {
         TopicRouteData topicRouteData = new TopicRouteData();
-        topicRouteData.setQueueDatas(new ArrayList<QueueData>());
-        topicRouteData.setBrokerDatas(new ArrayList<BrokerData>());
-        topicRouteData.setFilterServerTable(new HashMap<String, List<String>>());
+        topicRouteData.setQueueDatas(new ArrayList<>());
+        topicRouteData.setBrokerDatas(new ArrayList<>());
+        topicRouteData.setFilterServerTable(new HashMap<>());
         topicRouteData.setOrderTopicConf(this.orderTopicConf);
 
         if (this.queueDatas != null) {
