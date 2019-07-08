@@ -65,15 +65,14 @@ public class UpdateTopicPermSubCommand implements SubCommand {
     }
 
     @Override
-    public void execute(final CommandLine commandLine, final Options options,
-        RPCHook rpcHook) throws SubCommandException {
+    public void execute(final CommandLine cmd, final Options options, RPCHook rpcHook) throws SubCommandException {
         DefaultMQAdminExt defaultMQAdminExt = new DefaultMQAdminExt(rpcHook);
         defaultMQAdminExt.setInstanceName(Long.toString(System.currentTimeMillis()));
         try {
             defaultMQAdminExt.start();
             TopicConfig topicConfig = new TopicConfig();
 
-            String topic = commandLine.getOptionValue('t').trim();
+            String topic = cmd.getOptionValue('t').trim();
             TopicRouteData topicRouteData = defaultMQAdminExt.examineTopicRouteInfo(topic);
             assert topicRouteData != null;
             List<QueueData> queueDatas = topicRouteData.getQueueDatas();
@@ -87,21 +86,21 @@ public class UpdateTopicPermSubCommand implements SubCommand {
             topicConfig.setTopicSysFlag(queueData.getTopicSynFlag());
 
             //new perm
-            int perm = Integer.parseInt(commandLine.getOptionValue('p').trim());
+            int perm = Integer.parseInt(cmd.getOptionValue('p').trim());
             int oldPerm = topicConfig.getPerm();
             if (perm == oldPerm) {
                 System.out.printf("new perm equals to the old one!%n");
                 return;
             }
             topicConfig.setPerm(perm);
-            if (commandLine.hasOption('b')) {
-                String addr = commandLine.getOptionValue('b').trim();
+            if (cmd.hasOption('b')) {
+                String addr = cmd.getOptionValue('b').trim();
                 defaultMQAdminExt.createAndUpdateTopicConfig(addr, topicConfig);
                 System.out.printf("update topic perm from %s to %s in %s success.%n", oldPerm, perm, addr);
                 System.out.printf("%s%n", topicConfig);
                 return;
-            } else if (commandLine.hasOption('c')) {
-                String clusterName = commandLine.getOptionValue('c').trim();
+            } else if (cmd.hasOption('c')) {
+                String clusterName = cmd.getOptionValue('c').trim();
                 Set<String> masterSet =
                     CommandUtil.fetchMasterAddrByClusterName(defaultMQAdminExt, clusterName);
                 for (String addr : masterSet) {

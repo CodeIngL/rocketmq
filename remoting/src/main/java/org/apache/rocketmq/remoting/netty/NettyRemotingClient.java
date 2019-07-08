@@ -83,7 +83,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
     private final Timer timer = new Timer("ClientHouseKeepingService", true);
 
+    //nameServer地址
     private final AtomicReference<List<String>> namesrvAddrList = new AtomicReference<List<String>>();
+    //当前被选择namser地址
     private final AtomicReference<String> namesrvAddrChoosed = new AtomicReference<String>();
     private final AtomicInteger namesrvIndex = new AtomicInteger(initValueIndex());
     private final Lock lockNamesrvChannel = new ReentrantLock();
@@ -337,6 +339,10 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 更新nameServer的地址
+     * @param addrs
+     */
     @Override
     public void updateNameServerAddressList(List<String> addrs) {
         List<String> old = this.namesrvAddrList.get();
@@ -387,9 +393,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 if (timeoutMillis < costTime) {
                     throw new RemotingTimeoutException("invokeSync call timeout");
                 }
-                RemotingCommand response = this.invokeSyncImpl(channel, req, timeoutMillis - costTime);
-                doAfterRpcHooks(parseChannelRemoteAddr(channel), req, response);
-                return response;
+                RemotingCommand resp = this.invokeSyncImpl(channel, req, timeoutMillis - costTime);
+                doAfterRpcHooks(parseChannelRemoteAddr(channel), req, resp);
+                return resp;
             } catch (RemotingSendRequestException e) {
                 log.warn("invokeSync: send request exception, so close the channel[{}]", addr);
                 this.closeChannel(addr, channel);
@@ -410,6 +416,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
     /**
      * 获得地址对应的网络channel
+     * addr 为空，默认是构建、nameServer，否则是构建对应地的网络客户端
      * @param addr
      * @return
      * @throws InterruptedException
@@ -437,6 +444,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             }
         }
 
+        //nameserver列表
         final List<String> addrList = this.namesrvAddrList.get();
         if (this.lockNamesrvChannel.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
             try {
@@ -448,8 +456,10 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                     }
                 }
 
+                //遍历所有的地址，选择一个可用地址就直接返回。
                 if (addrList != null && !addrList.isEmpty()) {
                     for (int i = 0; i < addrList.size(); i++) {
+                        //序列
                         int index = this.namesrvIndex.incrementAndGet();
                         index = Math.abs(index);
                         index = index % addrList.size();
@@ -476,7 +486,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     }
 
     /**
-     * 构建channel
+     * 构建channel，并存储在本地内存中
      * @param addr
      * @return
      * @throws InterruptedException

@@ -124,8 +124,7 @@ public class MQAdminStartup {
                         String[] subargs = parseSubArgs(args);
 
                         Options options = ServerUtil.buildCommandlineOptions(new Options());
-                        final CommandLine commandLine =
-                            ServerUtil.parseCmdLine("mqadmin " + cmd.commandName(), subargs, cmd.buildCommandlineOptions(options),
+                        final CommandLine commandLine = ServerUtil.parseCmdLine("mqadmin " + cmd.commandName(), subargs, cmd.buildCommandlineOptions(options),
                                 new PosixParser());
                         if (null == commandLine) {
                             return;
