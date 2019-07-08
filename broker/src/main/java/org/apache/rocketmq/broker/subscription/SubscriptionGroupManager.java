@@ -125,7 +125,7 @@ public class SubscriptionGroupManager extends ConfigManager {
     }
 
     /**
-     * 查找消费组对应的订阅组
+     * 查找消费组对应的订阅组，如果broker支持自动穿件订阅组，或者是系统，我们不需要通过手动的去创建，就能构建其中的配置
      * @param group
      * @return
      */
@@ -134,6 +134,7 @@ public class SubscriptionGroupManager extends ConfigManager {
         if (config != null){
             return config;
         }
+        //线上，请关闭这个自动创建的选项，我们通过手动的方式去创建
         if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || isSysConsumerGroup(group)) { //自动创建订阅组或者是一个系统组，我们构建一个
             config = new SubscriptionGroupConfig();
             config.setGroupName(group);

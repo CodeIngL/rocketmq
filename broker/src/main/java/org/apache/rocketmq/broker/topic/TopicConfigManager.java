@@ -49,8 +49,7 @@ public class TopicConfigManager extends ConfigManager {
     private static final long LOCK_TIMEOUT_MILLIS = 3000;
     private transient final Lock lockTopicConfigTable = new ReentrantLock();
 
-    private final ConcurrentMap<String, TopicConfig> topicConfigTable =
-        new ConcurrentHashMap<String, TopicConfig>(1024);
+    private final ConcurrentMap<String, TopicConfig> topicConfigTable = new ConcurrentHashMap<String, TopicConfig>(1024);
     private final DataVersion dataVersion = new DataVersion();
     private final Set<String> systemTopicList = new HashSet<String>();
     private transient BrokerController brokerController;
@@ -64,6 +63,7 @@ public class TopicConfigManager extends ConfigManager {
      */
     public TopicConfigManager(BrokerController brokerController) {
         this.brokerController = brokerController;
+        //内部topic
         {
             // MixAll.SELF_TEST_TOPIC
             String topic = MixAll.SELF_TEST_TOPIC;
@@ -73,6 +73,7 @@ public class TopicConfigManager extends ConfigManager {
             topicConfig.setWriteQueueNums(1);
             this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
         }
+        //内部topic，需要自动支持
         {
             // MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC
             if (this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) { //支持自动创建topic，我们在toppic内存表中，存放了一个特殊的topic
@@ -86,6 +87,7 @@ public class TopicConfigManager extends ConfigManager {
                 this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
             }
         }
+        //内部topic
         {
             // MixAll.BENCHMARK_TOPIC
             String topic = MixAll.BENCHMARK_TOPIC;
@@ -95,6 +97,7 @@ public class TopicConfigManager extends ConfigManager {
             topicConfig.setWriteQueueNums(1024);
             this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
         }
+        //内部topic
         {
 
             String topic = this.brokerController.getBrokerConfig().getBrokerClusterName();
@@ -107,6 +110,7 @@ public class TopicConfigManager extends ConfigManager {
             topicConfig.setPerm(perm);
             this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
         }
+        //内部topic,broker名字
         {
 
             String topic = this.brokerController.getBrokerConfig().getBrokerName();
@@ -121,6 +125,7 @@ public class TopicConfigManager extends ConfigManager {
             topicConfig.setPerm(perm);
             this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
         }
+        //内部消息移动
         {
             // MixAll.OFFSET_MOVED_EVENT
             String topic = MixAll.OFFSET_MOVED_EVENT;
@@ -130,6 +135,7 @@ public class TopicConfigManager extends ConfigManager {
             topicConfig.setWriteQueueNums(1);
             this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
         }
+        //开启消息追踪
         {
             if (this.brokerController.getBrokerConfig().isTraceTopicEnable()) {
                 String topic = this.brokerController.getBrokerConfig().getMsgTraceTopicName();
@@ -163,22 +169,35 @@ public class TopicConfigManager extends ConfigManager {
         return this.topicConfigTable.get(topic);
     }
 
+    /**
+     * 构建topic，在处理发送的消息中。
+     * @param topic
+     * @param defaultTopic
+     * @param remoteAddress
+     * @param clientDefaultTopicQueueNums
+     * @param topicSysFlag
+     * @return
+     */
     public TopicConfig createTopicInSendMessageMethod(final String topic, final String defaultTopic,
         final String remoteAddress, final int clientDefaultTopicQueueNums, final int topicSysFlag) {
+
+
         TopicConfig topicConfig = null;
         boolean createNew = false;
 
         try {
             if (this.lockTopicConfigTable.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
+                    //存在topic配置，直接返回
                     topicConfig = this.topicConfigTable.get(topic);
                     if (topicConfig != null)
                         return topicConfig;
 
+                    //存在默认的topic配置，直接返回
                     TopicConfig defaultTopicConfig = this.topicConfigTable.get(defaultTopic);
                     if (defaultTopicConfig != null) {
-                        if (defaultTopic.equals(MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC)) {
-                            if (!this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) {
+                        if (defaultTopic.equals(MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC)) { //是自动创建的那个
+                            if (!this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) { //需要检查一下是否允许
                                 defaultTopicConfig.setPerm(PERM_READ | PERM_WRITE);
                             }
                         }

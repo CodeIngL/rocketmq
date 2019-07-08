@@ -116,7 +116,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         //获得拉取消息请求的头部
         final PullMessageRequestHeader reqHeader = (PullMessageRequestHeader) req.decodeCommandCustomHeader(PullMessageRequestHeader.class);
 
-        //设置特征值
+        //设置特征值,请求
         resp.setOpaque(req.getOpaque());
 
         log.debug("receive PullMessage request command, {}", req);
@@ -154,11 +154,11 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         SubscriptionData subscriptionData;
         //消息过滤的数据
         ConsumerFilterData consumerFilterData = null;
-        if (hasSubscriptionFlag) { //存在订阅标记
+        if (hasSubscriptionFlag) { //存在订阅标记，请求中带着相关订阅数据，我们从中华解析即可
             try {
                 subscriptionData = build(topic, subscription, expressionType); //构建订阅的数据
-                if (!isTagType(subscriptionData.getExpressionType())) { //是sql92类型的，或者其他的类型
-                    //构建消费过滤数据
+                if (!isTagType(subscriptionData.getExpressionType())) { //是sql92类型的，或者其他的类型，tag不需要，因为tag是默认支持的
+                    //订阅的相关数据，可以构建我们过滤消息的核心数据
                     consumerFilterData = ConsumerFilterManager.build(topic, consumerGroup, subscription, expressionType, subVersion);
                     assert consumerFilterData != null;
                 }
@@ -200,6 +200,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 return resp;
             }
             if (!isTagType(subscriptionData.getExpressionType())) { //不是tag订阅，同理我们要获得相关消费过滤数据，如果不存在，则会报错，前面我们知道，如果是存在订阅标记，我们是通过构建处理
+                //没有订阅数据是非法的，我们不使用远程请求而是使用broker内部存储相关的数据，我们需要获得有订阅数据构成消费过滤数据信息
                 consumerFilterData = this.brokerController.getConsumerFilterManager().get(topic, consumerGroup);
                 if (consumerFilterData == null) {
                     resp.setCode(FILTER_DATA_NOT_EXIST);
@@ -398,8 +399,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
                     if (brokerAllowSuspend && hasSuspendFlag) { //broker支持挂起的请求，并且请求明确指出这是一个可以被挂起的请求
                         long pollingTimeMills = suspendTimeoutMillisLong;
-                        if (!brokerConfig.isLongPollingEnable()) {
-                            pollingTimeMills = brokerConfig.getShortPollingTimeMills();
+                        if (!brokerConfig.isLongPollingEnable()) {//broker支持长轮训
+                            pollingTimeMills = brokerConfig.getShortPollingTimeMills(); //设置的短轮训
                         }
 
                         long offset = reqHeader.getQueueOffset();
@@ -424,10 +425,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                         event.setOffsetRequest(reqHeader.getQueueOffset());
                         event.setOffsetNew(result.getNextBeginOffset());
                         this.generateOffsetMovedEvent(event);
-                        log.warn(
-                            "PULL_OFFSET_MOVED:correction offset. topic={}, groupId={}, requestOffset={}, newOffset={}, suggestBrokerId={}",
-                            topic, consumerGroup, event.getOffsetRequest(), event.getOffsetNew(),
-                            respHeader.getSuggestWhichBrokerId());
+                        log.warn("PULL_OFFSET_MOVED:correction offset. topic={}, groupId={}, requestOffset={}, newOffset={}, suggestBrokerId={}",
+                            topic, consumerGroup, event.getOffsetRequest(), event.getOffsetNew(), respHeader.getSuggestWhichBrokerId());
                     } else {
                         respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getBrokerId());
                         resp.setCode(PULL_RETRY_IMMEDIATELY);
@@ -554,6 +553,10 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         return byteBuffer.array();
     }
 
+    /**
+     * 生成offset移动事件
+     * @param event
+     */
     private void generateOffsetMovedEvent(final OffsetMovedEvent event) {
         try {
             MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
@@ -574,7 +577,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
             msgInner.setReconsumeTimes(0);
 
-            PutMessageResult putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
+            this.brokerController.getMessageStore().putMessage(msgInner);
         } catch (Exception e) {
             log.warn(String.format("generateOffsetMovedEvent Exception, %s", event.toString()), e);
         }

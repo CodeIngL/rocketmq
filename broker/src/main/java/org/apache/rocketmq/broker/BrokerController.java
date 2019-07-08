@@ -324,6 +324,7 @@ public class BrokerController {
             NettyServerConfig fastConfig = (NettyServerConfig) this.nettyServerConfig.clone();
             fastConfig.setListenPort(nettyServerConfig.getListenPort() - 2);
             this.fastRemotingServer = new NettyRemotingServer(fastConfig, this.clientHousekeepingService);
+            //处理消息发送
             this.sendMessageExecutor = new BrokerFixedThreadPoolExecutor(
                 this.brokerConfig.getSendMessageThreadPoolNums(),
                 this.brokerConfig.getSendMessageThreadPoolNums(),
@@ -332,6 +333,7 @@ public class BrokerController {
                 this.sendThreadPoolQueue,
                 new ThreadFactoryImpl("SendMessageThread_"));
 
+            //处理消息拉取
             this.pullMessageExecutor = new BrokerFixedThreadPoolExecutor(
                 this.brokerConfig.getPullMessageThreadPoolNums(),
                 this.brokerConfig.getPullMessageThreadPoolNums(),
@@ -340,6 +342,7 @@ public class BrokerController {
                 this.pullThreadPoolQueue,
                 new ThreadFactoryImpl("PullMessageThread_"));
 
+            //处理消息查询
             this.queryMessageExecutor = new BrokerFixedThreadPoolExecutor(
                 this.brokerConfig.getQueryMessageThreadPoolNums(),
                 this.brokerConfig.getQueryMessageThreadPoolNums(),
@@ -348,10 +351,12 @@ public class BrokerController {
                 this.queryThreadPoolQueue,
                 new ThreadFactoryImpl("QueryMessageThread_"));
 
+            //处理消息管理
             this.adminBrokerExecutor = newFixedThreadPool(
                     this.brokerConfig.getAdminBrokerThreadPoolNums(),
                     new ThreadFactoryImpl("AdminBrokerThread_"));
 
+            //处理客户端管理
             this.clientManageExecutor = new ThreadPoolExecutor(
                 this.brokerConfig.getClientManageThreadPoolNums(),
                 this.brokerConfig.getClientManageThreadPoolNums(),
@@ -360,6 +365,7 @@ public class BrokerController {
                 this.clientManagerThreadPoolQueue,
                 new ThreadFactoryImpl("ClientManageThread_"));
 
+            //处理心跳
             this.heartbeatExecutor = new BrokerFixedThreadPoolExecutor(
                 this.brokerConfig.getHeartbeatThreadPoolNums(),
                 this.brokerConfig.getHeartbeatThreadPoolNums(),
@@ -368,6 +374,7 @@ public class BrokerController {
                 this.heartbeatThreadPoolQueue,
                 new ThreadFactoryImpl("HeartbeatThread_", true));
 
+            //结束事务处理
             this.endTransactionExecutor = new BrokerFixedThreadPoolExecutor(
                 this.brokerConfig.getEndTransactionThreadPoolNums(),
                 this.brokerConfig.getEndTransactionThreadPoolNums(),
@@ -376,14 +383,17 @@ public class BrokerController {
                 this.endTransactionThreadPoolQueue,
                 new ThreadFactoryImpl("EndTransactionThread_"));
 
+            //处理消费管理
             this.consumerManageExecutor = newFixedThreadPool(
                     this.brokerConfig.getConsumerManageThreadPoolNums(),
                     new ThreadFactoryImpl("ConsumerManageThread_"));
 
+            //注册所有处理器
             this.registerProcessor();
 
             final long initialDelay = UtilAll.computNextMorningTimeMillis() - System.currentTimeMillis();
             final long period = 1000 * 60 * 60 * 24;
+            //调度服务，记录broker状态
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.getBrokerStats().record();
@@ -392,6 +402,7 @@ public class BrokerController {
                 }
             }, initialDelay, period, TimeUnit.MILLISECONDS);
 
+            //调度服务持久化消费者消费进度
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.consumerOffsetManager.persist();
@@ -400,6 +411,7 @@ public class BrokerController {
                 }
             }, 1000 * 10, this.brokerConfig.getFlushConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
+            //调度服务持久化消费者过滤数据
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.consumerFilterManager.persist();
@@ -408,6 +420,7 @@ public class BrokerController {
                 }
             }, 1000 * 10, 1000 * 10, TimeUnit.MILLISECONDS);
 
+            //保护broker
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.protectBroker();
@@ -416,6 +429,7 @@ public class BrokerController {
                 }
             }, 3, 3, TimeUnit.MINUTES);
 
+            //调度服务，打印水位
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.printWaterMark();
@@ -424,6 +438,7 @@ public class BrokerController {
                 }
             }, 10, 1, TimeUnit.SECONDS);
 
+            //f
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     log.info("dispatch behind commit log {} bytes", BrokerController.this.getMessageStore().dispatchBehindBytes());
