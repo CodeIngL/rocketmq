@@ -638,7 +638,7 @@ public class DefaultMessageStore implements MessageStore {
                         int i = 0;
                         //最大过滤量
                         final int maxFilterMessageCount = Math.max(16000, maxMsgNums * ConsumeQueue.CQ_STORE_UNIT_SIZE);
-                        //
+                        //磁盘满了记录标记
                         final boolean diskFallRecorded = this.messageStoreConfig.isDiskFallRecorded();
 
                         //扩展属性
@@ -667,6 +667,8 @@ public class DefaultMessageStore implements MessageStore {
                                 break;
                             }
 
+                            //可能的扩展属性操作
+
                             boolean extRet = false, isTagsCodeLegal = true;
                             if (cq.isExtAddr(tagsCode)) { //是的地址
                                 extRet = cq.getExt(tagsCode, cqExtUnit);
@@ -694,7 +696,6 @@ public class DefaultMessageStore implements MessageStore {
                                 if (result.getBufferTotalSize() == 0) {
                                     status = MESSAGE_WAS_REMOVING;
                                 }
-
                                 nextPhyFileStartOffset = this.commitLog.rollNextFile(offsetPy);
                                 continue;
                             }
@@ -1251,7 +1252,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * 找到topic-queueId对应消费队列
+     * 找到topic-queueId对应消费队列，不存在我讲构建一个，当我们支持扩展属性，我们将同时使用扩展的enableConsumeQueueExt
      * @param topic
      * @param queueId
      * @return
@@ -1324,28 +1325,28 @@ public class DefaultMessageStore implements MessageStore {
      */
     private boolean isTheBatchFull(int sizePy, int maxMsgNums, int bufferTotal, int messageTotal, boolean isInDisk) {
 
-        if (0 == bufferTotal || 0 == messageTotal) {
+        if (0 == bufferTotal || 0 == messageTotal) { //数量还是0直接返回，没满
             return false;
         }
 
-        if (maxMsgNums <= messageTotal) {
+        if (maxMsgNums <= messageTotal) { //最大消息量少于总共消息量，足够，返回true
             return true;
         }
 
-        if (isInDisk) {
-            if ((bufferTotal + sizePy) > this.messageStoreConfig.getMaxTransferBytesOnMessageInDisk()) {
+        if (isInDisk) { //磁盘
+            if ((bufferTotal + sizePy) > this.messageStoreConfig.getMaxTransferBytesOnMessageInDisk()) {//容量大于阈值，
                 return true;
             }
 
-            if (messageTotal > this.messageStoreConfig.getMaxTransferCountOnMessageInDisk() - 1) {
+            if (messageTotal > this.messageStoreConfig.getMaxTransferCountOnMessageInDisk() - 1) { //数量大于阈值
                 return true;
             }
         } else {
-            if ((bufferTotal + sizePy) > this.messageStoreConfig.getMaxTransferBytesOnMessageInMemory()) {
+            if ((bufferTotal + sizePy) > this.messageStoreConfig.getMaxTransferBytesOnMessageInMemory()) { //容量大于内存阈值
                 return true;
             }
 
-            if (messageTotal > this.messageStoreConfig.getMaxTransferCountOnMessageInMemory() - 1) {
+            if (messageTotal > this.messageStoreConfig.getMaxTransferCountOnMessageInMemory() - 1) { //数量大于内存阈值
                 return true;
             }
         }

@@ -79,9 +79,7 @@ public class ConsumeQueue {
         this.byteBufferIndex = ByteBuffer.allocate(CQ_STORE_UNIT_SIZE);
 
         if (defaultMessageStore.getMessageStoreConfig().isEnableConsumeQueueExt()) { //开启扩展
-            this.consumeQueueExt = new ConsumeQueueExt(
-                topic,
-                queueId,
+            this.consumeQueueExt = new ConsumeQueueExt(topic, queueId,
                 StorePathConfigHelper.getStorePathConsumeQueueExt(defaultMessageStore.getMessageStoreConfig().getStorePathRootDir()),
                 defaultMessageStore.getMessageStoreConfig().getMappedFileSizeConsumeQueueExt(),
                 defaultMessageStore.getMessageStoreConfig().getBitMapLengthConsumeQueueExt()
