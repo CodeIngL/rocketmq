@@ -20,6 +20,10 @@
  */
 package org.apache.rocketmq.common.protocol.heartbeat;
 
+/**
+ * 消费方式类型
+ * push或者pull
+ */
 public enum ConsumeType {
 
     CONSUME_ACTIVELY("PULL"),
