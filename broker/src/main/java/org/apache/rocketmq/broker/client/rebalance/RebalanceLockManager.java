@@ -35,8 +35,8 @@ public class RebalanceLockManager {
     private final static long REBALANCE_LOCK_MAX_LIVE_TIME = Long.parseLong(System.getProperty("rocketmq.broker.rebalance.lockMaxLiveTime", "60000")); //锁定时间最多60s
     //锁定
     private final Lock lock = new ReentrantLock();
-    private final ConcurrentMap<String/* group */, ConcurrentHashMap<MessageQueue, LockEntry>> mqLockTable =
-        new ConcurrentHashMap<String, ConcurrentHashMap<MessageQueue, LockEntry>>(1024);
+    //消费组和对应锁的信息
+    private final ConcurrentMap<String/* group */, ConcurrentHashMap<MessageQueue, LockEntry>> mqLockTable = new ConcurrentHashMap<String, ConcurrentHashMap<MessageQueue, LockEntry>>(1024);
 
     public boolean tryLock(final String group, final MessageQueue mq, final String clientId) {
 
@@ -102,9 +102,9 @@ public class RebalanceLockManager {
 
     /**
      * 是否已经被锁了
-     * @param group
-     * @param mq
-     * @param clientId
+     * @param group 消息组
+     * @param mq 消息队列
+     * @param clientId 客户端id
      * @return
      */
     private boolean isLocked(final String group, final MessageQueue mq, final String clientId) {
@@ -116,7 +116,6 @@ public class RebalanceLockManager {
                 if (locked) {
                     lockEntry.setLastUpdateTimestamp(System.currentTimeMillis()); //更新一下时间
                 }
-
                 return locked;
             }
         }
@@ -126,9 +125,9 @@ public class RebalanceLockManager {
 
     /**
      * 尝试上锁
-     * @param group
-     * @param mqs
-     * @param clientId
+     * @param group 消费组
+     * @param mqs 想要上锁消息队列
+     * @param clientId 发起锁定的客户端
      * @return
      */
     public Set<MessageQueue> tryLockBatch(final String group, final Set<MessageQueue> mqs,

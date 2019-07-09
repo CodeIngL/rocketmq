@@ -34,6 +34,8 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
 /**
  * 消费组信息
+ * 位于内存中
+ * 包括在该消费组下，消费端对不同topic的订阅关系。
  */
 public class ConsumerGroupInfo {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
