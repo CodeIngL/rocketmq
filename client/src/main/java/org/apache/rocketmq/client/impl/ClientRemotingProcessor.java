@@ -69,8 +69,7 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
      * @throws RemotingCommandException
      */
     @Override
-    public RemotingCommand processRequest(ChannelHandlerContext ctx,
-        RemotingCommand req) throws RemotingCommandException {
+    public RemotingCommand processRequest(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         switch (req.getCode()) {
             case CHECK_TRANSACTION_STATE: //校验事务状态，由broker进行对客户端的回查
                 return this.checkTransactionState(ctx, req);

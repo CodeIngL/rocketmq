@@ -457,7 +457,6 @@ public class MQClientAPIImpl {
         this.remotingClient.invokeAsync(addr, req, timeoutMillis, respFuture -> {
             RemotingCommand resp = respFuture.getResponseCommand();
             if (null == sendCallback && resp != null) {
-
                 try {
                     SendResult result = MQClientAPIImpl.this.processSendResponse(brokerName, msg, resp);
                     if (context != null && result != null) {
@@ -954,7 +953,7 @@ public class MQClientAPIImpl {
     /**
      * 推荐远程offset的更新
      * @param addr
-     * @param requestHeader
+     * @param reqHeader
      * @param timeoutMillis
      * @throws RemotingException
      * @throws MQBrokerException
@@ -962,10 +961,10 @@ public class MQClientAPIImpl {
      */
     public void updateConsumerOffset(
         final String addr,
-        final UpdateConsumerOffsetRequestHeader requestHeader,
+        final UpdateConsumerOffsetRequestHeader reqHeader,
         final long timeoutMillis
     ) throws RemotingException, MQBrokerException, InterruptedException {
-        RemotingCommand req = createRequestCommand(UPDATE_CONSUMER_OFFSET, requestHeader);
+        RemotingCommand req = createRequestCommand(UPDATE_CONSUMER_OFFSET, reqHeader);
 
         RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), req, timeoutMillis);
         assert resp != null;
@@ -991,8 +990,7 @@ public class MQClientAPIImpl {
         this.remotingClient.invokeOneway(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
     }
 
-    public int sendHearbeat(final String addr, final HeartbeatData heartbeatData, final long timeoutMillis
-    ) throws RemotingException, MQBrokerException, InterruptedException {
+    public int sendHearbeat(final String addr, final HeartbeatData heartbeatData, final long timeoutMillis) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand req = createRequestCommand(RequestCode.HEART_BEAT, null);
         req.setLanguage(clientConfig.getLanguage());
         req.setBody(heartbeatData.encode());

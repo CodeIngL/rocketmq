@@ -124,12 +124,16 @@ public abstract class RebalanceImpl {
         }
     }
 
+    /**
+     * 构建brokerName和对应的相关的消息队列集合的映射
+     * @return
+     */
     private HashMap<String/* brokerName */, Set<MessageQueue>> buildProcessQueueTableByBrokerName() {
         HashMap<String, Set<MessageQueue>> result = new HashMap<String, Set<MessageQueue>>();
         for (MessageQueue mq : this.processQueueTable.keySet()) {
             Set<MessageQueue> mqs = result.get(mq.getBrokerName());
             if (null == mqs) {
-                mqs = new HashSet<MessageQueue>();
+                mqs = new HashSet<>();
                 result.put(mq.getBrokerName(), mqs);
             }
 
@@ -178,49 +182,54 @@ public abstract class RebalanceImpl {
     public void lockAll() {
         HashMap<String, Set<MessageQueue>> brokerMqs = this.buildProcessQueueTableByBrokerName();
 
-        Iterator<Entry<String, Set<MessageQueue>>> it = brokerMqs.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, Set<MessageQueue>> entry = it.next();
+        for (Entry<String, Set<MessageQueue>> entry : brokerMqs.entrySet()) {
+            //名字
             final String brokerName = entry.getKey();
+            //mqs
             final Set<MessageQueue> mqs = entry.getValue();
 
             if (mqs.isEmpty())
                 continue;
 
+            //查找对应的broker
             FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(brokerName, MixAll.MASTER_ID, true);
-            if (findBrokerResult != null) {
-                LockBatchRequestBody requestBody = new LockBatchRequestBody();
-                requestBody.setConsumerGroup(this.consumerGroup);
-                requestBody.setClientId(this.mQClientFactory.getClientId());
-                requestBody.setMqSet(mqs);
+            if (findBrokerResult == null){
+                continue;
+            }
+            //批量锁定请求
+            LockBatchRequestBody reqBody = new LockBatchRequestBody();
+            reqBody.setConsumerGroup(this.consumerGroup);
+            reqBody.setClientId(this.mQClientFactory.getClientId());
+            reqBody.setMqSet(mqs);
 
-                try {
-                    Set<MessageQueue> lockOKMQSet =
-                        this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
+            try {
+                //让broker锁定指定相关的mq
+                Set<MessageQueue> lockOKMQSet = this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), reqBody, 1000);
 
-                    for (MessageQueue mq : lockOKMQSet) {
+                //遍历后，我们锁定对应的processQueue
+                for (MessageQueue mq : lockOKMQSet) {
+                    ProcessQueue processQueue = this.processQueueTable.get(mq);
+                    if (processQueue != null) {
+                        if (!processQueue.isLocked()) {
+                            log.info("the message queue locked OK, Group: {} {}", this.consumerGroup, mq);
+                        }
+                        processQueue.setLocked(true);
+                        processQueue.setLastLockTimestamp(System.currentTimeMillis());
+                    }
+                }
+
+                //遍历mq，如果broker返回相关，我们遍历，可能有些无法锁定，我们设置并记录
+                for (MessageQueue mq : mqs) {
+                    if (!lockOKMQSet.contains(mq)) {
                         ProcessQueue processQueue = this.processQueueTable.get(mq);
                         if (processQueue != null) {
-                            if (!processQueue.isLocked()) {
-                                log.info("the message queue locked OK, Group: {} {}", this.consumerGroup, mq);
-                            }
-
-                            processQueue.setLocked(true);
-                            processQueue.setLastLockTimestamp(System.currentTimeMillis());
+                            processQueue.setLocked(false);
+                            log.warn("the message queue locked Failed, Group: {} {}", this.consumerGroup, mq);
                         }
                     }
-                    for (MessageQueue mq : mqs) {
-                        if (!lockOKMQSet.contains(mq)) {
-                            ProcessQueue processQueue = this.processQueueTable.get(mq);
-                            if (processQueue != null) {
-                                processQueue.setLocked(false);
-                                log.warn("the message queue locked Failed, Group: {} {}", this.consumerGroup, mq);
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    log.error("lockBatchMQ exception, " + mqs, e);
                 }
+            } catch (Exception e) {
+                log.error("lockBatchMQ exception, " + mqs, e);
             }
         }
     }
