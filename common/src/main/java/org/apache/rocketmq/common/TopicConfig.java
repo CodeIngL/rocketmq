@@ -20,7 +20,10 @@ import org.apache.rocketmq.common.constant.PermName;
 
 /**
  * 配置文件中关于topic部分的配置类model
- * 其中包含了要创建的queue的相关数量
+ * 其中包含了要创建的queue的相关数量,
+ * topic是不支持自动创建的，请注意，我们常常使用的自动创建topic选项，也就是autoCreateTopicEnable,实际上
+ * 对于broker来说，会提前进行创建相关的topic，对于客户端来说，我们在发送消息的时候，进行设置了一个默认的topic
+ * 也就是这个topic：TBW102
  */
 public class TopicConfig {
     private static final String SEPARATOR = " ";

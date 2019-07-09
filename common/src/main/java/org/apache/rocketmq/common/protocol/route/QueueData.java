@@ -23,6 +23,7 @@ package org.apache.rocketmq.common.protocol.route;
 /**
  * 队列数据
  * 在指定的broker上指定能使用的readQueue数量和writeQueue数量
+ * 这个数量通常来自topic本身告诉我们相关消息队列的数量。
  */
 public class QueueData implements Comparable<QueueData> {
     //所属的broker名字

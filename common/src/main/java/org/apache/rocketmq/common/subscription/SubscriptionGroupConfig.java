@@ -20,7 +20,11 @@ package org.apache.rocketmq.common.subscription;
 import org.apache.rocketmq.common.MixAll;
 
 /**
- * 订阅组配置信息
+ * 订阅组配置信息，决定了消费组是否能被消费，是否支持广播，等等其他特性，
+ * 对于broker来说，如果是系统的。我们支持自动创建，如果是用户自定义的消费组，那么
+ * 请遵守，线上，我们请关闭自动创建的选项，也即是broker的autoCreateSubscriptionGroup的选项。
+ * 默认是支持自动创建的
+ * 关注日志: auto create a subscription group, {}
  */
 public class SubscriptionGroupConfig {
 
