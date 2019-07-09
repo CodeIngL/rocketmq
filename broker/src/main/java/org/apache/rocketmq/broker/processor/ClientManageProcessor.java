@@ -91,16 +91,18 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         //客户网络信息
         ClientChannelInfo channelInfo = new ClientChannelInfo(ctx.channel(), heartbeatData.getClientID(), req.getLanguage(), req.getVersion());
 
+        // 处理消息端数据
         for (ConsumerData data : heartbeatData.getConsumerDataSet()) { //处理消费方的数据
-            SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName()); //发现消费组对应订阅数据
-            boolean isNotifyConsumerIdsChangedEnable = true;
-            if (null != subscriptionGroupConfig) {
+            //发现消费组对应订阅的配置
+            SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName());
+            boolean isNotifyConsumerIdsChangedEnable = true; //是否支持回调通知该消费组下面组成的消费者客户端
+            if (null != subscriptionGroupConfig) { //存在配置
                 isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
                 int topicSysFlag = 0;
                 if (data.isUnitMode()) {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 }
-                String newTopic = MixAll.getRetryTopic(data.getGroupName());
+                String newTopic = MixAll.getRetryTopic(data.getGroupName()); //获得一个重试的topic，用于构建消息重发的这个消费端特性的topic
                 this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, subscriptionGroupConfig.getRetryQueueNums(), PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
             }
 
@@ -115,13 +117,11 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             );
 
             if (changed) {
-                log.info("registerConsumer info changed {} {}",
-                    data.toString(),
-                    parseChannelRemoteAddr(ctx.channel())
-                );
+                log.info("registerConsumer info changed {} {}", data.toString(), parseChannelRemoteAddr(ctx.channel()));
             }
         }
 
+        //处理生产端数据
         for (ProducerData data : heartbeatData.getProducerDataSet()) {
             this.brokerController.getProducerManager().registerProducer(data.getGroupName(), channelInfo);
         }

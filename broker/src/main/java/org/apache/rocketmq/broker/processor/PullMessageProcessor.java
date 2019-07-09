@@ -290,12 +290,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
                         // XXX: warn and notify me
                         log.info("the broker store no queue data, fix the request offset {} to {}, Topic: {} QueueId: {} Consumer Group: {}",
-                            reqHeader.getQueueOffset(),
-                            result.getNextBeginOffset(),
-                            topic,
-                            queueId,
-                            consumerGroup
-                        );
+                            reqHeader.getQueueOffset(), result.getNextBeginOffset(), topic, queueId, consumerGroup);
                     } else {
                         resp.setCode(PULL_NOT_FOUND);
                     }

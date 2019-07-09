@@ -485,6 +485,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
             reqBody.getMqSet(),
             reqBody.getClientId());
 
+        //构建结果
         LockBatchResponseBody respBody = new LockBatchResponseBody();
         respBody.setLockOKMQSet(lockOKMQSet);
 
@@ -889,6 +890,13 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    /**
+     * 注册filterServer
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
     private RemotingCommand registerFilterServer(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(RegisterFilterServerResponseHeader.class);
         final RegisterFilterServerResponseHeader respHeader = (RegisterFilterServerResponseHeader) resp.readCustomHeader();
