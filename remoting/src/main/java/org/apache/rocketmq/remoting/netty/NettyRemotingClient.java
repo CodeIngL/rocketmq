@@ -70,7 +70,11 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
 
+/**
+ * 上层统一网络客户端，内部维护了对不同地址的访问，例如nameServer和broker等等
+ */
 public class NettyRemotingClient extends NettyRemotingAbstract implements RemotingClient {
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
 
     private static final long LOCK_TIMEOUT_MILLIS = 3000;
@@ -79,6 +83,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     private final Bootstrap bootstrap = new Bootstrap();
     private final EventLoopGroup eventLoopGroupWorker;
     private final Lock lockChannelTables = new ReentrantLock();
+    //地址和对应相关的channel映射
     private final ConcurrentMap<String /* addr */, ChannelWrapper> channelTables = new ConcurrentHashMap<String, ChannelWrapper>();
 
     private final Timer timer = new Timer("ClientHouseKeepingService", true);
@@ -415,13 +420,14 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     }
 
     /**
-     * 获得地址对应的网络channel
+     * 获得地址对应的网络channel，核心的操作，遍布于各种网络调用之中，我们获得对应地址的channel实现于远程的端点进行交互
      * addr 为空，默认是构建、nameServer，否则是构建对应地的网络客户端
-     * @param addr
-     * @return
+     * @param addr 地址
+     * @return 支持交互的channel
      * @throws InterruptedException
      */
     private Channel getAndCreateChannel(final String addr) throws InterruptedException {
+        //地址为空，则是获得对应nameServer
         if (null == addr) {
             return getAndCreateNameserverChannel();
         }
@@ -435,6 +441,11 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         return this.createChannel(addr);
     }
 
+    /**
+     * 获得nameserver对应的channel，如果不存在，我们使用随机构建一个进行获得
+     * @return
+     * @throws InterruptedException
+     */
     private Channel getAndCreateNameserverChannel() throws InterruptedException {
         String addr = this.namesrvAddrChoosed.get();
         if (addr != null) {
@@ -486,7 +497,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     }
 
     /**
-     * 构建channel，并存储在本地内存中
+     * 构建channel，并存储在本地内存注册表中
      * @param addr
      * @return
      * @throws InterruptedException
@@ -505,7 +516,6 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 boolean createNewConnection;
                 cw = this.channelTables.get(addr);
                 if (cw != null) {
-
                     if (cw.isOK()) {
                         cw.getChannel().close();
                         this.channelTables.remove(addr);
@@ -569,7 +579,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     @Override
     public void invokeAsync(String addr, RemotingCommand req, long timeoutMillis, InvokeCallback invokeCallback)
         throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException {
+        //开始时间
         long beginStartTime = System.currentTimeMillis();
+        //获得地址对应channel，如果不存在，我们使用相关地址构建对对端的网络连接
         final Channel channel = this.getAndCreateChannel(addr);
         if (channel != null && channel.isActive()) {
             try {
@@ -650,7 +662,11 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         this.callbackExecutor = callbackExecutor;
     }
 
+    /**
+     * channel的wrapper
+     */
     static class ChannelWrapper {
+
         private final ChannelFuture channelFuture;
 
         public ChannelWrapper(ChannelFuture channelFuture) {

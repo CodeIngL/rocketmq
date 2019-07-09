@@ -24,12 +24,21 @@ import org.apache.rocketmq.remoting.InvokeCallback;
 import org.apache.rocketmq.remoting.common.SemaphoreReleaseOnlyOnce;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * 响应结果，使用请求id来维护，这个结果
+ */
 public class ResponseFuture {
+    //请求特征值
     private final int opaque;
+    //网络端
     private final Channel processChannel;
+    //超时时间
     private final long timeoutMillis;
+    //回调
     private final InvokeCallback invokeCallback;
+    //开始时间
     private final long beginTimestamp = System.currentTimeMillis();
+    //同步控制器，控制超时
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     private final SemaphoreReleaseOnlyOnce once;

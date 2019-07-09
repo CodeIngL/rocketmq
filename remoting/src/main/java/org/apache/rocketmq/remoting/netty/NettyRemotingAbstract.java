@@ -430,40 +430,39 @@ public abstract class NettyRemotingAbstract {
         }
     }
 
-    public RemotingCommand invokeSyncImpl(final Channel channel, final RemotingCommand request,
-        final long timeoutMillis)
+    public RemotingCommand invokeSyncImpl(final Channel channel, final RemotingCommand req, final long timeoutMillis)
         throws InterruptedException, RemotingSendRequestException, RemotingTimeoutException {
-        final int opaque = request.getOpaque();
+        final int opaque = req.getOpaque();
 
         try {
-            final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, timeoutMillis, null, null);
-            this.responseTable.put(opaque, responseFuture);
+            final ResponseFuture respFuture = new ResponseFuture(channel, opaque, timeoutMillis, null, null);
+            this.responseTable.put(opaque, respFuture);
             final SocketAddress addr = channel.remoteAddress();
-            channel.writeAndFlush(request).addListener((ChannelFutureListener) f -> {
+            channel.writeAndFlush(req).addListener((ChannelFutureListener) f -> {
                 if (f.isSuccess()) {
-                    responseFuture.setSendRequestOK(true);
+                    respFuture.setSendRequestOK(true);
                     return;
                 } else {
-                    responseFuture.setSendRequestOK(false);
+                    respFuture.setSendRequestOK(false);
                 }
 
                 responseTable.remove(opaque);
-                responseFuture.setCause(f.cause());
-                responseFuture.putResponse(null);
+                respFuture.setCause(f.cause());
+                respFuture.putResponse(null);
                 log.warn("send a request command to channel <" + addr + "> failed.");
             });
 
-            RemotingCommand responseCommand = responseFuture.waitResponse(timeoutMillis);
-            if (null == responseCommand) {
-                if (responseFuture.isSendRequestOK()) {
+            RemotingCommand respCommand = respFuture.waitResponse(timeoutMillis);
+            if (null == respCommand) {
+                if (respFuture.isSendRequestOK()) {
                     throw new RemotingTimeoutException(RemotingHelper.parseSocketAddressAddr(addr), timeoutMillis,
-                        responseFuture.getCause());
+                        respFuture.getCause());
                 } else {
-                    throw new RemotingSendRequestException(RemotingHelper.parseSocketAddressAddr(addr), responseFuture.getCause());
+                    throw new RemotingSendRequestException(RemotingHelper.parseSocketAddressAddr(addr), respFuture.getCause());
                 }
             }
 
-            return responseCommand;
+            return respCommand;
         } finally {
             this.responseTable.remove(opaque);
         }
@@ -484,6 +483,7 @@ public abstract class NettyRemotingAbstract {
         throws InterruptedException, RemotingTooMuchRequestException, RemotingTimeoutException, RemotingSendRequestException {
         long beginStartTime = System.currentTimeMillis();
         final int opaque = req.getOpaque();
+        //信号量进行限制
         boolean acquired = this.semaphoreAsync.tryAcquire(timeoutMillis, TimeUnit.MILLISECONDS);
         if (acquired) {
             final SemaphoreReleaseOnlyOnce once = new SemaphoreReleaseOnlyOnce(this.semaphoreAsync);
@@ -493,9 +493,11 @@ public abstract class NettyRemotingAbstract {
                 throw new RemotingTimeoutException("invokeAsyncImpl call timeout");
             }
 
+            //构建相应的future
             final ResponseFuture rf = new ResponseFuture(channel, opaque, timeoutMillis - costTime, invokeCallback, once);
             this.responseTable.put(opaque, rf);
             try {
+                //添加listener，异步发送，在不同事件进行触发，
                 channel.writeAndFlush(req).addListener((ChannelFutureListener) f -> {
                     if (f.isSuccess()) {
                         rf.setSendRequestOK(true);
@@ -515,9 +517,7 @@ public abstract class NettyRemotingAbstract {
             } else {
                 String info =
                     String.format("invokeAsyncImpl tryAcquire semaphore timeout, %dms, waiting thread nums: %d semaphoreAsyncValue: %d",
-                        timeoutMillis,
-                        this.semaphoreAsync.getQueueLength(),
-                        this.semaphoreAsync.availablePermits()
+                        timeoutMillis, this.semaphoreAsync.getQueueLength(), this.semaphoreAsync.availablePermits()
                     );
                 log.warn(info);
                 throw new RemotingTimeoutException(info);
