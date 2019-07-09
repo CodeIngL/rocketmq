@@ -97,7 +97,7 @@ public class FilterServerManager {
 
     /**
      * 注册filterServer
-     * @param channel
+     * @param channel 请求的channel
      * @param filterServerAddr
      */
     public void registerFilterServer(final Channel channel, final String filterServerAddr) {
@@ -146,8 +146,14 @@ public class FilterServerManager {
         return addr;
     }
 
+    /**
+     * filter服务信息，
+     *
+     */
     static class FilterServerInfo {
+        //所在地址
         private String filterServerAddr;
+        //最后更新的时间
         private long lastUpdateTimestamp;
 
         public String getFilterServerAddr() {

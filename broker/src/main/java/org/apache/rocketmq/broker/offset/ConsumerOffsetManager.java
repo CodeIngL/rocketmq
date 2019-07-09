@@ -35,6 +35,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 /**
  * 也是配置文件对应配置项的model
+ * 同时也维护其中topic和消费组下的客户端id和其的offset，也就是客户端提交上来的offset内存信息
  */
 public class ConsumerOffsetManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);

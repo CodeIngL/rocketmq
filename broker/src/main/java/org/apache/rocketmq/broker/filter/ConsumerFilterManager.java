@@ -74,7 +74,7 @@ public class ConsumerFilterManager extends ConfigManager {
     /**
      * Build consumer filter data.Be care, bloom filter data is not included.
      * <p>
-     *     构建消费者过滤器数据。请注意，不包括bloom过滤器数据。
+     *     构建消费者过滤器数据。请注意，不包括bloom过滤器数据。同时不添加进注册表中
      * </p>
      *
      * @return maybe null
@@ -103,14 +103,16 @@ public class ConsumerFilterManager extends ConfigManager {
         return filterData;
     }
 
+    /**
+     * 向broker中注册消费组和订阅关系，
+     * @param consumerGroup
+     * @param subList
+     */
     public void register(final String consumerGroup, final Collection<SubscriptionData> subList) {
         for (SubscriptionData subscriptionData : subList) {
             register(
-                subscriptionData.getTopic(),
-                consumerGroup,
-                subscriptionData.getSubString(),
-                subscriptionData.getExpressionType(),
-                subscriptionData.getSubVersion()
+                    subscriptionData.getTopic(), consumerGroup, subscriptionData.getSubString(),
+                subscriptionData.getExpressionType(), subscriptionData.getSubVersion()
             );
         }
 
@@ -136,13 +138,22 @@ public class ConsumerFilterManager extends ConfigManager {
         }
     }
 
+    /**
+     * 单个注册
+     * @param topic
+     * @param consumerGroup
+     * @param expression
+     * @param type
+     * @param clientVersion
+     * @return
+     */
     public boolean register(final String topic, final String consumerGroup, final String expression,
         final String type, final long clientVersion) {
-        if (ExpressionType.isTagType(type)) {
+        if (ExpressionType.isTagType(type)) { //tag是原生支持，不需要进行注册
             return false;
         }
 
-        if (expression == null || expression.length() == 0) {
+        if (expression == null || expression.length() == 0) { //表达式没有，注册失败
             return false;
         }
 
@@ -154,9 +165,9 @@ public class ConsumerFilterManager extends ConfigManager {
             filterDataMapByTopic = prev != null ? prev : temp;
         }
 
-        BloomFilterData bloomFilterData = bloomFilter.generate(consumerGroup + "#" + topic);
+        BloomFilterData bloomFilterData = bloomFilter.generate(consumerGroup + "#" + topic); //构建布隆过滤器
 
-        return filterDataMapByTopic.register(consumerGroup, expression, type, bloomFilterData, clientVersion);
+        return filterDataMapByTopic.register(consumerGroup, expression, type, bloomFilterData, clientVersion); //注册
     }
 
     public void unRegister(final String consumerGroup) {
