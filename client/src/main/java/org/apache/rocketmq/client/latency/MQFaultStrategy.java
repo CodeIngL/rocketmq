@@ -67,14 +67,14 @@ public class MQFaultStrategy {
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
         if (this.sendLatencyFaultEnable) { //支持容错
             try {
-                int index = tpInfo.getSendWhichQueue().getAndIncrement(); //获得queue
-                for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) {
+                int index = tpInfo.getSendWhichQueue().getAndIncrement(); //获得queue序号
+                for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) { //相关的messageQueue所有的队列
                     int pos = Math.abs(index++) % tpInfo.getMessageQueueList().size(); //随机
                     if (pos < 0)
                         pos = 0;
-                    MessageQueue mq = tpInfo.getMessageQueueList().get(pos);
-                    if (latencyFaultTolerance.isAvailable(mq.getBrokerName())) { //可用
-                        if (null == lastBrokerName || mq.getBrokerName().equals(lastBrokerName))
+                    MessageQueue mq = tpInfo.getMessageQueueList().get(pos); //获得该mq
+                    if (latencyFaultTolerance.isAvailable(mq.getBrokerName())) { //检查一下该broker是否可用
+                        if (null == lastBrokerName || mq.getBrokerName().equals(lastBrokerName)) //参数不传递，或者名字相符，直接返回
                             return mq;
                     }
                 }
@@ -116,8 +116,8 @@ public class MQFaultStrategy {
 
     /**
      * 计算不可用的持续时间
-     * @param currentLatency
-     * @return
+     * @param currentLatency 当前的延迟
+     * @return 向上再搞出一个延迟
      */
     private long computeNotAvailableDuration(final long currentLatency) {
         for (int i = latencyMax.length - 1; i >= 0; i--) {
