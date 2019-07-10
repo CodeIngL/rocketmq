@@ -272,7 +272,8 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
 
     /**
      * 处理消息消费的结果
-     * @param status
+     * @param status 消费结果状态
+     * @param status 消费结果状态
      * @param context
      * @param consumeRequest
      */
@@ -282,6 +283,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         if (consumeRequest.getMsgs().isEmpty())
             return;
 
+        // 统计
         switch (status) {
             case CONSUME_SUCCESS: //消费成功
                 if (ackIndex >= consumeRequest.getMsgs().size()) {
@@ -312,7 +314,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 List<MessageExt> msgBackFailed = new ArrayList<>(consumeRequest.getMsgs().size()); //消费失败的消息
                 for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
                     MessageExt msg = consumeRequest.getMsgs().get(i); //每一条的消息
-                    boolean result = this.sendMessageBack(msg, context);
+                    boolean result = this.sendMessageBack(msg, context); //消息重发
                     if (!result) {
                         msg.setReconsumeTimes(msg.getReconsumeTimes() + 1); //设置重消费的失败次数
                         msgBackFailed.add(msg);
@@ -339,7 +341,14 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
         return this.defaultMQPushConsumerImpl.getConsumerStatsManager();
     }
 
+    /**
+     * 消息重发，把消息重新发回去，重新拉取尝试消费
+     * @param msg
+     * @param context
+     * @return
+     */
     public boolean sendMessageBack(final MessageExt msg, final ConsumeConcurrentlyContext context) {
+        //延迟级别
         int delayLevel = context.getDelayLevelWhenNextConsume();
         try {
             this.defaultMQPushConsumerImpl.sendMessageBack(msg, delayLevel, context.getMessageQueue().getBrokerName());
@@ -462,7 +471,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             ConsumeMessageConcurrentlyService.this.getConsumerStatsManager()
                 .incConsumeRT(ConsumeMessageConcurrentlyService.this.consumerGroup, messageQueue.getTopic(), consumeRT);
 
-            if (!processQueue.isDropped()) {
+            if (!processQueue.isDropped()) { //没有被丢弃，继续处理结果
                 ConsumeMessageConcurrentlyService.this.processConsumeResult(status, context, this);
             } else {
                 log.warn("processQueue is dropped without process consume result. messageQueue={}, msgs={}", messageQueue, msgs);

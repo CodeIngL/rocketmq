@@ -57,6 +57,9 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import java.util.*;
 import java.util.concurrent.ConcurrentMap;
 
+import static org.apache.rocketmq.common.MixAll.DEFAULT_CONSUMER_GROUP;
+import static org.apache.rocketmq.common.help.FAQUrl.CLIENT_PARAMETER_CHECK_URL;
+import static org.apache.rocketmq.common.help.FAQUrl.suggestTodo;
 import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTERING;
 
 /**
@@ -99,7 +102,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         if (this.serviceState != ServiceState.RUNNING) {
             throw new MQClientException("The consumer service state not OK, "
                 + this.serviceState
-                + FAQUrl.suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
+                + suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
                 null);
         }
     }
@@ -685,7 +688,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                 boolean registerOK = mQClientFactory.registerConsumer(consumerGroup, this);
                 if (!registerOK) {
                     serviceState = ServiceState.CREATE_JUST;
-                    throw new MQClientException("The consumer group[" + consumerGroup + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
+                    throw new MQClientException("The consumer group[" + consumerGroup + "] has been created before, specify another name please." + suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
                         null);
                 }
 
@@ -700,7 +703,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                 //错误的状态
                 throw new MQClientException("The PullConsumer service state not OK, maybe started once, "
                     + serviceState
-                    + FAQUrl.suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
+                    + suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
                     null);
             default:
                 break;
@@ -715,44 +718,28 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
         // consumerGroup
         if (null == consumerGroup) {
-            throw new MQClientException(
-                "consumerGroup is null"
-                    + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
-                null);
+            throw new MQClientException("consumerGroup is null" + suggestTodo(CLIENT_PARAMETER_CHECK_URL), null);
         }
 
         // consumerGroup
-        if (consumerGroup.equals(MixAll.DEFAULT_CONSUMER_GROUP)) {
-            throw new MQClientException(
-                "consumerGroup can not equal "
-                    + MixAll.DEFAULT_CONSUMER_GROUP
-                    + ", please specify another one."
-                    + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
-                null);
+        if (consumerGroup.equals(DEFAULT_CONSUMER_GROUP)) {
+            throw new MQClientException("consumerGroup can not equal " + DEFAULT_CONSUMER_GROUP + ", please specify another one." + suggestTodo(CLIENT_PARAMETER_CHECK_URL), null);
         }
 
         // messageModel
         if (null == defaultMQPullConsumer.getMessageModel()) {
-            throw new MQClientException(
-                "messageModel is null"
-                    + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
-                null);
+            throw new MQClientException("messageModel is null" + suggestTodo(CLIENT_PARAMETER_CHECK_URL), null);
         }
 
         // allocateMessageQueueStrategy
         if (null == defaultMQPullConsumer.getAllocateMessageQueueStrategy()) {
-            throw new MQClientException(
-                "allocateMessageQueueStrategy is null"
-                    + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
-                null);
+            throw new MQClientException("allocateMessageQueueStrategy is null" + suggestTodo(CLIENT_PARAMETER_CHECK_URL), null);
         }
 
         // allocateMessageQueueStrategy
         if (defaultMQPullConsumer.getConsumerTimeoutMillisWhenSuspend() < defaultMQPullConsumer.getBrokerSuspendMaxTimeMillis()) {
             throw new MQClientException(
-                "Long polling mode, the consumer consumerTimeoutMillisWhenSuspend must greater than brokerSuspendMaxTimeMillis"
-                    + FAQUrl.suggestTodo(FAQUrl.CLIENT_PARAMETER_CHECK_URL),
-                null);
+                "Long polling mode, the consumer consumerTimeoutMillisWhenSuspend must greater than brokerSuspendMaxTimeMillis" + suggestTodo(CLIENT_PARAMETER_CHECK_URL), null);
         }
     }
 
