@@ -42,6 +42,7 @@ import org.apache.rocketmq.store.DefaultMessageStore;
 
 /**
  * 高可用的模块，如果使用了Dledger则可以通过其来实现高可用，而不是额外的高可用逻辑代码
+ * 支持主从同步
  *
  */
 public class HAService {
@@ -49,6 +50,7 @@ public class HAService {
 
     private final AtomicInteger connectionCount = new AtomicInteger(0);
 
+    //和slave的连接
     private final List<HAConnection> connectionList = new LinkedList<>();
 
     private final AcceptSocketService acceptSocketService;
@@ -58,14 +60,14 @@ public class HAService {
     private final WaitNotifyObject waitNotifyObject = new WaitNotifyObject();
     private final AtomicLong push2SlaveMaxOffset = new AtomicLong(0);
 
+    //传输服务
     private final GroupTransferService groupTransferService;
 
     private final HAClient haClient;
 
     public HAService(final DefaultMessageStore defaultMessageStore) throws IOException {
         this.defaultMessageStore = defaultMessageStore;
-        this.acceptSocketService =
-            new AcceptSocketService(defaultMessageStore.getMessageStoreConfig().getHaListenPort());
+        this.acceptSocketService = new AcceptSocketService(defaultMessageStore.getMessageStoreConfig().getHaListenPort());
         this.groupTransferService = new GroupTransferService();
         this.haClient = new HAClient();
     }
@@ -80,12 +82,14 @@ public class HAService {
         this.groupTransferService.putRequest(request);
     }
 
+    /**
+     * 检测slave是否可用，slave如果太落后就认为是不可用
+     * @param masterPutWhere
+     * @return
+     */
     public boolean isSlaveOK(final long masterPutWhere) {
         boolean result = this.connectionCount.get() > 0;
-        result =
-            result
-                && ((masterPutWhere - this.push2SlaveMaxOffset.get()) < this.defaultMessageStore
-                .getMessageStoreConfig().getHaSlaveFallbehindMax());
+        result = result && ((masterPutWhere - this.push2SlaveMaxOffset.get()) < this.defaultMessageStore.getMessageStoreConfig().getHaSlaveFallbehindMax());
         return result;
     }
 

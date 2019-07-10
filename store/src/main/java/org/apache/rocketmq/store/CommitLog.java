@@ -645,7 +645,7 @@ public class CommitLog {
                 }
 
                 //延迟功能也是将原始的消息，投递到一个特殊的队列中，和 事务队列类似
-                //topic是SCHEDULE_TOPIC_XXXX
+                //topic是SCHEDULE_TOPIC_XXXX，然后内部将这个队列进行转换
                 topic = SCHEDULE_TOPIC;
                 //将消息中延迟级别转换为queueId
                 queueId = delayLevel2QueueId(msg.getDelayTimeLevel());
@@ -668,7 +668,7 @@ public class CommitLog {
 
         putMessageLock.lock(); //spin or ReentrantLock ,depending on store config 自旋锁还是可重入锁，取决于存储配置项
         try {
-            //锁开始时间
+            //更新锁开始时间
             long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
             this.beginTimeInLock = beginLockTimestamp;
 
@@ -758,7 +758,7 @@ public class CommitLog {
             if (msg.isWaitStoreMsgOK()) { //等待刷入后才返回
                 GroupCommitRequest req = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                 service.putRequest(req);
-                boolean flushOK = req.waitForFlush(storeConfig.getSyncFlushTimeout());//等待刷盘结果，要么超时
+                boolean flushOK = req.waitForFlush(storeConfig.getSyncFlushTimeout());//等待设置的超时设置时间，刷盘结果，要么超时
                 if (!flushOK) { //刷盘超时
                     log.error("do groupcommit, wait for flush failed, topic: " + msg.getTopic() + " tags: " + msg.getTags() + " client address: " + msg.getBornHostString());
                     putResult.setPutMessageStatus(FLUSH_DISK_TIMEOUT);
@@ -789,6 +789,7 @@ public class CommitLog {
             if (messageExt.isWaitStoreMsgOK()) { //等待写入成功
                 // Determine whether to wait //决定是否等待
                 if (service.isSlaveOK(result.getWroteOffset() + result.getWroteBytes())) {
+                    //构建请求
                     GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                     service.putRequest(request);
                     service.getWaitNotifyObject().wakeupAll(); //唤醒所用
@@ -796,7 +797,7 @@ public class CommitLog {
                     if (!flushOK) {
                         log.error("do sync transfer other node, wait return, but failed, topic: " + messageExt.getTopic() + " tags: "
                                 + messageExt.getTags() + " client address: " + messageExt.getBornHostNameString());
-                        putMessageResult.setPutMessageStatus(PutMessageStatus.FLUSH_SLAVE_TIMEOUT);
+                        putMessageResult.setPutMessageStatus(PutMessageStatus.FLUSH_SLAVE_TIMEOUT); //刷新给从机失败
                     }
                 }
                 // Slave problem 备机问题

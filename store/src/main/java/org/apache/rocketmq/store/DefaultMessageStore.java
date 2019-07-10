@@ -480,6 +480,7 @@ public class DefaultMessageStore implements MessageStore {
     /**
      * 存储引擎，处理投递的消息
      * 投递并处理来自producer的发送的消息。除了对消息本身特性的相关检查，不再检查消息的内部中相关标记
+     * 如果是一阶段消息，那么消息已经被转换为half消息了
      *
      * @param msg Message instance to store 要存储消息的结果
      * @return 投递结果
