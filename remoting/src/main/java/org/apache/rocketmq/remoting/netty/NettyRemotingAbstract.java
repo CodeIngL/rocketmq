@@ -232,40 +232,37 @@ public abstract class NettyRemotingAbstract {
         final int opaque = cmd.getOpaque();
 
         if (pair != null) {
-            Runnable run = new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        doBeforeRpcHooks(parseChannelRemoteAddr(ctx.channel()), cmd);
-                        //处理请求
-                        final RemotingCommand response = pair.getObject1().processRequest(ctx, cmd);
-                        doAfterRpcHooks(parseChannelRemoteAddr(ctx.channel()), cmd, response);
+            Runnable run = () -> {
+                try {
+                    doBeforeRpcHooks(parseChannelRemoteAddr(ctx.channel()), cmd);
+                    //处理请求
+                    final RemotingCommand response = pair.getObject1().processRequest(ctx, cmd);
+                    doAfterRpcHooks(parseChannelRemoteAddr(ctx.channel()), cmd, response);
 
-                        if (!cmd.isOnewayRPC()) {
-                            if (response != null) {
-                                response.setOpaque(opaque);
-                                response.markResponseType();
-                                try {
-                                    ctx.writeAndFlush(response);
-                                } catch (Throwable e) {
-                                    log.error("process request over, but response failed", e);
-                                    log.error(cmd.toString());
-                                    log.error(response.toString());
-                                }
-                            } else {
-
-                            }
-                        }
-                    } catch (Throwable e) {
-                        log.error("process request exception", e);
-                        log.error(cmd.toString());
-
-                        if (!cmd.isOnewayRPC()) {
-                            final RemotingCommand response = createResponseCommand(RemotingSysResponseCode.SYSTEM_ERROR,
-                                RemotingHelper.exceptionSimpleDesc(e));
+                    if (!cmd.isOnewayRPC()) {
+                        if (response != null) {
                             response.setOpaque(opaque);
-                            ctx.writeAndFlush(response);
+                            response.markResponseType();
+                            try {
+                                ctx.writeAndFlush(response);
+                            } catch (Throwable e) {
+                                log.error("process request over, but response failed", e);
+                                log.error(cmd.toString());
+                                log.error(response.toString());
+                            }
+                        } else {
+
                         }
+                    }
+                } catch (Throwable e) {
+                    log.error("process request exception", e);
+                    log.error(cmd.toString());
+
+                    if (!cmd.isOnewayRPC()) {
+                        final RemotingCommand response = createResponseCommand(RemotingSysResponseCode.SYSTEM_ERROR,
+                            RemotingHelper.exceptionSimpleDesc(e));
+                        response.setOpaque(opaque);
+                        ctx.writeAndFlush(response);
                     }
                 }
             };

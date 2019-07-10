@@ -84,6 +84,11 @@ public class RequestTask implements Runnable {
             this.runnable.run();
     }
 
+    /**
+     * 返回响应
+     * @param code
+     * @param remark
+     */
     public void returnResponse(int code, String remark) {
         final RemotingCommand response = RemotingCommand.createResponseCommand(code, remark);
         response.setOpaque(request.getOpaque());
