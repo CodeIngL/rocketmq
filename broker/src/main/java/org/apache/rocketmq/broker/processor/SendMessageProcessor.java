@@ -252,21 +252,21 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
     /**
      * 是否能处理消息重发和死信消息
-     * @param requestHeader
+     * @param reqHeader
      * @param response
-     * @param request
+     * @param req
      * @param msg
      * @param topicConfig
      * @return
      */
-    private boolean handleRetryAndDLQ(SendMessageRequestHeader requestHeader, RemotingCommand response,
-                                      RemotingCommand request,
+    private boolean handleRetryAndDLQ(SendMessageRequestHeader reqHeader, RemotingCommand response,
+                                      RemotingCommand req,
                                       MessageExt msg, TopicConfig topicConfig) {
         // topic
-        String newTopic = requestHeader.getTopic();
-        // 重试
+        String newTopic = reqHeader.getTopic();
+        // 消息重发，属于消息重发
         if (null != newTopic && newTopic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-            String groupName = newTopic.substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length());
+            String groupName = newTopic.substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length()); //旧的消费组
             //获得订阅组配置
             SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(groupName);
             if (null == subscriptionGroupConfig) {
@@ -277,15 +277,15 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
             //最大重试
             int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
-            if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
-                maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
+            if (req.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
+                maxReconsumeTimes = reqHeader.getMaxReconsumeTimes();
             }
             //重试次数
-            int reconsumeTimes = requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes();
-            if (reconsumeTimes >= maxReconsumeTimes) {
-                //死信队列
-                newTopic = MixAll.getDLQTopic(groupName);
+            int reconsumeTimes = reqHeader.getReconsumeTimes() == null ? 0 : reqHeader.getReconsumeTimes();
+            if (reconsumeTimes >= maxReconsumeTimes) { //大于最大消息重试次数，让我们放置到死信队列
+                newTopic = MixAll.getDLQTopic(groupName); //构建死信队列topic
                 int queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
+                //构建或拿到队列对应的死信队列的配置
                 topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, DLQ_NUMS_PER_GROUP, PermName.PERM_WRITE, 0);
                 msg.setTopic(newTopic);
                 msg.setQueueId(queueIdInt);
@@ -296,7 +296,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                 }
             }
         }
-        int sysFlag = requestHeader.getSysFlag();
+        int sysFlag = reqHeader.getSysFlag();
         if (TopicFilterType.MULTI_TAG == topicConfig.getTopicFilterType()) {
             sysFlag |= MessageSysFlag.MULTI_TAGS_FLAG;
         }
@@ -330,7 +330,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         BrokerConfig brokerConfig = this.brokerController.getBrokerConfig();
 
-        //添加消息所属的regioin，broker使用regionid来区分集群下不同的字节
+        //添加消息所属的regioin，broker使用regionid来区分集群下不同的字节,tip这里存在一个regionId
         resp.addExtField(PROPERTY_MSG_REGION, brokerConfig.getRegionId());
         //添加追踪是否开启字段，broker配置文件支持
         resp.addExtField(PROPERTY_TRACE_SWITCH, String.valueOf(brokerConfig.isTraceOn()));
@@ -391,12 +391,12 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         //获得事务标记
         String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
         if (traFlag != null && Boolean.parseBoolean(traFlag)) { //是否事务消息
-            if (brokerConfig.isRejectTransactionMessage()) {//不支持事务，返回
+            if (brokerConfig.isRejectTransactionMessage()) {//broker配置不支持事务，无法支持事务消息
                 resp.setCode(ResponseCode.NO_PERMISSION);
                 resp.setRemark("the broker[" + brokerConfig.getBrokerIP1() + "] sending transaction message is forbidden");
                 return resp;
             }
-            //使用事务消息服务进行准备，返回投递half消息结果
+            //一阶段hal事务消息，我们需要处理这个消息，然后再进行投递，返回投递half消息结果
             result = this.brokerController.getTransactionalMessageService().prepareMessage(msgInner);
         } else {
             //使用消息存储处理，返回消息投递结果

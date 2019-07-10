@@ -226,11 +226,13 @@ public class TransactionalMessageBridge {
      * @return
      */
     public PutMessageResult putHalfMessage(MessageExtBrokerInner msgInner) {
+        //构建half消息，然后由存储引擎进行处理
         return store.putMessage(parseHalfMessageInner(msgInner));
     }
 
     /**
      * 构建half消息一阶段消息
+     * 核心就是将消息转换，通过topic和queue进行装换
      * @param msg
      * @return
      */

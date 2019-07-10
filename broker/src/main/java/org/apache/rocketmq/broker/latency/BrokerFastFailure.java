@@ -36,13 +36,11 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
  * <p>
  *     BrokerFastFailure将涵盖{@link BrokerController#sendThreadPoolQueue} 和{@link BrokerController#pullThreadPoolQueue}
  * </p>
+ * 快速失败，繁忙或者超时的情况下，快速失败掉
  */
 public class BrokerFastFailure {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
-    private final ScheduledExecutorService scheduledExecutorService =
-            newSingleThreadScheduledExecutor(
-            new ThreadFactoryImpl(
-        "BrokerFastFailureScheduledThread"));
+    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(new ThreadFactoryImpl("BrokerFastFailureScheduledThread"));
     private final BrokerController brokerController;
 
     public BrokerFastFailure(final BrokerController brokerController) {
@@ -71,6 +69,7 @@ public class BrokerFastFailure {
     }
 
     private void cleanExpiredRequest() {
+        //os繁忙，清楚
         while (this.brokerController.getMessageStore().isOSPageCacheBusy()) {
             try {
                 if (!this.brokerController.getSendThreadPoolQueue().isEmpty()) {
@@ -114,6 +113,7 @@ public class BrokerFastFailure {
                     if (null == runnable) {
                         break;
                     }
+                    //转换为请求任务
                     final RequestTask rt = castRunnable(runnable);
                     if (rt == null || rt.isStopRun()) {
                         break;
@@ -122,7 +122,9 @@ public class BrokerFastFailure {
                     final long behind = System.currentTimeMillis() - rt.getCreateTimestamp();
                     if (behind >= maxWaitTimeMillsInQueue) {
                         if (blockingQueue.remove(runnable)) {
+                            //设置停止执行
                             rt.setStopRun(true);
+                            //设置系统忙碌
                             rt.returnResponse(RemotingSysResponseCode.SYSTEM_BUSY, String.format("[TIMEOUT_CLEAN_QUEUE]broker busy, start flow control for a while, period in queue: %sms, size of queue: %d", behind, blockingQueue.size()));
                         }
                     } else {

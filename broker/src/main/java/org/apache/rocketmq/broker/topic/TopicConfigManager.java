@@ -298,6 +298,7 @@ public class TopicConfigManager extends ConfigManager {
         }
 
         if (createNew) {
+            //新建的的向远程注册信息
             this.brokerController.registerBrokerAll(false, true,true);
         }
 
