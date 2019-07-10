@@ -81,6 +81,7 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy = new AllocateMessageQueueAveragely();
     /**
      * Whether the unit of subscription group
+     * 是否为订阅组的单位
      */
     private boolean unitMode = false;
 

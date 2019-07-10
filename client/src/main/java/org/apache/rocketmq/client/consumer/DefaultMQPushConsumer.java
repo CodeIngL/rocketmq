@@ -130,6 +130,28 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * messages born prior to {@link #consumeTimestamp} will be ignored
      * </li>
      * </ul>
+     *
+     *      消费者引导消费点。 有三个消费点：
+     * <ul>
+     *     <li>
+     * CONSUME_FROM_LAST_OFFSET：消费者客户端获取之前停止的位置。 如果它是一个新启动的消费者客户端，根据消费者群体的老龄化，有两种情况：
+     * <ol>
+     * <li>
+     * 如果消费者群体最近被创建，以至于订阅的最早消息尚未到期，这意味着消费者群体代表了最近推出的业务，消费将从一开始就开始消费;
+     * </li>
+     * <li>
+     * 如果订阅的最早消息已过期，则将从最新消息开始消费，这意味着将忽略在引导时间戳之前生成的消息。
+     * </li>
+     * </ol>
+     * </li>
+     *     </li>
+     *     <li>
+     *         CONSUME_FROM_FIRST_OFFSET：消费者客户端将从最早的可用消息开始。
+     *     </li>
+     *     <li>
+     *         CONSUME_FROM_TIMESTAMP：消费者客户端将从指定的时间戳开始，这意味着将丢弃在consumeTimestamp之前生成的消息
+     *     </li>
+     * </ul>
      */
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
 
