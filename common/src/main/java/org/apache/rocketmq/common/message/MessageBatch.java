@@ -22,6 +22,9 @@ import java.util.Iterator;
 import java.util.List;
 import org.apache.rocketmq.common.MixAll;
 
+/**
+ * 批量消息
+ */
 public class MessageBatch extends Message implements Iterable<Message> {
 
     private static final long serialVersionUID = 621335151046335557L;
@@ -39,6 +42,11 @@ public class MessageBatch extends Message implements Iterable<Message> {
         return messages.iterator();
     }
 
+    /**
+     * 构建批量消息，不支持延时消息
+     * @param messages
+     * @return
+     */
     public static MessageBatch generateFromList(Collection<Message> messages) {
         assert messages != null;
         assert messages.size() > 0;
@@ -64,7 +72,6 @@ public class MessageBatch extends Message implements Iterable<Message> {
             messageList.add(message);
         }
         MessageBatch messageBatch = new MessageBatch(messageList);
-
         messageBatch.setTopic(first.getTopic());
         messageBatch.setWaitStoreMsgOK(first.isWaitStoreMsgOK());
         return messageBatch;

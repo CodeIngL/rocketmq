@@ -62,26 +62,24 @@ public class FAQUrl {
     private static final String TIP_STRING_END = " for further details.";
 
     public static String suggestTodo(final String url) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(TIP_STRING_BEGIN);
-        sb.append(url);
-        sb.append(TIP_STRING_END);
-        return sb.toString();
+        return new StringBuilder()
+                .append(TIP_STRING_BEGIN)
+                .append(url)
+                .append(TIP_STRING_END)
+                .toString();
     }
 
     public static String attachDefaultURL(final String errorMessage) {
         if (errorMessage != null) {
             int index = errorMessage.indexOf(TIP_STRING_BEGIN);
             if (-1 == index) {
-                StringBuilder sb = new StringBuilder();
-                sb.append(errorMessage);
-                sb.append("\n");
-                sb.append("For more information, please visit the url, ");
-                sb.append(UNEXPECTED_EXCEPTION_URL);
-                return sb.toString();
+                return new StringBuilder()
+                        .append(errorMessage)
+                        .append("\n")
+                        .append("For more information, please visit the url, ").append(UNEXPECTED_EXCEPTION_URL)
+                        .toString();
             }
         }
-
         return errorMessage;
     }
 }
