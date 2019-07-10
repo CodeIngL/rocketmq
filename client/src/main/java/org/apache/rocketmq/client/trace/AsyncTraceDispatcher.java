@@ -341,23 +341,20 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
                     // No cross set
                     traceProducer.send(message, callback, 5000);
                 } else {
-                    traceProducer.send(message, new MessageQueueSelector() {
-                        @Override
-                        public MessageQueue select(List<MessageQueue> mqs, Message msg, Object arg) {
-                            Set<String> brokerSet = (Set<String>) arg;
-                            List<MessageQueue> filterMqs = new ArrayList<MessageQueue>();
-                            for (MessageQueue queue : mqs) {
-                                if (brokerSet.contains(queue.getBrokerName())) {
-                                    filterMqs.add(queue);
-                                }
+                    traceProducer.send(message, (mqs, msg, arg) -> {
+                        Set<String> brokerSet = (Set<String>) arg;
+                        List<MessageQueue> filterMqs = new ArrayList<>();
+                        for (MessageQueue queue : mqs) {
+                            if (brokerSet.contains(queue.getBrokerName())) {
+                                filterMqs.add(queue);
                             }
-                            int index = sendWhichQueue.getAndIncrement();
-                            int pos = Math.abs(index) % filterMqs.size();
-                            if (pos < 0) {
-                                pos = 0;
-                            }
-                            return filterMqs.get(pos);
                         }
+                        int index = sendWhichQueue.getAndIncrement();
+                        int pos = Math.abs(index) % filterMqs.size();
+                        if (pos < 0) {
+                            pos = 0;
+                        }
+                        return filterMqs.get(pos);
                     }, traceBrokerSet, callback);
                 }
 

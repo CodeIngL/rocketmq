@@ -1140,6 +1140,7 @@ public class MQClientInstance {
 
     /**
      * 在内存中找到对应的broker
+     * 首先根据name找到对应集合，从中获取主节点，masterId为0是主节点，非0是非主节点
      * @param brokerName
      * @return
      */

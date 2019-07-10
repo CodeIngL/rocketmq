@@ -24,6 +24,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 
 /**
  * Base interface for MQ management
+ * mq管理的基本接口，单独和客户端都有使用，提供了类似管理者的功能
  */
 public interface MQAdmin {
     /**
@@ -87,8 +88,7 @@ public interface MQAdmin {
      * @param offsetMsgId message id
      * @return message
      */
-    MessageExt viewMessage(final String offsetMsgId) throws RemotingException, MQBrokerException,
-        InterruptedException, MQClientException;
+    MessageExt viewMessage(final String offsetMsgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
 
     /**
      * Query messages
@@ -100,13 +100,11 @@ public interface MQAdmin {
      * @param end to when
      * @return Instance of QueryResult
      */
-    QueryResult queryMessage(final String topic, final String key, final int maxNum, final long begin,
-        final long end) throws MQClientException, InterruptedException;
+    QueryResult queryMessage(final String topic, final String key, final int maxNum, final long begin, final long end) throws MQClientException, InterruptedException;
 
     /**
      * @return The {@code MessageExt} of given msgId
      */
-    MessageExt viewMessage(String topic,
-        String msgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
+    MessageExt viewMessage(String topic, String msgId) throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
 
 }

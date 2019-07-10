@@ -161,8 +161,7 @@ import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCC
 public class MQClientAPIImpl {
 
     private final static InternalLogger log = ClientLogger.getLog();
-    private static boolean sendSmartMsg =
-        Boolean.parseBoolean(System.getProperty("org.apache.rocketmq.client.sendSmartMsg", "true"));
+    private static boolean sendSmartMsg = Boolean.parseBoolean(System.getProperty("org.apache.rocketmq.client.sendSmartMsg", "true"));
 
     static {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
@@ -318,9 +317,9 @@ public class MQClientAPIImpl {
      * @param addr
      * @param brokerName
      * @param msg
-     * @param requestHeader
+     * @param reqHeader
      * @param timeoutMillis
-     * @param communicationMode
+     * @param mode
      * @param sendCallback
      * @param topicPublishInfo
      * @param instance
@@ -336,9 +335,9 @@ public class MQClientAPIImpl {
         final String addr,
         final String brokerName,
         final Message msg,
-        final SendMessageRequestHeader requestHeader,
+        final SendMessageRequestHeader reqHeader,
         final long timeoutMillis,
-        final CommunicationMode communicationMode,
+        final CommunicationMode mode,
         final SendCallback sendCallback,
         final TopicPublishInfo topicPublishInfo,
         final MQClientInstance instance,
@@ -349,13 +348,13 @@ public class MQClientAPIImpl {
         long beginStartTime = System.currentTimeMillis();
         RemotingCommand request = null;
         /**
-         * 批量发送
+         * 批量发送，默认使用新版本进行发送。或者批量发送，总是使用V2
          */
         if (sendSmartMsg || msg instanceof MessageBatch) {
-            SendMessageRequestHeaderV2 requestHeaderV2 = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV2(requestHeader);
+            SendMessageRequestHeaderV2 requestHeaderV2 = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV2(reqHeader);
             request = createRequestCommand(msg instanceof MessageBatch ? RequestCode.SEND_BATCH_MESSAGE : RequestCode.SEND_MESSAGE_V2, requestHeaderV2);
         } else {
-            request = createRequestCommand(RequestCode.SEND_MESSAGE, requestHeader);
+            request = createRequestCommand(RequestCode.SEND_MESSAGE, reqHeader);
         }
 
         request.setBody(msg.getBody());
@@ -363,7 +362,7 @@ public class MQClientAPIImpl {
         /**
          * 通信方式
          */
-        switch (communicationMode) {
+        switch (mode) {
             /**
              * 单向
              */
@@ -602,6 +601,7 @@ public class MQClientAPIImpl {
             case FLUSH_SLAVE_TIMEOUT:
             case SLAVE_NOT_AVAILABLE:
             case SUCCESS: {
+                //成功状态下，根据状态码进行构建，如果是生产者流控的会正常的返回，然后需要应用方自己进行处理
                 SendStatus sendStatus = SendStatus.SEND_OK;
                 switch (resp.getCode()) {
                     case FLUSH_DISK_TIMEOUT:
@@ -1099,33 +1099,20 @@ public class MQClientAPIImpl {
 
         RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), req, timeoutMillis);
         assert resp != null;
-        switch (resp.getCode()) {
-            case SUCCESS: {
-                return;
-            }
-            default:
-                break;
+        if(resp.getCode() == SUCCESS){
+            return;
         }
-
         throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
     public Set<MessageQueue> lockBatchMQ(final String addr, final LockBatchRequestBody reqBody, final long timeoutMillis) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand req = createRequestCommand(LOCK_BATCH_MQ, null);
-
         req.setBody(reqBody.encode());
-        RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-            req, timeoutMillis);
-        switch (resp.getCode()) {
-            case SUCCESS: {
-                LockBatchResponseBody responseBody = LockBatchResponseBody.decode(resp.getBody(), LockBatchResponseBody.class);
-                Set<MessageQueue> messageQueues = responseBody.getLockOKMQSet();
-                return messageQueues;
-            }
-            default:
-                break;
+        RemotingCommand resp = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), req, timeoutMillis);
+        if (resp.getCode() == SUCCESS) {
+            LockBatchResponseBody responseBody = LockBatchResponseBody.decode(resp.getBody(), LockBatchResponseBody.class);
+            return  responseBody.getLockOKMQSet();
         }
-
         throw new MQBrokerException(resp.getCode(), resp.getRemark());
     }
 
