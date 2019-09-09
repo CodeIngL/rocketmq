@@ -572,12 +572,13 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 查询获得一批消息
-     * @param group Consumer group that launches this query.
-     * @param topic Topic to query.
-     * @param queueId Queue ID to query.
-     * @param offset Logical offset to start from.
+     *
+     * @param group      Consumer group that launches this query.
+     * @param topic      Topic to query.
+     * @param queueId    Queue ID to query.
+     * @param offset     Logical offset to start from.
      * @param maxMsgNums Maximum count of messages to query.
-     * @param filter Message filter used to screen desired messages.
+     * @param filter     Message filter used to screen desired messages.
      * @return
      */
     public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset, final int maxMsgNums, final MessageFilter filter) {
@@ -804,6 +805,7 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 查找消息
+     *
      * @param commitLogOffset physical offset.
      * @return
      */
@@ -978,11 +980,12 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 使用key方式进行查询消息
-     * @param topic topic of the message.
-     * @param key message key.
+     *
+     * @param topic  topic of the message.
+     * @param key    message key.
      * @param maxNum maximum number of the messages possible.
-     * @param begin begin timestamp.
-     * @param end end timestamp.
+     * @param begin  begin timestamp.
+     * @param end    end timestamp.
      * @return
      */
     @Override
@@ -1235,6 +1238,7 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 获得消息，消息在commitlog的偏移量加上消息的总长度
+     *
      * @param commitLogOffset
      * @param size
      * @return
@@ -1253,7 +1257,8 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * 找到topic-queueId对应消费队列，不存在我讲构建一个，当我们支持扩展属性，我们将同时使用扩展的enableConsumeQueueExt
+     * 找到topic-queueId对应消费队列
+     *
      * @param topic
      * @param queueId
      * @return
@@ -1290,6 +1295,7 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 更正下一个offset
+     *
      * @param oldOffset
      * @param newOffset
      * @return
@@ -1317,11 +1323,12 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 是否批处理满？？
-     * @param sizePy 物理大小
-     * @param maxMsgNums 最大消息量
-     * @param bufferTotal 总共大小
+     *
+     * @param sizePy       物理大小
+     * @param maxMsgNums   最大消息量
+     * @param bufferTotal  总共大小
      * @param messageTotal 消息总共大小
-     * @param isInDisk 是否在磁盘中
+     * @param isInDisk     是否在磁盘中
      * @return
      */
     private boolean isTheBatchFull(int sizePy, int maxMsgNums, int bufferTotal, int messageTotal, boolean isInDisk) {
@@ -1374,7 +1381,6 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 添加定时调度的任务
-     *
      */
     private void addScheduleTask() {
 
@@ -1600,6 +1606,7 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 分发给下游进行处理
+     *
      * @param req
      */
     public void doDispatch(DispatchRequest req) {
@@ -1610,6 +1617,7 @@ public class DefaultMessageStore implements MessageStore {
 
     /**
      * 投递消息到相关的comsumeQueue中
+     *
      * @param req 分发的请求
      */
     public void putMessagePositionInfo(DispatchRequest req) {
@@ -1804,6 +1812,7 @@ public class DefaultMessageStore implements MessageStore {
 
         /**
          * 是时间去删除
+         *
          * @return
          */
         private boolean isTimeToDelete() {
@@ -1818,6 +1827,7 @@ public class DefaultMessageStore implements MessageStore {
 
         /**
          * 空间不足删除
+         *
          * @return
          */
         private boolean isSpaceToDelete() {
@@ -2054,6 +2064,7 @@ public class DefaultMessageStore implements MessageStore {
 
         /**
          * 重投递消息落后多少偏移量
+         *
          * @return
          */
         public long behind() {
@@ -2062,6 +2073,7 @@ public class DefaultMessageStore implements MessageStore {
 
         /**
          * 可用，只要当前的重投递的偏移量落后commitlog就认为是可用的
+         *
          * @return
          */
         private boolean isCommitLogAvailable() {
