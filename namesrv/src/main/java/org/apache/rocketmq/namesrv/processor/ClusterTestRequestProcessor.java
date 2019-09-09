@@ -34,7 +34,8 @@ import org.apache.rocketmq.tools.admin.DefaultMQAdminExt;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
 
 /**
- * 集群下的支持
+ * 集群下的支持，仅仅重写了getRouteInfoByTopic通过topic获得路由信息的接口操作，其他同
+ * DefaultRequestProcessor
  */
 public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
@@ -71,6 +72,7 @@ public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
             topicRouteData.setOrderTopicConf(orderTopicConf);
         } else {
             try {
+                //去检查相关
                 topicRouteData = adminExt.examineTopicRouteInfo(reqHeader.getTopic());
             } catch (Exception e) {
                 log.info("get route info by topic from product environment failed. envName={},", productEnvName);

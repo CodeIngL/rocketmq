@@ -394,6 +394,10 @@ public class IndexService {
         return indexFile;
     }
 
+    /**
+     * 刷新磁盘服务
+     * @param f
+     */
     public void flush(final IndexFile f) {
         if (null == f)
             return;

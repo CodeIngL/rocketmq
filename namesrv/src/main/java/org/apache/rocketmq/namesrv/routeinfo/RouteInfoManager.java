@@ -108,7 +108,7 @@ public class RouteInfoManager {
     }
 
     /**
-     * 注册单个broker
+     * 注册单个broker，从中会导出大量相关的信息。
      * @param clusterName
      * @param brokerAddr
      * @param brokerName
@@ -135,6 +135,7 @@ public class RouteInfoManager {
                 }
                 brokerNames.add(brokerName);
 
+                //第一次注册
                 boolean registerFirst = false;
 
                 //获得brokerName下的brokerData信息
@@ -155,9 +156,10 @@ public class RouteInfoManager {
                 registerFirst = registerFirst || (null == oldAddr);
 
                 if (null != topicConfigWrapper && MixAll.MASTER_ID == brokerId) {
+                    //信息发生改变，或者是第一次的，我们需要创建或者更新broker上上的新的配置
                     if (this.isBrokerTopicConfigChanged(brokerAddr, topicConfigWrapper.getDataVersion()) || registerFirst) {
-                        ConcurrentMap<String, TopicConfig> tcTable =
-                            topicConfigWrapper.getTopicConfigTable();
+                        //根据请求上来的数据进行操作。
+                        ConcurrentMap<String, TopicConfig> tcTable = topicConfigWrapper.getTopicConfigTable();
                         if (tcTable != null) {
                             for (Map.Entry<String, TopicConfig> entry : tcTable.entrySet()) {
                                 this.createAndUpdateQueueData(brokerName, entry.getValue());
@@ -222,7 +224,7 @@ public class RouteInfoManager {
 
     /**
      * 构建brokerName的队列数据，通过topic的配置信息来获得
-     * 使用topic支持的读写queue使用构建
+     * 使用topic支持的读写queue使用构建，由注册时，发生变更时进行操作。
      * @param brokerName
      * @param topicConfig
      */
@@ -405,6 +407,7 @@ public class RouteInfoManager {
         try {
             try {
                 this.lock.readLock().lockInterruptibly();
+                //从queueData中构建相关的路由信息
                 List<QueueData> queueDataList = this.topicQueueTable.get(topic); //获得队列信息
                 if (queueDataList != null) {
                     topicRouteData.setQueueDatas(queueDataList);

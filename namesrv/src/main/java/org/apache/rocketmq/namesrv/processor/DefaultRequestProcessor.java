@@ -101,9 +101,10 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
                 return this.getKVConfig(ctx, req);
             case DELETE_KV_CONFIG:
                 return this.deleteKVConfig(ctx, req);
+
             case QUERY_DATA_VERSION:
                 return queryBrokerTopicConfig(ctx, req);
-            case REGISTER_BROKER: //注册broker
+            case REGISTER_BROKER: //注册broker，consumer和producer不需要注册到他上面，仅提供了对broker的注册
                 Version brokerVersion = MQVersion.value2Version(req.getVersion());
                 if (brokerVersion.ordinal() >= MQVersion.Version.V3_0_11.ordinal()) {
                     return this.registerBrokerWithFilterServer(ctx, req);//3.0.11以上存在filterServer
@@ -112,7 +113,8 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
                 }
             case UNREGISTER_BROKER:
                 return this.unregisterBroker(ctx, req);
-            case GET_ROUTEINTO_BY_TOPIC:
+
+            case GET_ROUTEINTO_BY_TOPIC: //比较核心的请求，通过topic获得相关的路由信息
                 return this.getRouteInfoByTopic(ctx, req);
             case GET_BROKER_CLUSTER_INFO:
                 return this.getBrokerClusterInfo(ctx, req);
@@ -203,6 +205,13 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    /**
+     * 3.1.1以上版本支持
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
     public RemotingCommand registerBrokerWithFilterServer(ChannelHandlerContext ctx, RemotingCommand req)
             throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(RegisterBrokerResponseHeader.class);
@@ -289,6 +298,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
 
     /**
      * 注册broker
+     *
      * @param ctx
      * @param req
      * @return
@@ -336,24 +346,24 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
     }
 
     public RemotingCommand unregisterBroker(ChannelHandlerContext ctx,
-                                            RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(null);
-        final UnRegisterBrokerRequestHeader requestHeader =
-                (UnRegisterBrokerRequestHeader) request.decodeCommandCustomHeader(UnRegisterBrokerRequestHeader.class);
+                                            RemotingCommand req) throws RemotingCommandException {
+        final RemotingCommand resp = createResponseCommand(null);
+        final UnRegisterBrokerRequestHeader reqHeader = (UnRegisterBrokerRequestHeader) req.decodeCommandCustomHeader(UnRegisterBrokerRequestHeader.class);
 
         this.namesrvController.getRouteInfoManager().unregisterBroker(
-                requestHeader.getClusterName(),
-                requestHeader.getBrokerAddr(),
-                requestHeader.getBrokerName(),
-                requestHeader.getBrokerId());
+                reqHeader.getClusterName(),
+                reqHeader.getBrokerAddr(),
+                reqHeader.getBrokerName(),
+                reqHeader.getBrokerId());
 
-        response.setCode(ResponseCode.SUCCESS);
-        response.setRemark(null);
-        return response;
+        resp.setCode(ResponseCode.SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
     /**
      * 获得topic的路由信息，从nameServer中获得相关的信息
+     *
      * @param ctx
      * @param req
      * @return

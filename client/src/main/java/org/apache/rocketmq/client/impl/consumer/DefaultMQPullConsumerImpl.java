@@ -69,14 +69,18 @@ import static org.apache.rocketmq.common.protocol.heartbeat.MessageModel.CLUSTER
 public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     private final InternalLogger log = ClientLogger.getLog();
     private final DefaultMQPullConsumer defaultMQPullConsumer;
+    //开始时间
     private final long consumerStartTimestamp = System.currentTimeMillis();
     private final RPCHook rpcHook;
     private final ArrayList<ConsumeMessageHook> consumeMessageHookList = new ArrayList<ConsumeMessageHook>();
     private final ArrayList<FilterMessageHook> filterMessageHookList = new ArrayList<FilterMessageHook>();
     private volatile ServiceState serviceState = ServiceState.CREATE_JUST;
     private MQClientInstance mQClientFactory;
+    //核心的支持对远程消息fetch，无论哪种模式，均是使用该核心类进行fetch消息
     private PullAPIWrapper pullAPIWrapper;
+    //消费存储
     private OffsetStore offsetStore;
+    //重新平衡操作
     private RebalanceImpl rebalanceImpl = new RebalancePullImpl(this);
 
     public DefaultMQPullConsumerImpl(final DefaultMQPullConsumer defaultMQPullConsumer, final RPCHook rpcHook) {

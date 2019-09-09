@@ -39,6 +39,7 @@ import static java.io.File.separator;
 
 /**
  * Local storage implementation
+ * 基于本地存储的offset存储器
  */
 public class LocalFileOffsetStore implements OffsetStore {
     //存储目录

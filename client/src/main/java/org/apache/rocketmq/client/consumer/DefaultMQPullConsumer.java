@@ -35,6 +35,7 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 
 /**
  * Default pulling consumer
+ * 默认的基于拉的消费，委托给Impl进行操作
  */
 public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsumer {
     //默认的基于拉的消费端消费
@@ -91,6 +92,11 @@ public class DefaultMQPullConsumer extends ClientConfig implements MQPullConsume
         this(MixAll.DEFAULT_CONSUMER_GROUP, null);
     }
 
+    /**
+     * 构建带有rpchook的拉实现
+     * @param consumerGroup
+     * @param rpcHook
+     */
     public DefaultMQPullConsumer(final String consumerGroup, RPCHook rpcHook) {
         this.consumerGroup = consumerGroup;
         defaultMQPullConsumerImpl = new DefaultMQPullConsumerImpl(this, rpcHook);
