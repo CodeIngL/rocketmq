@@ -107,6 +107,12 @@ public class TransactionalMessageBridge {
         return offset;
     }
 
+    /**
+     * 获得topic对应相关的的消息队列描述对象
+     * 最多只有指定相关的支持可读的队列
+     * @param topic
+     * @return
+     */
     public Set<MessageQueue> fetchMessageQueues(String topic) {
         Set<MessageQueue> mqSet = new HashSet<>();
         TopicConfig topicConfig = selectTopicConfig(topic);
@@ -122,6 +128,11 @@ public class TransactionalMessageBridge {
         return mqSet;
     }
 
+    /**
+     * 更新consumer对应offset
+     * @param mq
+     * @param offset
+     */
     public void updateConsumeOffset(MessageQueue mq, long offset) {
         this.brokerController.getConsumerOffsetManager().commitOffset(parseSocketAddressAddr(this.storeHost), buildConsumerGroup(), mq.getTopic(), mq.getQueueId(), offset);
     }
@@ -241,8 +252,10 @@ public class TransactionalMessageBridge {
         putProperty(msg, PROPERTY_REAL_TOPIC, msg.getTopic());
         //真实的queueId
         putProperty(msg, PROPERTY_REAL_QUEUE_ID, valueOf(msg.getQueueId()));
+        //重置消息的相关标记
         msg.setSysFlag(resetTransactionValue(msg.getSysFlag(), TRANSACTION_NOT_TYPE));
-        //一阶段事务topic
+        //一阶段事务topic，写入一个特定的topic，并且总是写入其queueId，并且值是0。
+        //这意味着所有的都是写入这个队列，而不管之前真实的topic是什么
         msg.setTopic(buildHalfTopic());
         msg.setQueueId(0);
         msg.setPropertiesString(messageProperties2String(msg.getProperties()));
@@ -360,7 +373,7 @@ public class TransactionalMessageBridge {
      * @return This method will always return true.
      */
     private boolean addRemoveTagInTransactionOp(MessageExt messageExt, MessageQueue messageQueue) {
-        //构建消息
+        //构建消息，op消息也就是写入一个特殊标记，为op消息写入一个特殊的标记
         Message message = new Message(buildOpTopic(), REMOVETAG, valueOf(messageExt.getQueueOffset()).getBytes(TransactionalMessageUtil.charset));
         writeOp(message, messageQueue);
         return true;

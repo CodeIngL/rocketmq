@@ -110,10 +110,8 @@ public class ConsumerFilterManager extends ConfigManager {
      */
     public void register(final String consumerGroup, final Collection<SubscriptionData> subList) {
         for (SubscriptionData subscriptionData : subList) {
-            register(
-                    subscriptionData.getTopic(), consumerGroup, subscriptionData.getSubString(),
-                subscriptionData.getExpressionType(), subscriptionData.getSubVersion()
-            );
+            register(subscriptionData.getTopic(), consumerGroup, subscriptionData.getSubString(),
+                subscriptionData.getExpressionType(), subscriptionData.getSubVersion());
         }
 
         // make illegal topic dead.

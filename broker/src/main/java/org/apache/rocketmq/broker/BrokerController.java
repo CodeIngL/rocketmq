@@ -1264,8 +1264,12 @@ public class BrokerController {
         log.info("Finish to change to master brokerName={}", brokerConfig.getBrokerName());
     }
 
+    /**
+     * 高可用非使用delege方式的处理
+     * @param role
+     */
     private void startProcessorByHa(BrokerRole role) {
-        if (BrokerRole.SLAVE != role) {
+        if (BrokerRole.SLAVE != role) { //只有master才支持
             if (this.transactionalMessageCheckService != null) {
                 this.transactionalMessageCheckService.start();
             }

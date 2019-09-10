@@ -145,7 +145,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
     }
 
     /**
-     *
+     * 校验相关half消息，也就是从half这个特殊的topic中读取相关的信息，然后进行校验
      * @param timeout The minimum time of the transactional message to be checked firstly, one message only
      * exceed this time interval that can be checked.首先检查事务消息的最短时间，一条消息只超过可以检查的时间间隔。
      * @param checkMax The maximum number of times the message was checked, if exceed this value, this
@@ -218,6 +218,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                             }
                         }
 
+                        //是否要丢弃，该消息校验次数已经很多了，这条消息太古老了
                         if (needDiscard(msg, checkMax) || needSkip(msg)) {
                             listener.resolveDiscardMsg(msg);
                             newOffset = i + 1; //下一个offset
@@ -308,7 +309,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
      *     读取操作消息，解析操作消息，并填充removeMap
      * </p>
      *
-     * @param removeMap Half message to be remove, key:halfOffset, value: opOffset.
+     * @param removeMap Half message to be remove, key:halfOffset, value: opOffset. 存储待删除映射halfoffset和opoffset的映射
      * @param opQueue Op message queue.
      * @param pullOffsetOfOp The begin offset of op message queue.
      * @param miniOffset The current minimum offset of half message queue.
@@ -371,11 +372,13 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             if (-1 == prepareQueueOffset) {
                 return false;
             } else {
+                //已经确定的状态，不管是commit还是rollback，都是已经确定了的，
                 if (removeMap.containsKey(prepareQueueOffset)) {
                     long tmpOpOffset = removeMap.remove(prepareQueueOffset);
                     doneOpOffset.add(tmpOpOffset);
                     return true;
                 } else {
+                    //重新投递到half消息队列中
                     return putImmunityMsgBackToHalfQueue(msgExt); //重新投递到half消息队列中。
                 }
             }
@@ -476,7 +479,8 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
     }
 
     /**
-     * 获得消息队列对应op队列
+     * 获得消息队列对应op队列，一个half消息队列，对应一个相应的op操作队列。并存储在内存中，如果
+     * 这个half消息队列是没有对应的op，我们总是会为他进行相应的创建
      * @param mq
      * @return
      */
@@ -537,6 +541,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
      */
     @Override
     public boolean deletePrepareMessage(MessageExt msgExt) {
+        //删除消息，是有逻辑处理，就是写入一个特殊的消息，也就是op消息
         if (this.transactionalMessageBridge.putOpMessage(msgExt, REMOVETAG)) {
             log.info("Transaction op message write successfully. messageId={}, queueId={} msgExt:{}", msgExt.getMsgId(), msgExt.getQueueId(), msgExt);
             return true;

@@ -31,7 +31,9 @@ import java.util.Set;
  */
 public class SubscriptionData implements Comparable<SubscriptionData> {
     public final static String SUB_ALL = "*";
+    //是否是classFilter
     private boolean classFilterMode = false;
+    //消费topic
     private String topic;
     /**
      * 目前情况，*，tag，类全名，sql表达式
@@ -39,9 +41,11 @@ public class SubscriptionData implements Comparable<SubscriptionData> {
     private String subString;
     //tag集合
     private Set<String> tagsSet = new HashSet<String>();
-    //code集合
+    //code集合，tag的hashcode值
     private Set<Integer> codeSet = new HashSet<Integer>();
+    //版本
     private long subVersion = System.currentTimeMillis();
+    //表达式类型
     private String expressionType = ExpressionType.TAG;
 
     @JSONField(serialize = false)
@@ -178,8 +182,8 @@ public class SubscriptionData implements Comparable<SubscriptionData> {
     @Override
     public String toString() {
         return "SubscriptionData [classFilterMode=" + classFilterMode + ", topic=" + topic + ", subString="
-            + subString + ", tagsSet=" + tagsSet + ", codeSet=" + codeSet + ", subVersion=" + subVersion
-            + ", expressionType=" + expressionType + "]";
+                + subString + ", tagsSet=" + tagsSet + ", codeSet=" + codeSet + ", subVersion=" + subVersion
+                + ", expressionType=" + expressionType + "]";
     }
 
     @Override

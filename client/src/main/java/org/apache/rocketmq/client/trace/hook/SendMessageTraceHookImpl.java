@@ -26,6 +26,9 @@ import org.apache.rocketmq.client.trace.TraceBean;
 import org.apache.rocketmq.client.trace.TraceType;
 import java.util.ArrayList;
 
+/**
+ * 发送消息的钩子，用于处理追踪相关的事项
+ */
 public class SendMessageTraceHookImpl implements SendMessageHook {
 
     private TraceDispatcher localDispatcher;
@@ -42,6 +45,7 @@ public class SendMessageTraceHookImpl implements SendMessageHook {
     @Override
     public void sendMessageBefore(SendMessageContext context) {
         //if it is message trace data,then it doesn't recorded
+        //如果消息就是代表了追踪的数据，那么我们是不需要对他们进行记录的
         if (context == null || context.getMessage().getTopic().startsWith(((AsyncTraceDispatcher) localDispatcher).getTraceTopicName())) {
             return;
         }

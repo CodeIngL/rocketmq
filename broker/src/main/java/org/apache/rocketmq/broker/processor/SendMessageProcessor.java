@@ -357,9 +357,10 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         String topic = reqHeader.getTopic();
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(topic);
 
-        //获得queueId
+        //获得queueId，总是一个数字
         int queueId = reqHeader.getQueueId();
         if (queueId < 0) {
+            //在可选的写队列中随机选择一个进行写入
             queueId = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
         }
 
@@ -391,7 +392,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         //获得事务标记
         String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
         if (traFlag != null && Boolean.parseBoolean(traFlag)) { //是否事务消息
-            if (brokerConfig.isRejectTransactionMessage()) {//broker配置不支持事务，无法支持事务消息
+            //broker配置不支持事务，无法支持事务消息，就是broker能够配置不支持事务消息的特性
+            if (brokerConfig.isRejectTransactionMessage()) {
                 resp.setCode(ResponseCode.NO_PERMISSION);
                 resp.setRemark("the broker[" + brokerConfig.getBrokerIP1() + "] sending transaction message is forbidden");
                 return resp;
@@ -399,7 +401,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             //一阶段hal事务消息，我们需要处理这个消息，然后再进行投递，返回投递half消息结果
             result = this.brokerController.getTransactionalMessageService().prepareMessage(msgInner);
         } else {
-            //使用消息存储处理，返回消息投递结果
+            //普通的消息，非事务消息，我们不想做那么多的处理
+            // 使用消息存储处理，返回消息投递结果
             result = this.brokerController.getMessageStore().putMessage(msgInner); //非事务消息的投递
         }
 
