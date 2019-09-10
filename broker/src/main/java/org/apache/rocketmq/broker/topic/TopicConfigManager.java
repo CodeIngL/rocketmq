@@ -44,6 +44,9 @@ import static org.apache.rocketmq.common.constant.PermName.PERM_INHERIT;
 import static org.apache.rocketmq.common.constant.PermName.PERM_READ;
 import static org.apache.rocketmq.common.constant.PermName.PERM_WRITE;
 
+/**
+ * 存在于broker中的关于topic及其配置信息的管理器，提供了对topic的维护
+ */
 public class TopicConfigManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long LOCK_TIMEOUT_MILLIS = 3000;

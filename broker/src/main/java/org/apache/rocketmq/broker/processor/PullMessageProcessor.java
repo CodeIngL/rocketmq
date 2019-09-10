@@ -146,8 +146,11 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         int queueId = reqHeader.getQueueId();
         if (checkQueueId(channel, resp, topic, topicConfig, queueId)) return resp;
 
+        //表达式类型
         String expressionType = reqHeader.getExpressionType();
+        //订阅数据
         String subscription = reqHeader.getSubscription();
+        //版本
         Long subVersion = reqHeader.getSubVersion();
 
         //订阅的数据

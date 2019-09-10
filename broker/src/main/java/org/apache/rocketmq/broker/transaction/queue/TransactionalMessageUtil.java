@@ -21,6 +21,7 @@ import org.apache.rocketmq.common.MixAll;
 import java.nio.charset.Charset;
 
 public class TransactionalMessageUtil {
+    //代表了要删除的消息，在这里专门指half消息
     public static final String REMOVETAG = "d";
     public static Charset charset = Charset.forName("utf-8");
 
