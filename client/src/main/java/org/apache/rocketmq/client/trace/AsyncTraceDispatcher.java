@@ -51,6 +51,9 @@ import java.util.HashSet;
 
 import static org.apache.rocketmq.client.trace.TraceConstants.TRACE_INSTANCE_NAME;
 
+/**
+ * 支持异步消息追踪，通过与hook协作来完成这件事情
+ */
 public class AsyncTraceDispatcher implements TraceDispatcher {
 
     private final static InternalLogger log = ClientLogger.getLog();
@@ -308,6 +311,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
                 }
             }
             if (count > 0) {
+                //我们发送这些追踪数据，同样我们通过消息的形式来进行
                 sendTraceDataByMQ(keySet, buffer.toString());
             }
             transBeanList.clear();

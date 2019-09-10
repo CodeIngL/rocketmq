@@ -115,13 +115,20 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     private final RPCHook rpcHook;
     private volatile ServiceState serviceState = CREATE_JUST;
     private MQClientInstance mQClientFactory;
+    //核心的拉起组件
     private PullAPIWrapper pullAPIWrapper;
     private volatile boolean pause = false;
+    //是否顺序消费
     private boolean consumeOrderly = false;
+    //监听器
     private MessageListener messageListenerInner;
+    //消息offset存储
     private OffsetStore offsetStore;
+    //消费服务
     private ConsumeMessageService consumeMessageService;
+    //流控次数，记录发生流控的次数
     private long queueFlowControlTimes = 0;
+    //跨度流控次数，记录发生流控的次数
     private long queueMaxSpanFlowControlTimes = 0;
 
     public DefaultMQPushConsumerImpl(DefaultMQPushConsumer defaultMQPushConsumer, RPCHook rpcHook) {
@@ -411,7 +418,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
         boolean commitOffsetEnable = false;
         long commitOffsetValue = 0L;
-        if (CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) { //集群方式支持
+        if (CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) {
+            //集群方式支持，我们需要拿到当下节点已经消费到哪里了，因此我们需要从offsetStore中读取相关信息
             commitOffsetValue = this.offsetStore.readOffset(pullRequest.getMessageQueue(), READ_FROM_MEMORY); //从内存中获取offset
             if (commitOffsetValue > 0) {
                 commitOffsetEnable = true;
