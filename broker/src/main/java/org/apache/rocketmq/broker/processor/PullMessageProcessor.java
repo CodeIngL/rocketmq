@@ -395,7 +395,9 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                     break;
                 case PULL_NOT_FOUND: //当消息没有的时候，我们通过构造一个被短暂挂起的请求，来让后端的线程进行触发，回写
 
-                    if (brokerAllowSuspend && hasSuspendFlag) { //broker支持挂起的请求，并且请求明确指出这是一个可以被挂起的请求
+                    //broker支持挂起的请求，并且请求明确指出这是一个可以被挂起的请求，也就是当前没有消息，
+                    //broker将维护这个请求，并在稍后存在消息的时候，进行已推的方式向客户端发送到达的消息
+                    if (brokerAllowSuspend && hasSuspendFlag) {
                         long pollingTimeMills = suspendTimeoutMillisLong;
                         if (!brokerConfig.isLongPollingEnable()) {//broker支持长轮训
                             pollingTimeMills = brokerConfig.getShortPollingTimeMills(); //设置的短轮训

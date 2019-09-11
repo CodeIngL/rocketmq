@@ -202,6 +202,12 @@ public class RouteInfoManager {
         return result;
     }
 
+    /**
+     * broker的数据版本发生了变化，或者是第一次
+     * @param brokerAddr
+     * @param dataVersion
+     * @return 是否发生了变化
+     */
     public boolean isBrokerTopicConfigChanged(final String brokerAddr, final DataVersion dataVersion) {
         DataVersion prev = queryBrokerTopicConfig(brokerAddr);
         return null == prev || !prev.equals(dataVersion);
@@ -250,10 +256,12 @@ public class RouteInfoManager {
             Iterator<QueueData> it = queueDataList.iterator();
             while (it.hasNext()) {
                 QueueData qd = it.next();
+                //同一个broker上
                 if (qd.getBrokerName().equals(brokerName)) {
+                    //数据是一样？说明没发生了变化？
                     if (qd.equals(queueData)) {
                         addNewOne = false;
-                    } else {
+                    } else { //发生了变化
                         log.info("topic changed, {} OLD: {} NEW: {}",topicName, qd, queueData);
                         it.remove();
                     }
@@ -261,6 +269,7 @@ public class RouteInfoManager {
             }
 
             if (addNewOne) {
+                //添加回来
                 queueDataList.add(queueData);
             }
         }
