@@ -362,6 +362,7 @@ public abstract class RebalanceImpl {
 
         //消息队列和处理队列
         Iterator<Entry<MessageQueue, ProcessQueue>> it = this.processQueueTable.entrySet().iterator(); //本地存储的副本
+        //进行可能的更改
         while (it.hasNext()) {
             Entry<MessageQueue, ProcessQueue> next = it.next();
             MessageQueue mq = next.getKey();
@@ -369,6 +370,7 @@ public abstract class RebalanceImpl {
 
             if (mq.getTopic().equals(topic)) { //topic一致
                 if (!mqSet.contains(mq)) { //重新负载均衡的结果不包含副本存储的，需要标记这个删除
+                    //标记这个要删除
                     pq.setDropped(true);
                     if (this.removeUnnecessaryMessageQueue(mq, pq)) { //是否移除这个已经被标记drop消息队列
                         it.remove();

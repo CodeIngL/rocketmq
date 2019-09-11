@@ -350,9 +350,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
                             DefaultMQPushConsumerImpl.this.getConsumerStatsManager().incPullTPS(pullRequest.getConsumerGroup(), mq.getTopic(), result.getMsgFoundList().size());
 
-                            //分发到消息
+                            //将拉取消息分发进消息的内存存储，也就是processQueue中
                             boolean dispatchToConsume = processQueue.putMessage(result.getMsgFoundList());
-                            //消费消息的服务
+                            //消费消息的服务，构建一个需要被消费的请求，由消费消息的线程进行处理，这里因为上面已经分发了相关的消息。
                             consumeMessageService.submitConsumeRequest(result.getMsgFoundList(), processQueue, mq, dispatchToConsume);
 
                             if (defaultMQPushConsumer.getPullInterval() > 0) { //存在拉取的间隔，我们尝试构建一个支持调度的任务进行拉取，也就是延迟拉取
@@ -567,7 +567,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             MessageAccessor.setReconsumeTime(newMsg, String.valueOf(msg.getReconsumeTimes() + 1));
             //最大重试次数
             MessageAccessor.setMaxReconsumeTimes(newMsg, String.valueOf(getMaxReconsumeTimes()));
-            //设置延迟级别
+            //设置延迟级别，重新消费，我们需要根据重试的次数，进行设置新的延迟等级
             newMsg.setDelayTimeLevel(3 + msg.getReconsumeTimes());
 
             //发送

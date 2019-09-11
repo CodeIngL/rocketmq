@@ -142,7 +142,7 @@ public class ProcessQueue {
     /**
      * 将消息投递到内部的结构中，等待被消费
      * @param msgs
-     * @return
+     * @return 需要稍后被消费
      */
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
@@ -204,6 +204,11 @@ public class ProcessQueue {
         return 0;
     }
 
+    /**
+     * 删除消息，并返回正确的消费offset
+     * @param msgs
+     * @return
+     */
     public long removeMessage(final List<MessageExt> msgs) {
         long result = -1;
         final long now = System.currentTimeMillis();

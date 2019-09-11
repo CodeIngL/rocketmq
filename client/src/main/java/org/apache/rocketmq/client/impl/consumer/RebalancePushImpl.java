@@ -90,10 +90,11 @@ public class RebalancePushImpl extends RebalanceImpl {
 
     @Override
     public boolean removeUnnecessaryMessageQueue(MessageQueue mq, ProcessQueue pq) {
+        //首先是持久化相关数据，然后把自己的offset中删除这消息队列
         OffsetStore store = defaultMQPushConsumerImpl.getOffsetStore();
         store.persist(mq);
         store.removeOffset(mq);
-        //如果是集群顺序消费
+        //如果是集群顺序消费，集群消费还要特殊的处理，这个发生在条件是顺序消费的时候
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly() && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
                 //尝试加锁
@@ -110,6 +111,7 @@ public class RebalancePushImpl extends RebalanceImpl {
             } catch (Exception e) {
                 log.error("removeUnnecessaryMessageQueue Exception", e);
             }
+            //无法删除，因为这个队列对应消息还在被进行相关的消费
             return false; //不能删除
         }
         return true;
