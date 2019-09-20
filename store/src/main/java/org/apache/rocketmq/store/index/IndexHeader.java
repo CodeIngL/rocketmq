@@ -25,17 +25,17 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class IndexHeader {
     public static final int INDEX_HEADER_SIZE = 40;
-    //开始时间
+    //开始时间偏移量
     private static int beginTimestampIndex = 0;
-    //结束时间
+    //结束时间偏移量
     private static int endTimestampIndex = 8;
-    //开始的物理位移
+    //开始的物理位移偏移量
     private static int beginPhyoffsetIndex = 16;
-    //当前的结束的物理位移
+    //当前的结束的物理位移偏移量
     private static int endPhyoffsetIndex = 24;
-    //hash槽的数量
+    //hash槽的数量偏移量
     private static int hashSlotcountIndex = 32;
-    //index的数量
+    //index的数量偏移量
     private static int indexCountIndex = 36;
     private final ByteBuffer byteBuffer;
     private AtomicLong beginTimestamp = new AtomicLong(0);
