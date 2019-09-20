@@ -73,7 +73,7 @@ public class PullAPIWrapper {
     }
 
     /**
-     * 处理拉取结果
+     * 处理消息拉取结果
      * @param mq
      * @param pullResult
      * @param subscriptionData
@@ -82,7 +82,7 @@ public class PullAPIWrapper {
     public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult, final SubscriptionData subscriptionData) {
         PullResultExt pullResultExt = (PullResultExt) pullResult;
 
-        //更新拉取的消息来自哪个节点
+        //更新建议拉取的消息来自哪个节点
         this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
         if (FOUND == pullResult.getPullStatus()) { //有消息
             //解码成消息
@@ -90,7 +90,8 @@ public class PullAPIWrapper {
 
             //过滤的消息
             List<MessageExt> msgListFilterAgain = msgList;
-            //存在tag，要匹配tag
+            // 存在tag，要匹配tag
+            // 精确匹配消息
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
                 msgListFilterAgain = new ArrayList<>(msgList.size());
                 for (MessageExt msg : msgList) {
@@ -131,7 +132,7 @@ public class PullAPIWrapper {
     }
 
     /**
-     * 跟新消息应该从哪个broker中拉取
+     * 更新下一次消息应该从哪个broker中拉取，这个结果有本次从broker中拉取的消息结果体现
      * @param mq
      * @param brokerId
      */
@@ -166,19 +167,19 @@ public class PullAPIWrapper {
 
     /**
      * 核心的拉取模式对远程broker消息的拉取
-     * @param mq
-     * @param subExpression
-     * @param expressionType
-     * @param subVersion
-     * @param offset
-     * @param maxNums
-     * @param sysFlag
-     * @param commitOffset
-     * @param brokerSuspendMaxTimeMillis
-     * @param timeoutMillis
-     * @param communicationMode
-     * @param pullCallback
-     * @return
+     * @param mq 消息队列
+     * @param subExpression 订阅表达式
+     * @param expressionType 订阅类型
+     * @param subVersion 版本
+     * @param offset 拉取开始的offset
+     * @param maxNums 最大消息量
+     * @param sysFlag 系统标记
+     * @param commitOffset 已提交的offset
+     * @param brokerSuspendMaxTimeMillis 支持挂起的最大时间
+     * @param timeoutMillis 超时时间
+     * @param communicationMode 通信方式
+     * @param pullCallback 回调参数
+     * @return 拉取消息的结果
      * @throws MQClientException
      * @throws RemotingException
      * @throws MQBrokerException
@@ -191,7 +192,9 @@ public class PullAPIWrapper {
         //发现broker
         FindBrokerResult findBrokerResult = mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
         if (null == findBrokerResult) {
+            //找不到从nameserver中跟新本地的信息
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
+            //现在再从本地中找一遍
             findBrokerResult = mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
         }
 
@@ -222,8 +225,11 @@ public class PullAPIWrapper {
             reqHeader.setSubVersion(subVersion);
             reqHeader.setExpressionType(expressionType);
 
+            //获得broker地址，我们从我们上述查找的brokerResult来查找地址
             String brokerAddr = findBrokerResult.getBrokerAddr();
-            if (hasClassFilterFlag(sysFlagInner)) { //存在filterServer
+            if (hasClassFilterFlag(sysFlagInner)) {
+                //存在filterServer
+                //我们从filterServer上计算一下可能发生变化的地址
                 brokerAddr = computePullFromWhichFilterServer(mq.getTopic(), brokerAddr);
             }
 
@@ -235,7 +241,8 @@ public class PullAPIWrapper {
     }
 
     /**
-     * 计算重新去哪个节点拉取消息
+     * 计算重新去哪个节点拉取消息，用于减轻主从压力，比如从从节点上获取
+     * master角色的id总是0
      * @param mq
      * @return
      */
@@ -259,6 +266,7 @@ public class PullAPIWrapper {
         ConcurrentMap<String, TopicRouteData> topicRouteTable = this.mQClientFactory.getTopicRouteTable();
         if (topicRouteTable != null) {
             TopicRouteData topicRouteData = topicRouteTable.get(topic);
+            //filterServer的地址
             List<String> list = topicRouteData.getFilterServerTable().get(brokerAddr);
             if (list != null && !list.isEmpty()) {
                 return list.get(randomNum() % list.size());

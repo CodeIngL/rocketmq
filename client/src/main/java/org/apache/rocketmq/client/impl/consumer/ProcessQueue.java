@@ -51,7 +51,9 @@ public class ProcessQueue {
     private final ReadWriteLock lockTreeMap = new ReentrantReadWriteLock();
     //消息树
     private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
+    //代表了消息的数量
     private final AtomicLong msgCount = new AtomicLong();
+    //代表了消息的总大小
     private final AtomicLong msgSize = new AtomicLong();
     //消费锁，用于控制顺序消费
     private final Lock lockConsume = new ReentrantLock();
@@ -187,6 +189,10 @@ public class ProcessQueue {
         return dispatchToConsume;
     }
 
+    /**
+     * 获得消息的跨度
+     * @return
+     */
     public long getMaxSpan() {
         try {
             this.lockTreeMap.readLock().lockInterruptibly();

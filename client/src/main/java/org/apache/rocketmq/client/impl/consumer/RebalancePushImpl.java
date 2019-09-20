@@ -97,7 +97,7 @@ public class RebalancePushImpl extends RebalanceImpl {
         //如果是集群顺序消费，集群消费还要特殊的处理，这个发生在条件是顺序消费的时候
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly() && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
-                //尝试加锁
+                //尝试加锁，因为调整时候，可能还正在被锁定
                 if (pq.getLockConsume().tryLock(1000, TimeUnit.MILLISECONDS)) {
                     try {
                         return this.unlockDelay(mq, pq);
@@ -142,6 +142,7 @@ public class RebalancePushImpl extends RebalanceImpl {
 
     /**
      * 从消息队列推测出应该从哪里进行消费
+     * -1 异常，其他正常情况
      * @param mq
      * @return
      */
@@ -156,17 +157,21 @@ public class RebalancePushImpl extends RebalanceImpl {
             case CONSUME_FROM_LAST_OFFSET_AND_FROM_MIN_WHEN_BOOT_FIRST:
             case CONSUME_FROM_MIN_OFFSET:
             case CONSUME_FROM_MAX_OFFSET:
+                //最后一个
             case CONSUME_FROM_LAST_OFFSET: {
+                //从broker上获得存储中获得最后一个offset
                 long lastOffset = offsetStore.readOffset(mq, ReadOffsetType.READ_FROM_STORE);
                 if (lastOffset >= 0) {
                     result = lastOffset;
                 }
                 // First start,no offset
+                //没有offset
                 else if (-1 == lastOffset) {
                     if (mq.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         result = 0L;
                     } else {
                         try {
+                            //获得远程存储上的最大的offset，作为offset
                             result = this.mQClientFactory.getMQAdminImpl().maxOffset(mq);
                         } catch (MQClientException e) {
                             result = -1;
@@ -177,30 +182,37 @@ public class RebalancePushImpl extends RebalanceImpl {
                 }
                 break;
             }
+            //first获取
             case CONSUME_FROM_FIRST_OFFSET: {
+                //首先也是从broker存储中获取已经提交的由broker维护的offset
                 long lastOffset = offsetStore.readOffset(mq, ReadOffsetType.READ_FROM_STORE);
                 if (lastOffset >= 0) {
                     result = lastOffset;
                 } else if (-1 == lastOffset) {
+                    //不存在的话使用最早的消费，也就是0
                     result = 0L;
                 } else {
                     result = -1;
                 }
                 break;
             }
+            //时间戳获取
             case CONSUME_FROM_TIMESTAMP: {
+                //首先从broker上获得
                 long lastOffset = offsetStore.readOffset(mq, ReadOffsetType.READ_FROM_STORE);
                 if (lastOffset >= 0) {
                     result = lastOffset;
                 } else if (-1 == lastOffset) {
                     if (mq.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         try {
+                            //获得最大的offset
                             result = this.mQClientFactory.getMQAdminImpl().maxOffset(mq);
                         } catch (MQClientException e) {
                             result = -1;
                         }
                     } else {
                         try {
+                            //根据时间戳搜索到相关的offset
                             long timestamp = UtilAll.parseDate(this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer().getConsumeTimestamp(),
                                 UtilAll.YYYYMMDDHHMMSS).getTime();
                             result = this.mQClientFactory.getMQAdminImpl().searchOffset(mq, timestamp);

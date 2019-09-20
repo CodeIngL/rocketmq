@@ -355,7 +355,7 @@ public abstract class RebalanceImpl {
      * @param topic 主题
      * @param mqSet 获得的消息队列，目前topic在本机上对应的消费队列集合，也就是新的消息队列
      * @param isOrder 是否是顺序消费
-     * @return
+     * @return 是否发生了变化
      */
     private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet, final boolean isOrder) {
         boolean changed = false;
@@ -369,21 +369,25 @@ public abstract class RebalanceImpl {
             ProcessQueue pq = next.getValue();
 
             if (mq.getTopic().equals(topic)) { //topic一致
-                if (!mqSet.contains(mq)) { //重新负载均衡的结果不包含副本存储的，需要标记这个删除
+                //重新负载均衡的结果不包含副本存储的，需要标记这个删除
+                if (!mqSet.contains(mq)) {
                     //标记这个要删除
                     pq.setDropped(true);
-                    if (this.removeUnnecessaryMessageQueue(mq, pq)) { //是否移除这个已经被标记drop消息队列
+                    //是否能够移除这个已经被标记drop消息队列
+                    if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                         it.remove();
                         changed = true;
                         log.info("doRebalance, {}, remove unnecessary mq, {}", consumerGroup, mq);
                     }
-                } else if (pq.isPullExpired()) { //拉取超时
+                } else if (pq.isPullExpired()) {
+                    //拉取超时
                     switch (this.consumeType()) { //类型
                         case CONSUME_ACTIVELY: //活跃，pull模式不关注
                             break;
                         case CONSUME_PASSIVELY: //不活跃
                             pq.setDropped(true); //丢弃
-                            if (this.removeUnnecessaryMessageQueue(mq, pq)) { //是否移除这个已经被标记drop消息队列
+                            //是否移除这个已经被标记drop消息队列
+                            if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                                 it.remove();
                                 changed = true;
                                 log.error("[BUG]doRebalance, {}, remove unnecessary mq, {}, because pull is pause, so try to fixed it", consumerGroup, mq);
@@ -400,9 +404,11 @@ public abstract class RebalanceImpl {
         List<PullRequest> pullRequestList = new ArrayList<>();
         //遍历，构建分发的请求
         for (MessageQueue mq : mqSet) {
-            if(this.processQueueTable.containsKey(mq)){ //已存在我们不用关注这个，上面已经处理过了
+            if(this.processQueueTable.containsKey(mq)){
+                //已存在我们不用关注这个，上面已经处理过了
                 continue;
             }
+            //顺序消费，并且我们不能锁定这个消息队列，忽略这个消息队列
             if (isOrder && !this.lock(mq)) {
                 log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                 continue;
@@ -410,15 +416,17 @@ public abstract class RebalanceImpl {
 
             //新建操作
 
-            //删除脏副本
+            //删除脏副本，如果存在的话
             this.removeDirtyOffset(mq); //删除这个队列对应的offset
+
+
             ProcessQueue pq = new ProcessQueue(); //构建新的副本
             long nextOffset = this.computePullFromWhere(mq); //计算下一个offset，pull方式总是0，push则是会进行相关的计算
             if (nextOffset >= 0) {
                 ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq); //更新放置
-                if (pre != null) { //先前存在
+                if (pre != null) { //先前存在，我们不去变更他
                     log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
-                } else { //先前不存在
+                } else { //先前不存在,我们建立，并放在其中，同时说明已经发生了变更
                     log.info("doRebalance, {}, add a new mq, {}", consumerGroup, mq);
                     PullRequest req = new PullRequest(); //构建一个消息准备进行拉取消息
                     req.setConsumerGroup(consumerGroup);
@@ -450,10 +458,12 @@ public abstract class RebalanceImpl {
         final Set<MessageQueue> mqDivided);
 
     /**
-     * 是否移除不必要的消息队列，由具体子类根据自己的方式来进行标记是否进行删除
+     * 移除不必要的消息队列，由具体子类根据自己的方式来进行标记删除成功或者失败
+     * 对于拉模式来说，仅仅做好删除的队列的持久化就可以了
+     * 对于push模式来说，seepush模式
      * @param mq
      * @param pq
-     * @return
+     * @return 是否成功删除不必要的消息队列
      */
     public abstract boolean removeUnnecessaryMessageQueue(final MessageQueue mq, final ProcessQueue pq);
 
@@ -461,6 +471,11 @@ public abstract class RebalanceImpl {
 
     public abstract void removeDirtyOffset(final MessageQueue mq);
 
+    /**
+     * 计算应该下一次从哪里拉取
+     * @param mq
+     * @return
+     */
     public abstract long computePullFromWhere(final MessageQueue mq);
 
     /**
