@@ -591,6 +591,9 @@ public abstract class NettyRemotingAbstract {
         }
     }
 
+    /**
+     * netty上发生的事件
+     */
     class NettyEventExecutor extends ServiceThread {
         private final LinkedBlockingQueue<NettyEvent> eventQueue = new LinkedBlockingQueue<NettyEvent>();
         private final int maxSize = 10000;
@@ -618,6 +621,7 @@ public abstract class NettyRemotingAbstract {
                                 listener.onChannelIdle(event.getRemoteAddr(), event.getChannel());
                                 break;
                             case CLOSE:
+                                //关闭事件
                                 listener.onChannelClose(event.getRemoteAddr(), event.getChannel());
                                 break;
                             case CONNECT:

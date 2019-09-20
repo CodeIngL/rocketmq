@@ -1153,6 +1153,14 @@ public class MQClientInstance {
         return null;
     }
 
+
+    /**
+     * 根据
+     * @param brokerName
+     * @param brokerId
+     * @param onlyThisBroker
+     * @return 查找broker的结果
+     */
     public FindBrokerResult findBrokerAddressInSubscribe(final String brokerName, final long brokerId, final boolean onlyThisBroker) {
         String brokerAddr = null;
         boolean slave = false;

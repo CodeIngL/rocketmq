@@ -510,7 +510,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             channelTables.remove(addr);
         }
 
-        //
+        //加锁创建连接
         if (this.lockChannelTables.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
             try {
                 boolean createNewConnection;
