@@ -447,8 +447,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         storeOffsetEnable = storeOffsetEnable && hasCommitOffsetFlag; //存在commitOffset
         storeOffsetEnable = storeOffsetEnable && brokerRole != BrokerRole.SLAVE; //不是slave
         if (storeOffsetEnable) {
-            this.brokerController.getConsumerOffsetManager().commitOffset(parseChannelRemoteAddr(channel),
-                consumerGroup, topic, queueId, reqHeader.getCommitOffset());
+            //存在CommitOffset
+            this.brokerController.getConsumerOffsetManager().commitOffset(parseChannelRemoteAddr(channel), consumerGroup, topic, queueId, reqHeader.getCommitOffset());
         }
         //返回响应
         return resp;
