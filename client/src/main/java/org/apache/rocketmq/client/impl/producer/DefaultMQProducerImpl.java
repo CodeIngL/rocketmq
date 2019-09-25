@@ -1400,6 +1400,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             throw new MQClientException("send message Exception", e);
         }
 
+        //消息结果状态
         LocalTransactionState state = UNKNOW;
         Throwable localException = null;
         //消息结果
@@ -1418,6 +1419,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         state = executer.executeLocalTransactionBranch(msg, arg);
                     } else if (listener != null) {
                         log.debug("Used new transaction API");
+                        //执行本地事务
                         state = listener.executeLocalTransaction(msg, arg);
                     }
                     if (null == state) {
@@ -1444,6 +1446,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
 
         try {
+            //结束事务
             this.endTransaction(sResult, state, localException);
         } catch (Exception e) {
             log.warn("local transaction execute " + state + ", but end broker transaction failed", e);
@@ -1516,8 +1519,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         requestHeader.setMsgId(sResult.getMsgId());
         String remark = localException != null ? ("executeLocalTransactionBranch exception: " + localException.toString()) : null;
         //oneway方式发送
-        this.mQClientFactory.getMQClientAPIImpl().endTransactionOneway(brokerAddr, requestHeader, remark,
-            this.defaultMQProducer.getSendMsgTimeout());
+        this.mQClientFactory.getMQClientAPIImpl().endTransactionOneway(brokerAddr, requestHeader, remark, this.defaultMQProducer.getSendMsgTimeout());
     }
 
     public void setCallbackExecutor(final ExecutorService callbackExecutor) {

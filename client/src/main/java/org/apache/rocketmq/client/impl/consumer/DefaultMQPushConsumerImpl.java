@@ -471,8 +471,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     private void makeSureStateOK() throws MQClientException {
         if (this.serviceState != ServiceState.RUNNING) {
             throw new MQClientException("The consumer service state not OK, "
-                + this.serviceState
-                + suggestTodo(CLIENT_SERVICE_NOT_OK),
+                + this.serviceState + suggestTodo(CLIENT_SERVICE_NOT_OK),
                 null);
         }
     }

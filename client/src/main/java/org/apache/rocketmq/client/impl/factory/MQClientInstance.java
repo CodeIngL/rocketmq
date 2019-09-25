@@ -586,6 +586,7 @@ public class MQClientInstance {
      * 向所有的broker发送心跳信息
      */
     private void sendHeartbeatToAllBroker() {
+        //准备心跳数据，向所有的broker发送心跳信息
         final HeartbeatData heartbeatData = this.prepareHeartbeatData();
         final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
         final boolean consumerEmpty = heartbeatData.getConsumerDataSet().isEmpty();

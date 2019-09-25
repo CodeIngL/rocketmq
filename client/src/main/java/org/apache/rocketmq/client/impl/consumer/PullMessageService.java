@@ -69,6 +69,11 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    /**
+     * 稍后执行任务
+     * @param r
+     * @param timeDelay
+     */
     public void executeTaskLater(final Runnable r, final long timeDelay) {
         if (!isStopped()) {
             this.scheduledService.schedule(r, timeDelay, TimeUnit.MILLISECONDS);
@@ -77,7 +82,14 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    /**
+     * 拉取消息
+     * @param pullRequest
+     */
     private void pullMessage(final PullRequest pullRequest) {
+        /**
+         * 根据消费组选择相关实现
+         */
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {
             DefaultMQPushConsumerImpl impl = (DefaultMQPushConsumerImpl) consumer;
