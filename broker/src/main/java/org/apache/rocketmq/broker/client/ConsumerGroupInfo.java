@@ -131,6 +131,14 @@ public class ConsumerGroupInfo {
         return false;
     }
 
+    /**
+     * 变更信息
+     * @param infoNew
+     * @param consumeType
+     * @param messageModel
+     * @param consumeFromWhere
+     * @return
+     */
     public boolean updateChannel(final ClientChannelInfo infoNew, ConsumeType consumeType,
         MessageModel messageModel, ConsumeFromWhere consumeFromWhere) {
         boolean updated = false;
@@ -164,6 +172,11 @@ public class ConsumerGroupInfo {
         return updated;
     }
 
+    /**
+     * 变更信息
+     * @param subList
+     * @return
+     */
     public boolean updateSubscription(final Set<SubscriptionData> subList) {
         boolean updated = false;
 

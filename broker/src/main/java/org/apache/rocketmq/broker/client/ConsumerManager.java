@@ -115,7 +115,7 @@ public class ConsumerManager {
     public boolean registerConsumer(final String group, final ClientChannelInfo clientChannelInfo, ConsumeType consumeType, MessageModel messageModel, ConsumeFromWhere consumeFromWhere,
         final Set<SubscriptionData> subList, boolean isNotifyConsumerIdsChangedEnable) {
 
-        //获得映射关系
+        //获得映射关系，获得group的映射关系
         ConsumerGroupInfo consumerGroupInfo = this.consumerTable.get(group);
         if (null == consumerGroupInfo) {
             //不存在我们构建一个映射关系
@@ -124,7 +124,9 @@ public class ConsumerManager {
             consumerGroupInfo = prev != null ? prev : tmp;
         }
 
+        //更新channel
         boolean r1 = consumerGroupInfo.updateChannel(clientChannelInfo, consumeType, messageModel, consumeFromWhere);
+        //更新一下订阅的关系
         boolean r2 = consumerGroupInfo.updateSubscription(subList);
 
         if (r1 || r2) {

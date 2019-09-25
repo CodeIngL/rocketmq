@@ -91,12 +91,13 @@ public class ClientManageProcessor implements NettyRequestProcessor {
         //客户网络信息
         ClientChannelInfo channelInfo = new ClientChannelInfo(ctx.channel(), heartbeatData.getClientID(), req.getLanguage(), req.getVersion());
 
-        // 处理消息端数据
+        // 处理消息端数据,如果心跳是消费端带上来的，会有这些信息
         for (ConsumerData data : heartbeatData.getConsumerDataSet()) { //处理消费方的数据
             //发现消费组对应订阅的配置
             SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName());
             boolean isNotifyConsumerIdsChangedEnable = true; //是否支持回调通知该消费组下面组成的消费者客户端
             if (null != subscriptionGroupConfig) { //存在配置
+                //属性是否支持通知当consumer发生变更的时候
                 isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
                 int topicSysFlag = 0;
                 if (data.isUnitMode()) {
@@ -106,6 +107,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
                 this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, subscriptionGroupConfig.getRetryQueueNums(), PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
             }
 
+            //基本的信息来自这个data，也就是来自心跳，而不是
             boolean changed = this.brokerController.getConsumerManager().registerConsumer(
                 data.getGroupName(),
                 channelInfo,
@@ -121,7 +123,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             }
         }
 
-        //处理生产端数据
+        //处理生产端数据，如果是生产端带上来的，会有这个内容，并且这里的处理会简单的多
         for (ProducerData data : heartbeatData.getProducerDataSet()) {
             this.brokerController.getProducerManager().registerProducer(data.getGroupName(), channelInfo);
         }
