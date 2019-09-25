@@ -315,13 +315,13 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
             return resp;
         }
 
-        TopicConfigSerializeWrapper topicConfigWrapper;
+        TopicConfigSerializeWrapper wrapper;
         if (req.getBody() != null) {
-            topicConfigWrapper = TopicConfigSerializeWrapper.decode(req.getBody(), TopicConfigSerializeWrapper.class);
+            wrapper = TopicConfigSerializeWrapper.decode(req.getBody(), TopicConfigSerializeWrapper.class);
         } else {
-            topicConfigWrapper = new TopicConfigSerializeWrapper();
-            topicConfigWrapper.getDataVersion().setCounter(new AtomicLong(0));
-            topicConfigWrapper.getDataVersion().setTimestamp(0);
+            wrapper = new TopicConfigSerializeWrapper();
+            wrapper.getDataVersion().setCounter(new AtomicLong(0));
+            wrapper.getDataVersion().setTimestamp(0);
         }
 
         RegisterBrokerResult result = this.namesrvController.getRouteInfoManager().registerBroker(
@@ -330,7 +330,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
                 reqHeader.getBrokerName(),
                 reqHeader.getBrokerId(),
                 reqHeader.getHaServerAddr(),
-                topicConfigWrapper,
+                wrapper,
                 null,
                 ctx.channel()
         );

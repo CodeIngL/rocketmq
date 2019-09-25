@@ -146,7 +146,6 @@ import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 import org.apache.rocketmq.remoting.netty.NettyClientConfig;
 import org.apache.rocketmq.remoting.netty.NettyRemotingClient;
-import org.apache.rocketmq.remoting.netty.ResponseFuture;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
@@ -990,6 +989,16 @@ public class MQClientAPIImpl {
         this.remotingClient.invokeOneway(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr), request, timeoutMillis);
     }
 
+    /**
+     * 发送心跳事件
+     * @param addr
+     * @param heartbeatData
+     * @param timeoutMillis
+     * @return
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     public int sendHearbeat(final String addr, final HeartbeatData heartbeatData, final long timeoutMillis) throws RemotingException, MQBrokerException, InterruptedException {
         RemotingCommand req = createRequestCommand(RequestCode.HEART_BEAT, null);
         req.setLanguage(clientConfig.getLanguage());
@@ -1066,10 +1075,10 @@ public class MQClientAPIImpl {
 
     public boolean registerClient(final String addr, final HeartbeatData heartbeat, final long timeoutMillis)
         throws RemotingException, InterruptedException {
-        RemotingCommand request = createRequestCommand(RequestCode.HEART_BEAT, null);
+        RemotingCommand req = createRequestCommand(RequestCode.HEART_BEAT, null);
 
-        request.setBody(heartbeat.encode());
-        RemotingCommand response = this.remotingClient.invokeSync(addr, request, timeoutMillis);
+        req.setBody(heartbeat.encode());
+        RemotingCommand response = this.remotingClient.invokeSync(addr, req, timeoutMillis);
         return response.getCode() == SUCCESS;
     }
 
