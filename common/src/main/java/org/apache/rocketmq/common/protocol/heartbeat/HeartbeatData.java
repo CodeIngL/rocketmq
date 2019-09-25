@@ -28,6 +28,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
  * 心跳数据
  */
 public class HeartbeatData extends RemotingSerializable {
+    //客户端的ID
     private String clientID;
     //客户端生产者数据
     private Set<ProducerData> producerDataSet = new HashSet<ProducerData>();

@@ -41,9 +41,9 @@ public class ConsumerGroupInfo {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     //消费组名
     private final String groupName;
-    //topic和订阅信息
+    //topic和topic对应的相关订阅信息
     private final ConcurrentMap<String/* Topic */, SubscriptionData> subscriptionTable = new ConcurrentHashMap<String, SubscriptionData>();
-    //通道和对应的网络客户端信息
+    //通道和对应的网络客户端信息，维护了Channel和Channel对应的客户端信息的映射关系
     private final ConcurrentMap<Channel, ClientChannelInfo> channelInfoTable = new ConcurrentHashMap<Channel, ClientChannelInfo>(16);
     //消息消费方式类型
     private volatile ConsumeType consumeType;
@@ -94,7 +94,8 @@ public class ConsumerGroupInfo {
     }
 
     /**
-     * 获得所有的客户端的id，从channelInfo中获取
+     * 获得所有的客户端的id，从channelInfo中获取，遍历所有信息，
+     * 我们将这些同一个Group下的所有的clientId进行返回
      * @return
      */
     public List<String> getAllClientId() {
