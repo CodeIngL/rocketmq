@@ -2026,6 +2026,7 @@ public class DefaultMessageStore implements MessageStore {
      */
     class ReputMessageService extends ServiceThread {
 
+        //重新put开始的位置
         private volatile long reputFromOffset = 0;
 
         public long getReputFromOffset() {
@@ -2140,8 +2141,7 @@ public class DefaultMessageStore implements MessageStore {
                                 this.reputFromOffset += size;
                             } else {
                                 doNext = false;
-                                log.error("[BUG]dispatch message to consume queue error, COMMITLOG OFFSET: {}",
-                                        this.reputFromOffset);
+                                log.error("[BUG]dispatch message to consume queue error, COMMITLOG OFFSET: {}", this.reputFromOffset);
                                 this.reputFromOffset += result.getSize() - readSize;
                             }
                         }

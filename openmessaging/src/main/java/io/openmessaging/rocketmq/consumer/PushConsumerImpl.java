@@ -88,6 +88,9 @@ public class PushConsumerImpl implements PushConsumer {
         return properties;
     }
 
+    /**
+     * 重置
+     */
     @Override
     public void resume() {
         this.rocketmqPushConsumer.resume();

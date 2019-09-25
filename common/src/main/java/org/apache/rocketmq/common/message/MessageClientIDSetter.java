@@ -27,6 +27,7 @@ public class MessageClientIDSetter {
     private static final int LEN;
     private static final String FIX_STRING;
     private static final AtomicInteger COUNTER;
+    //开始时间
     private static long startTime;
     private static long nextStartTime;
 
@@ -112,12 +113,17 @@ public class MessageClientIDSetter {
         if (current >= nextStartTime) {
             setStartTime(current);
         }
+        //6位
         buffer.position(0);
         buffer.putInt((int) (System.currentTimeMillis() - startTime));
         buffer.putShort((short) COUNTER.getAndIncrement());
         return buffer.array();
     }
 
+    /**
+     * 设置UniqId
+     * @param msg
+     */
     public static void setUniqID(final Message msg) {
         if (msg.getProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX) == null) {
             msg.putProperty(MessageConst.PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX, createUniqID());
