@@ -107,7 +107,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     //绑定的发送者
     private final DefaultMQProducer defaultMQProducer;
     /**
-     * 内存缓存，缓存topic和对应的发布信息
+     * 内存缓存，缓存topic和对应的发布信息，受到远程的broker的影响
      */
     private final ConcurrentMap<String/* topic */, TopicPublishInfo> topicPublishInfoTable = new ConcurrentHashMap<String, TopicPublishInfo>();
     private final ArrayList<SendMessageHook> sendMessageHookList = new ArrayList<SendMessageHook>();

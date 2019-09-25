@@ -384,6 +384,11 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * @see #DefaultMQPullConsumerImpl(DefaultMQPullConsumer, RPCHook) {@link #updateTopicSubscribeInfo(String, Set)}
+     * @param topic
+     * @param info
+     */
     @Override
     public void updateTopicSubscribeInfo(String topic, Set<MessageQueue> info) {
         Map<String, SubscriptionData> subTable = this.rebalanceImpl.getSubscriptionInner();

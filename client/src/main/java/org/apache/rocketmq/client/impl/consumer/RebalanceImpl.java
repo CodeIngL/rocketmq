@@ -49,11 +49,11 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 public abstract class RebalanceImpl {
     protected static final InternalLogger log = ClientLogger.getLog();
 
-    //消费队列和其快照对应
+    //消费队列和其快照对应，本地化的数据，受到远程Broker的影响
     protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<MessageQueue, ProcessQueue>(64);
-    //topic和对应的消费队列集合
+    //topic和对应的消费队列集合，本地化的数据，受到远程Broker的影响
     protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable = new ConcurrentHashMap<String, Set<MessageQueue>>();
-    //topic和订阅信息
+    //topic和订阅信息，note:这些是本地化的信息，无远程broker上的数据没有任何关系
     protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner = new ConcurrentHashMap<String, SubscriptionData>();
     //消费组
     protected String consumerGroup;
@@ -243,6 +243,7 @@ public abstract class RebalanceImpl {
         //遍历所有的订阅关系
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
         if (subTable != null) {
+            //从本节点订阅的数据，寻找相关的topic，然后对每一个topic进行相关的操作rebalance操作
             for (final Map.Entry<String, SubscriptionData> entry : subTable.entrySet()) {
                 String topic = entry.getKey();
                 try {
@@ -255,6 +256,7 @@ public abstract class RebalanceImpl {
             }
         }
 
+        //rebalance之后，删除不是我们的topic
         this.truncateMessageQueueNotMyTopic();
     }
 
@@ -268,9 +270,11 @@ public abstract class RebalanceImpl {
      * @param isOrder 是否有序
      */
     private void rebalanceByTopic(final String topic, final boolean isOrder) {
-        Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);//找到topic对应的消费队列
+        //找到topic对应的消费队列，这个是受到远程broker影响的
+        Set<MessageQueue> mqSet = this.topicSubscribeInfoTable.get(topic);
         switch (messageModel) {
-            case BROADCASTING: { //广播方式
+            case BROADCASTING: {
+                //广播方式
                 if (mqSet == null){
                     log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
                     return;
@@ -337,10 +341,14 @@ public abstract class RebalanceImpl {
      * 尝试清理不是我的topic的消息队列
      */
     private void truncateMessageQueueNotMyTopic() {
-        Map<String, SubscriptionData> subTable = this.getSubscriptionInner(); //获得我订阅的
+        //本地化不受broker影响的订阅的数据，
+        Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
 
-        for (MessageQueue mq : this.processQueueTable.keySet()) { //遍历存储
-            if (!subTable.containsKey(mq.getTopic())) { //不是我的
+        //删除有我维护的内存结构中，和我定于无关的数据
+        for (MessageQueue mq : this.processQueueTable.keySet()) {
+            //遍历存储
+            if (!subTable.containsKey(mq.getTopic())) {
+                //不是我的的topic
                 ProcessQueue pq = this.processQueueTable.remove(mq);
                 if (pq != null) {
                     pq.setDropped(true); //设置，

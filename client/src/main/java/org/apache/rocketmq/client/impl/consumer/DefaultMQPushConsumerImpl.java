@@ -902,6 +902,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 case BROADCASTING:
                     break;
                 case CLUSTERING:
+                    //集群模式
                     final String retryTopic = MixAll.getRetryTopic(consumerGroup);
                     SubscriptionData subscriptionData = buildSubscriptionData(consumerGroup, retryTopic, SubscriptionData.SUB_ALL);
                     this.rebalanceImpl.getSubscriptionInner().put(retryTopic, subscriptionData);
@@ -949,10 +950,14 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
      */
     public void subscribe(String topic, String fullClassName, String filterClassSource) throws MQClientException {
         try {
+            //构建订阅的数据
             SubscriptionData subscriptionData = buildSubscriptionData(this.defaultMQPushConsumer.getConsumerGroup(), topic, "*");
+            //设置其他
             subscriptionData.setSubString(fullClassName); //更新subString是全类名
             subscriptionData.setClassFilterMode(true); //设置使用类过滤方式
             subscriptionData.setFilterClassSource(filterClassSource); //设置过滤类的源码
+
+
             //更新内部数据
             this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
             if (this.mQClientFactory != null) {
@@ -1093,11 +1098,18 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
     }
 
+    /**
+     * 更新订阅的信息
+     * @param topic
+     * @param info
+     */
     @Override
     public void updateTopicSubscribeInfo(String topic, Set<MessageQueue> info) {
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
+        //获得我订阅德 信息
         if (subTable != null) {
             if (subTable.containsKey(topic)) {
+                //符合的是我的订阅的topic，我们存储相关的数据
                 this.rebalanceImpl.topicSubscribeInfoTable.put(topic, info);
             }
         }
