@@ -75,6 +75,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
 
     /**
      * 读取存储的offset
+     * -2 代表异常，-1代表没有或者mq的异常
      * @param mq
      * @param type
      * @return
@@ -84,7 +85,8 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
         if (mq != null) {
             switch (type) {
                 case MEMORY_FIRST_THEN_STORE:
-                case READ_FROM_MEMORY: { //内存优先，
+                case READ_FROM_MEMORY: {
+                    //内存优先，从本地内存中获得相关offset
                     AtomicLong offset = this.offsetTable.get(mq);
                     if (offset != null) {
                         return offset.get();
@@ -92,11 +94,13 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                         return -1;
                     }
                 }
-                case READ_FROM_STORE: { //存储优先
+                case READ_FROM_STORE: {
                     try {
-                        long brokerOffset = this.fetchConsumeOffsetFromBroker(mq); //获得broker的offset
+                        //存储优先，从远程的broker获得当前的远程的broker维护的已经提交的消费offset
+                        long brokerOffset = this.fetchConsumeOffsetFromBroker(mq);
                         AtomicLong offset = new AtomicLong(brokerOffset);
-                        this.updateOffset(mq, offset.get(), false); //更新
+                        //更新本地offset
+                        this.updateOffset(mq, offset.get(), false);
                         return brokerOffset;
                     }
                     // No offset in broker

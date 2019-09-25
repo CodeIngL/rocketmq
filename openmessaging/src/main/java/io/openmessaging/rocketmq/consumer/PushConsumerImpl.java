@@ -41,7 +41,11 @@ import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 
+/**
+ * 推的方式，openMessage规范的实现
+ */
 public class PushConsumerImpl implements PushConsumer {
+    //内部借用了固有的实现
     private final DefaultMQPushConsumer rocketmqPushConsumer;
     private final KeyValue properties;
     private boolean started = false;
@@ -84,6 +88,9 @@ public class PushConsumerImpl implements PushConsumer {
         return properties;
     }
 
+    /**
+     * 重置
+     */
     @Override
     public void resume() {
         this.rocketmqPushConsumer.resume();

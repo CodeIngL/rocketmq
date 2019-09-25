@@ -201,6 +201,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     @Override
     public void submitConsumeRequest(final List<MessageExt> msgs, final ProcessQueue processQueue, final MessageQueue messageQueue, final boolean dispathToConsume) {
         if (dispathToConsume) {
+            //构建一个最终待消费的消息，投递到线程池中，等待消费
             ConsumeRequest consumeRequest = new ConsumeRequest(processQueue, messageQueue);
             this.consumeExecutor.submit(consumeRequest);
         }
@@ -398,7 +399,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     /**
-     * 消费请求，支持顺序消费的消息服务
+     * 消费请求，支持顺序消费的消息服务，待用户的消费逻辑进行消费，并行消费亦存在相似的逻辑
      */
     class ConsumeRequest implements Runnable {
         private final ProcessQueue processQueue;

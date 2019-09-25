@@ -47,20 +47,25 @@ public class FilterAPI {
      * @throws Exception
      */
     public static SubscriptionData buildSubscriptionData(final String consumerGroup, String topic, String subString) throws Exception {
+        //构建订阅数据的对象
         SubscriptionData subscriptionData = new SubscriptionData();
+        //topic
         subscriptionData.setTopic(topic);
+        //内容
         subscriptionData.setSubString(subString);
 
+        //简单的逻辑处理
         if (null == subString || subString.equals(SUB_ALL) || subString.length() == 0) {
             subscriptionData.setSubString(SUB_ALL);
-        } else { //使用的是tag
+        } else {
+            //使用的是tag
             String[] tags = subString.split("\\|\\|");
             for (String tag : tags) {
                 String trim = tag.trim();
                 if (trim.length() > 0) {
-                    //tag
+                    //tag，所有的tag
                     subscriptionData.getTagsSet().add(trim);
-                    //tag的哈市code
+                    //tag的code，所有tag的hashcode
                     subscriptionData.getCodeSet().add(trim.hashCode());
                 }
             }

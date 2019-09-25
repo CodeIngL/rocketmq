@@ -37,9 +37,10 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.protocol.LanguageCode;
 
 /**
- * 拉取的方式
+ * 拉取的方式，openMessage规范的实现
  */
 public class PullConsumerImpl implements PullConsumer {
+    //内部借用了固有的实现
     private final DefaultMQPullConsumer rocketmqPullConsumer;
     private final KeyValue properties;
     private boolean started = false;

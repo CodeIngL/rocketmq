@@ -94,7 +94,7 @@ public class MQClientInstance {
     private final ClientConfig clientConfig;
     //实例内存索引
     private final int instanceIndex;
-    //实例指定的id
+    //实例指定的id，客户端Id,发送心跳的时候，这些数据标识了一个客户端
     private final String clientId;
     private final long bootTimestamp = System.currentTimeMillis();
     /**
@@ -586,6 +586,7 @@ public class MQClientInstance {
      * 向所有的broker发送心跳信息
      */
     private void sendHeartbeatToAllBroker() {
+        //准备心跳数据，向所有的broker发送心跳信息
         final HeartbeatData heartbeatData = this.prepareHeartbeatData();
         final boolean producerEmpty = heartbeatData.getProducerDataSet().isEmpty();
         final boolean consumerEmpty = heartbeatData.getConsumerDataSet().isEmpty();
@@ -664,7 +665,8 @@ public class MQClientInstance {
 
     /**
      * 从nameServer中获得相关的路由信息，
-     * 从nameServer中获得吗，topicRoute
+     * 从nameServer中获得topicRoute,从中构建出相关发布或者订阅的信息
+     * 发布信息TopicPublishInfo和订阅信息Set<MessageQueue>和Broker的信息BrokerData
      *
      * @param topic
      * @param isDefault
@@ -693,6 +695,7 @@ public class MQClientInstance {
                         TopicRouteData old = this.topicRouteTable.get(topic); //内存中旧的topicInfo
                         boolean changed = topicRouteDataIsChange(old, topicRouteData); //是否存在变更
                         if (!changed) {
+                            //发生了变更
                             changed = this.isNeedUpdateTopicRouteInfo(topic); //是否需要变更
                         } else {
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
@@ -890,7 +893,8 @@ public class MQClientInstance {
                 Entry<String, MQProducerInner> entry = it.next();
                 MQProducerInner impl = entry.getValue();
                 if (impl != null) {
-                    result = impl.isPublishTopicNeedUpdate(topic); //让实现端来进行来决定是否要进行更新
+                    //让实现端来进行来决定是否要进行更新
+                    result = impl.isPublishTopicNeedUpdate(topic);
                 }
             }
         }
@@ -902,7 +906,8 @@ public class MQClientInstance {
                 Entry<String, MQConsumerInner> entry = it.next();
                 MQConsumerInner impl = entry.getValue();
                 if (impl != null) {
-                    result = impl.isSubscribeTopicNeedUpdate(topic); //让实现端来进行决定是否要进行更新
+                    //让实现端来进行决定是否要进行更新
+                    result = impl.isSubscribeTopicNeedUpdate(topic);
                 }
             }
         }
@@ -1153,6 +1158,14 @@ public class MQClientInstance {
         return null;
     }
 
+
+    /**
+     * 根据
+     * @param brokerName
+     * @param brokerId
+     * @param onlyThisBroker
+     * @return 查找broker的结果
+     */
     public FindBrokerResult findBrokerAddressInSubscribe(final String brokerName, final long brokerId, final boolean onlyThisBroker) {
         String brokerAddr = null;
         boolean slave = false;
@@ -1197,14 +1210,18 @@ public class MQClientInstance {
      */
     public List<String> findConsumerIdList(final String topic, final String group) {
         String brokerAddr = this.findBrokerAddrByTopic(topic); //查找topic对应的broker
-        if (null == brokerAddr) { //地址为空，
-            this.updateTopicRouteInfoFromNameServer(topic); //从nameServer中更新一下
-            brokerAddr = this.findBrokerAddrByTopic(topic); //再次调用找到相关的数据
+        if (null == brokerAddr) {
+            //地址为空，
+            //从nameServer中更新一下获得相关的信息
+            this.updateTopicRouteInfoFromNameServer(topic);
+            //再次调用找到相关的数据，从NameServer中抓取消息后，我们有了相应的内存结构
+            brokerAddr = this.findBrokerAddrByTopic(topic);
         }
         if (null == brokerAddr){
             return null;
         }
         try {
+            //获得同一个消费组下的相关信息
             return this.mQClientAPIImpl.getConsumerIdListByGroup(brokerAddr, group, 3000); //找到group对应的队列ids
         } catch (Exception e) {
             log.warn("getConsumerIdListByGroup exception, " + brokerAddr + " " + group, e);

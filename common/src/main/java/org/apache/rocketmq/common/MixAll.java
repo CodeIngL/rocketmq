@@ -108,6 +108,11 @@ public class MixAll {
         return wsAddr;
     }
 
+    /**
+     * 获得重试的topic，这个topic又消费组拼接一个特殊的字符来实现，这意味着相同消费组的共用同一个topic
+     * @param consumerGroup
+     * @return
+     */
     public static String getRetryTopic(final String consumerGroup) {
         return RETRY_GROUP_TOPIC_PREFIX + consumerGroup;
     }

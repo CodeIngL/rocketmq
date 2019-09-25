@@ -227,6 +227,12 @@ public class IndexService {
         return new QueryOffsetResult(phyOffsets, indexLastUpdateTimestamp, indexLastUpdatePhyoffset);
     }
 
+    /**
+     * indexKey，topic#key
+     * @param topic
+     * @param key
+     * @return
+     */
     private String buildKey(final String topic, final String key) {
         return topic + "#" + key;
     }
@@ -293,7 +299,7 @@ public class IndexService {
      * 提供了key放置，将索引信息写入index文件中，提供基于key的查找
      * @param indexFile
      * @param msg
-     * @param idxKey
+     * @param idxKey topic#key
      * @return
      */
     private IndexFile putKey(IndexFile indexFile, DispatchRequest msg, String idxKey) {

@@ -38,7 +38,7 @@ public class Message implements Serializable {
     private Map<String, String> properties;
     //消息主体
     private byte[] body;
-    //事务id
+    //事务id状态
     private String transactionId;
 
     public Message() {

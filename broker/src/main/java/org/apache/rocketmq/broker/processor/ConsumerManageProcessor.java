@@ -87,8 +87,10 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
 
         //获得消费组的信息
         ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(reqHeader.getConsumerGroup());
-        if (consumerGroupInfo != null) { //存在相关信息
-            List<String> clientIds = consumerGroupInfo.getAllClientId(); //获得所有的clientId
+        if (consumerGroupInfo != null) {
+            //存在相关信息
+            List<String> clientIds = consumerGroupInfo.getAllClientId();
+            //获得所有的clientId
             if (!clientIds.isEmpty()) {
                 GetConsumerListByGroupResponseBody body = new GetConsumerListByGroupResponseBody();
                 body.setConsumerIdList(clientIds);

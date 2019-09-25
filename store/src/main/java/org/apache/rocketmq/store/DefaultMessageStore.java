@@ -594,6 +594,7 @@ public class DefaultMessageStore implements MessageStore {
 
         long beginTime = this.getSystemClock().now(); //开始时间
 
+        //消息状态
         GetMessageStatus status = NO_MESSAGE_IN_QUEUE;
         long nextBeginOffset = offset;
         long minOffset = 0;
@@ -2035,6 +2036,7 @@ public class DefaultMessageStore implements MessageStore {
      */
     class ReputMessageService extends ServiceThread {
 
+        //重新put开始的位置
         private volatile long reputFromOffset = 0;
 
         public long getReputFromOffset() {
@@ -2151,8 +2153,7 @@ public class DefaultMessageStore implements MessageStore {
                                 this.reputFromOffset += size;
                             } else {
                                 doNext = false;
-                                log.error("[BUG]dispatch message to consume queue error, COMMITLOG OFFSET: {}",
-                                        this.reputFromOffset);
+                                log.error("[BUG]dispatch message to consume queue error, COMMITLOG OFFSET: {}", this.reputFromOffset);
                                 this.reputFromOffset += result.getSize() - readSize;
                             }
                         }

@@ -104,6 +104,7 @@ public class IndexFile {
 
     /**
      * 放置key，放置进索引文件中
+     * topic#key+offset+storeTimestamp
      * @param key topic#用户key
      * @param phyOffset 物理的偏移量
      * @param storeTimestamp 存储时间
@@ -111,6 +112,7 @@ public class IndexFile {
      */
     public boolean putKey(final String key, final long phyOffset, final long storeTimestamp) {
         if (this.indexHeader.getIndexCount() < this.indexNum) { //索引数量要少于2KW个
+            //40+500W*(int)4+2000W*20(条目)
             int keyHash = indexKeyHashMethod(key); //key进行hash
             int slotPos = keyHash % this.hashSlotNum; //定位hash槽的位置
             int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize; //相对文件的槽的绝对位置
@@ -140,13 +142,15 @@ public class IndexFile {
                 //index的绝对的位置
                 int absIndexPos = IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize + this.indexHeader.getIndexCount() * indexSize;
 
+                //找槽上的信息
+                //hash值，消息物理位置（long），文件开始的时间差，槽的位置
                 //keyhash
                 this.mappedByteBuffer.putInt(absIndexPos, keyHash); //绝对位置放入相关信息
                 //offset
                 this.mappedByteBuffer.putLong(absIndexPos + 4, phyOffset); //offset
                 //time
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8, (int) timeDiff); //时间差
-                //slotValue
+                //slotValue，冲突位置
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8 + 4, slotValue); //槽的值
                 //count
                 this.mappedByteBuffer.putInt(absSlotPos, this.indexHeader.getIndexCount()); //更新句柄，是数量也是句柄，通过他可以找到的，槽上指向的index索引位置
@@ -182,7 +186,7 @@ public class IndexFile {
     }
 
     /**
-     * hash
+     * 计算hash
      * @param key
      * @return
      */

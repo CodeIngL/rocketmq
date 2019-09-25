@@ -99,6 +99,11 @@ public class ProducerManager {
         }
     }
 
+    /**
+     * channel关闭事件
+     * @param remoteAddr
+     * @param channel
+     */
     public void doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         if (channel != null) {
             try {
