@@ -131,8 +131,15 @@ public class ConsumerGroupInfo {
         return false;
     }
 
-    public boolean updateChannel(final ClientChannelInfo infoNew, ConsumeType consumeType,
-        MessageModel messageModel, ConsumeFromWhere consumeFromWhere) {
+    /**
+     * 跟新channel
+     * @param infoNew
+     * @param consumeType
+     * @param messageModel
+     * @param consumeFromWhere
+     * @return 是否进行更新
+     */
+    public boolean updateChannel(final ClientChannelInfo infoNew, ConsumeType consumeType, MessageModel messageModel, ConsumeFromWhere consumeFromWhere) {
         boolean updated = false;
         this.consumeType = consumeType;
         this.messageModel = messageModel;
@@ -142,18 +149,15 @@ public class ConsumerGroupInfo {
         if (null == infoOld) {
             ClientChannelInfo prev = this.channelInfoTable.put(infoNew.getChannel(), infoNew);
             if (null == prev) {
-                log.info("new consumer connected, group: {} {} {} channel: {}", this.groupName, consumeType,
-                    messageModel, infoNew.toString());
+                log.info("new consumer connected, group: {} {} {} channel: {}", this.groupName, consumeType, messageModel, infoNew.toString());
                 updated = true;
             }
 
             infoOld = infoNew;
         } else {
+            //两个的id不同，bug，但是我们还是会将他放置进去
             if (!infoOld.getClientId().equals(infoNew.getClientId())) {
-                log.error("[BUG] consumer channel exist in broker, but clientId not equal. GROUP: {} OLD: {} NEW: {} ",
-                    this.groupName,
-                    infoOld.toString(),
-                    infoNew.toString());
+                log.error("[BUG] consumer channel exist in broker, but clientId not equal. GROUP: {} OLD: {} NEW: {} ", this.groupName, infoOld.toString(), infoNew.toString());
                 this.channelInfoTable.put(infoNew.getChannel(), infoNew);
             }
         }
@@ -161,55 +165,59 @@ public class ConsumerGroupInfo {
         this.lastUpdateTimestamp = System.currentTimeMillis();
         infoOld.setLastUpdateTimestamp(this.lastUpdateTimestamp);
 
+        //返回是否新值
         return updated;
     }
 
+    /**
+     * 更新订阅的数据
+     * @param subList
+     * @return 是否进行了更新
+     */
     public boolean updateSubscription(final Set<SubscriptionData> subList) {
         boolean updated = false;
 
+        //遍历由客户端传递上来的订阅信息
         for (SubscriptionData sub : subList) {
+            //获得topic订阅对应的订阅信息
             SubscriptionData old = this.subscriptionTable.get(sub.getTopic());
             if (old == null) {
                 SubscriptionData prev = this.subscriptionTable.putIfAbsent(sub.getTopic(), sub);
                 if (null == prev) {
                     updated = true;
-                    log.info("subscription changed, add new topic, group: {} {}",
-                        this.groupName,
-                        sub.toString());
+                    log.info("subscription changed, add new topic, group: {} {}", this.groupName, sub.toString());
                 }
             } else if (sub.getSubVersion() > old.getSubVersion()) {
+                //版本发生了变化
                 if (this.consumeType == ConsumeType.CONSUME_PASSIVELY) {
-                    log.info("subscription changed, group: {} OLD: {} NEW: {}",
-                        this.groupName,
-                        old.toString(),
-                        sub.toString()
-                    );
+                    log.info("subscription changed, group: {} OLD: {} NEW: {}", this.groupName, old.toString(), sub.toString());
                 }
-
+                //更新相关的信息
                 this.subscriptionTable.put(sub.getTopic(), sub);
             }
         }
 
+        //处理每一个topic相关的信息
         Iterator<Entry<String, SubscriptionData>> it = this.subscriptionTable.entrySet().iterator();
         while (it.hasNext()) {
+            //删除我们变更过的，但是其他信息比如topic不存在的相关topic，进行删除
             Entry<String, SubscriptionData> next = it.next();
             String oldTopic = next.getKey();
 
             boolean exist = false;
             for (SubscriptionData sub : subList) {
                 if (sub.getTopic().equals(oldTopic)) {
+                    //有相同
                     exist = true;
                     break;
                 }
             }
 
             if (!exist) {
-                log.warn("subscription changed, group: {} remove topic {} {}",
-                    this.groupName,
-                    oldTopic,
-                    next.getValue().toString()
-                );
+                //不存在，我们发现是变更
 
+                log.warn("subscription changed, group: {} remove topic {} {}", this.groupName, oldTopic, next.getValue().toString());
+                //删除这个不存在的topic
                 it.remove();
                 updated = true;
             }
@@ -217,6 +225,7 @@ public class ConsumerGroupInfo {
 
         this.lastUpdateTimestamp = System.currentTimeMillis();
 
+        //是否发生了变更
         return updated;
     }
 

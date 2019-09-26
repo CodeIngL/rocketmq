@@ -54,7 +54,7 @@ import java.util.concurrent.ConcurrentMap;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createRequestCommand;
 
 /**
- * broker作为客户端
+ * broker作为客户端的职责
  */
 public class Broker2Client {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -103,6 +103,7 @@ public class Broker2Client {
             return;
         }
 
+        //通知内容为这个消费组发生了变更
         NotifyConsumerIdsChangedRequestHeader reqHeader = new NotifyConsumerIdsChangedRequestHeader();
         reqHeader.setConsumerGroup(consumerGroup);
         RemotingCommand req = createRequestCommand(RequestCode.NOTIFY_CONSUMER_IDS_CHANGED, reqHeader);

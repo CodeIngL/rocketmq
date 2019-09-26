@@ -36,7 +36,7 @@ public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListen
     }
 
     /**
-     * 处理消费组相关事件
+     * 处理相关事件，可能会引起对客户端的调用，因为发生了变更
      * @param event
      * @param group
      * @param args
@@ -48,21 +48,25 @@ public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListen
         }
         //
         switch (event) {
-            case CHANGE: //变更事件
+            case CHANGE:
+                //客户端变更事件
                 if (args == null || args.length < 1) {
                     return;
                 }
                 List<Channel> channels = (List<Channel>) args[0];
                 if (channels != null && brokerController.getBrokerConfig().isNotifyConsumerIdsChangedEnable()) {
                     for (Channel chl : channels) {
+                        //通知所有的客户端，发生了变更
                         this.brokerController.getBroker2Client().notifyConsumerIdsChanged(chl, group);
                     }
                 }
                 break;
-            case UNREGISTER: //注销
+            case UNREGISTER:
+                //注销消费组
                 this.brokerController.getConsumerFilterManager().unRegister(group);
                 break;
-            case REGISTER: //注册
+            case REGISTER:
+                //注册消费组
                 if (args == null || args.length < 1) {
                     return;
                 }

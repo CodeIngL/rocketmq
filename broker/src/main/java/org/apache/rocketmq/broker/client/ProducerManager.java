@@ -169,7 +169,7 @@ public class ProducerManager {
     }
 
     /**
-     * 从内存中注销相关的producer
+     * 从内存中注销相关的producer，锁定操作
      * @param group
      * @param clientChannelInfo
      */
@@ -181,8 +181,7 @@ public class ProducerManager {
                     if (null != channelTable && !channelTable.isEmpty()) {
                         ClientChannelInfo old = channelTable.remove(clientChannelInfo.getChannel());
                         if (old != null) {
-                            log.info("unregister a producer[{}] from groupChannelTable {}", group,
-                                clientChannelInfo.toString());
+                            log.info("unregister a producer[{}] from groupChannelTable {}", group, clientChannelInfo.toString());
                         }
 
                         if (channelTable.isEmpty()) {
