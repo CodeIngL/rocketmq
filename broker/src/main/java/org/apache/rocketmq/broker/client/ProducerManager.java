@@ -135,6 +135,11 @@ public class ProducerManager {
         }
     }
 
+    /**
+     * 注册生产者
+     * @param group 组
+     * @param clientChannelInfo 网络通道信息
+     */
     public void registerProducer(final String group, final ClientChannelInfo clientChannelInfo) {
         try {
             ClientChannelInfo clientChannelInfoFound = null;

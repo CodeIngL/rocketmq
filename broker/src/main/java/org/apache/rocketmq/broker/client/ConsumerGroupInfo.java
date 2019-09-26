@@ -200,7 +200,6 @@ public class ConsumerGroupInfo {
         //处理每一个topic相关的信息
         Iterator<Entry<String, SubscriptionData>> it = this.subscriptionTable.entrySet().iterator();
         while (it.hasNext()) {
-            //删除我们变更过的，但是其他信息比如topic不存在的相关topic，进行删除
             Entry<String, SubscriptionData> next = it.next();
             String oldTopic = next.getKey();
 

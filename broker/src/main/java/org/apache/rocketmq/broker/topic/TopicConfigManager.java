@@ -301,7 +301,7 @@ public class TopicConfigManager extends ConfigManager {
         }
 
         if (createNew) {
-            //新建的的向远程注册信息
+            //新建的的向远程注册信息，这意味着也就是同步
             this.brokerController.registerBrokerAll(false, true,true);
         }
 

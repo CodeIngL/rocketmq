@@ -78,7 +78,7 @@ public class ConsumerManager {
     }
 
     /**
-     * 消费端发生关闭，我们需要进行通知客户端，发生了变更，先尝试发生注销变更，再尝试发生变更变更
+     * 消费端发生关闭，我们需要进行通知客户端，发生了变更
      */
     public void doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         Iterator<Entry<String, ConsumerGroupInfo>> it = this.consumerTable.entrySet().iterator();
@@ -90,7 +90,8 @@ public class ConsumerManager {
                 if (info.getChannelInfoTable().isEmpty()) {
                     ConsumerGroupInfo remove = this.consumerTable.remove(next.getKey());
                     if (remove != null) {
-                        log.info("unregister consumer ok, no any connection, and remove consumer group, {}", next.getKey());
+                        log.info("unregister consumer ok, no any connection, and remove consumer group, {}",
+                            next.getKey());
                         this.consumerIdsChangeListener.handle(ConsumerGroupEvent.UNREGISTER, next.getKey());
                     }
                 }
@@ -101,52 +102,46 @@ public class ConsumerManager {
     }
 
     /**
-     * 注册consumer，我们需要通知相关的客户端感知到发生了变化，尝试通知变更，进行注册事件的处理
-     * @param group 来自客户端
-     * @param clientChannelInfo 来自计算
-     * @param consumeType 来自客户端
-     * @param messageModel 来自客户端
-     * @param consumeFromWhere 来自客户端
-     * @param subList 来自客户端
-     * @param isNotifyConsumerIdsChangedEnable 来自计算
-     * @return 返回是否变更
+     * 注册consumer
+     * @param group
+     * @param clientChannelInfo
+     * @param consumeType
+     * @param messageModel
+     * @param consumeFromWhere
+     * @param subList
+     * @param isNotifyConsumerIdsChangedEnable
+     * @return
      */
     public boolean registerConsumer(final String group, final ClientChannelInfo clientChannelInfo, ConsumeType consumeType, MessageModel messageModel, ConsumeFromWhere consumeFromWhere,
         final Set<SubscriptionData> subList, boolean isNotifyConsumerIdsChangedEnable) {
 
-        //多个消费端，如果消费组相同，则broker侧是认为是一份关于group数据，而不是客户端的数据
-        // 获得映射关系
+        //获得映射关系，获得group的映射关系
         ConsumerGroupInfo consumerGroupInfo = this.consumerTable.get(group);
         if (null == consumerGroupInfo) {
             //不存在我们构建一个映射关系
             ConsumerGroupInfo tmp = new ConsumerGroupInfo(group, consumeType, messageModel, consumeFromWhere);
-            //获得一个结果
             ConsumerGroupInfo prev = this.consumerTable.putIfAbsent(group, tmp);
             consumerGroupInfo = prev != null ? prev : tmp;
         }
 
-        //更新channel，也就是尝试注册，这里多个节点不会有任何的异议
+        //更新channel
         boolean r1 = consumerGroupInfo.updateChannel(clientChannelInfo, consumeType, messageModel, consumeFromWhere);
-        //更新订阅信息，也就是尝试注册，这里更新户根据订阅的数据不一致进行处理，这里的维度是topic的维度，因此group一致，当topic一致时
-        //需要保证订阅的的信息一致
+        //更新一下订阅的关系
         boolean r2 = consumerGroupInfo.updateSubscription(subList);
 
         if (r1 || r2) {
             if (isNotifyConsumerIdsChangedEnable) {
-                //处理变更结果
                 this.consumerIdsChangeListener.handle(ConsumerGroupEvent.CHANGE, group, consumerGroupInfo.getAllChannel());
             }
         }
 
-
-        //处理注册结果
         this.consumerIdsChangeListener.handle(ConsumerGroupEvent.REGISTER, group, subList);
 
         return r1 || r2;
     }
 
     /**
-     * 从内存中注销consumer，我们需要通知相应的客户端来感知这个结果，因为发生了相关的变更
+     * 从内存中注销consumer
      * @param group
      * @param clientChannelInfo
      * @param isNotifyConsumerIdsChangedEnable
