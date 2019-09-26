@@ -48,7 +48,7 @@ import static org.apache.rocketmq.common.protocol.RequestCode.UNREGISTER_CLIENT;
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
 
 /**
- * 客户端管理操作器，提供了对客户端的管理
+ * 客户端管理操作器，提供了对客户端的管理，主要处理客户端的心跳，客户端注销，注册等等相关请求
  */
 public class ClientManageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -86,45 +86,49 @@ public class ClientManageProcessor implements NettyRequestProcessor {
      * @return
      */
     public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand req) {
+
         RemotingCommand resp = RemotingCommand.createResponseCommand(null);
         HeartbeatData heartbeatData = HeartbeatData.decode(req.getBody(), HeartbeatData.class);
-        //客户网络信息
+        //构建客户网络信息
         ClientChannelInfo channelInfo = new ClientChannelInfo(ctx.channel(), heartbeatData.getClientID(), req.getLanguage(), req.getVersion());
 
-        // 处理消息端数据
-        for (ConsumerData data : heartbeatData.getConsumerDataSet()) { //处理消费方的数据
+        // 尝试处理消息端数据，即处理ConsumerData数据
+        for (ConsumerData data : heartbeatData.getConsumerDataSet()) {
             //发现消费组对应订阅的配置
             SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName());
-            boolean isNotifyConsumerIdsChangedEnable = true; //是否支持回调通知该消费组下面组成的消费者客户端
-            if (null != subscriptionGroupConfig) { //存在配置
+            boolean isNotifyConsumerIdsChangedEnable = true;
+            //是否支持回调通知该消费组下面组成的消费者客户端
+            if (null != subscriptionGroupConfig) {
+                //存在相关配置，我们使用这个配置来确定这个开关
                 isNotifyConsumerIdsChangedEnable = subscriptionGroupConfig.isNotifyConsumerIdsChangedEnable();
                 int topicSysFlag = 0;
                 if (data.isUnitMode()) {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 }
-                String newTopic = MixAll.getRetryTopic(data.getGroupName()); //获得一个重试的topic，用于构建消息重发的这个消费端特性的topic
+                //获得一个重试的topic，用于构建消息重发的这个消费组的特性的topic
+                String newTopic = MixAll.getRetryTopic(data.getGroupName());
                 this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, subscriptionGroupConfig.getRetryQueueNums(), PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
             }
 
+            /**
+             * 注册相关的的consumer，返回是否发生了相关的变更
+             */
             boolean changed = this.brokerController.getConsumerManager().registerConsumer(
-                data.getGroupName(),
-                channelInfo,
-                data.getConsumeType(),
-                data.getMessageModel(),
-                data.getConsumeFromWhere(),
-                data.getSubscriptionDataSet(),
-                isNotifyConsumerIdsChangedEnable
-            );
+                data.getGroupName(), channelInfo, data.getConsumeType(), data.getMessageModel(), data.getConsumeFromWhere(),
+                data.getSubscriptionDataSet(), isNotifyConsumerIdsChangedEnable);
 
             if (changed) {
+                //如果发生了变更，我们要简单的输出一些信息
                 log.info("registerConsumer info changed {} {}", data.toString(), parseChannelRemoteAddr(ctx.channel()));
             }
         }
 
-        //处理生产端数据
+        // 尝试处生产端数据，即处理ProducerData数据
         for (ProducerData data : heartbeatData.getProducerDataSet()) {
             this.brokerController.getProducerManager().registerProducer(data.getGroupName(), channelInfo);
         }
+
+        //返回相应
         resp.setCode(ResponseCode.SUCCESS);
         resp.setRemark(null);
         return resp;
@@ -140,9 +144,9 @@ public class ClientManageProcessor implements NettyRequestProcessor {
     public RemotingCommand unregisterClient(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand resp = RemotingCommand.createResponseCommand(UnregisterClientResponseHeader.class);
         final UnregisterClientRequestHeader reqHeader = (UnregisterClientRequestHeader) req.decodeCommandCustomHeader(UnregisterClientRequestHeader.class);
-
+        //构建客户网络信息
         ClientChannelInfo channelInfo = new ClientChannelInfo(ctx.channel(), reqHeader.getClientID(), req.getLanguage(), req.getVersion());
-        //注销producer
+        //尝试注销producer
         {
             final String group = reqHeader.getProducerGroup();
             if (group != null) {
@@ -150,7 +154,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             }
         }
 
-        //注销consumer
+        //尝试注销consumer
         {
             final String group = reqHeader.getConsumerGroup();
             if (group != null) {
@@ -163,6 +167,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
             }
         }
 
+        //返回响应
         resp.setCode(ResponseCode.SUCCESS);
         resp.setRemark(null);
         return resp;

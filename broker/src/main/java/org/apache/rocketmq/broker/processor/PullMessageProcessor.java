@@ -126,7 +126,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         //消费组概念
         String consumerGroup = reqHeader.getConsumerGroup();
-        //获得消费组对应的订阅组的配置概念
+        //获得消费组对应订阅配置信息，描述了该消费组是是否应该被订阅等等一些基本的配置信息
         SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(consumerGroup);
         if (checkSubscriptionGroupConfig(resp, consumerGroup, subscriptionGroupConfig)) return resp;
 
@@ -157,7 +157,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         SubscriptionData subscriptionData;
         //消息过滤的数据
         ConsumerFilterData consumerFilterData = null;
-        if (hasSubscriptionFlag) { //存在订阅标记，请求中带着相关订阅数据，我们从中华解析即可
+        if (hasSubscriptionFlag) {
+            //请求中自带，存在订阅标记，请求中带着相关订阅数据，我们从中进行解析即可
             try {
                 subscriptionData = build(topic, subscription, expressionType); //构建订阅的数据
                 if (!isTagType(subscriptionData.getExpressionType())) { //是sql92类型的，或者其他的类型，tag不需要，因为tag是默认支持的
@@ -172,6 +173,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 return resp;
             }
         } else {
+            //请求中不带相关订阅数据，我们从broker上尝试做出相关的信心
             //消费组
             ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(consumerGroup);
             if (null == consumerGroupInfo) { //消费组部存在

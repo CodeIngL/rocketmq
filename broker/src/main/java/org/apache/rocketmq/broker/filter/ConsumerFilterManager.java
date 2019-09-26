@@ -110,8 +110,7 @@ public class ConsumerFilterManager extends ConfigManager {
      */
     public void register(final String consumerGroup, final Collection<SubscriptionData> subList) {
         for (SubscriptionData subscriptionData : subList) {
-            register(subscriptionData.getTopic(), consumerGroup, subscriptionData.getSubString(),
-                subscriptionData.getExpressionType(), subscriptionData.getSubVersion());
+            register(subscriptionData.getTopic(), consumerGroup, subscriptionData.getSubString(), subscriptionData.getExpressionType(), subscriptionData.getSubVersion());
         }
 
         // make illegal topic dead.
@@ -163,7 +162,8 @@ public class ConsumerFilterManager extends ConfigManager {
             filterDataMapByTopic = prev != null ? prev : temp;
         }
 
-        BloomFilterData bloomFilterData = bloomFilter.generate(consumerGroup + "#" + topic); //构建布隆过滤器
+        //构建bloom过滤器
+        BloomFilterData bloomFilterData = bloomFilter.generate(consumerGroup + "#" + topic);
 
         return filterDataMapByTopic.register(consumerGroup, expression, type, bloomFilterData, clientVersion); //注册
     }
@@ -342,10 +342,12 @@ public class ConsumerFilterManager extends ConfigManager {
         this.filterDataByTopic = filterDataByTopic;
     }
 
+    /**
+     * filter映射关系
+     */
     public static class FilterDataMapByTopic {
 
-        private ConcurrentMap<String/*consumer group*/, ConsumerFilterData>
-            groupFilterData = new ConcurrentHashMap<String, ConsumerFilterData>();
+        private ConcurrentMap<String/*consumer group*/, ConsumerFilterData> groupFilterData = new ConcurrentHashMap<String, ConsumerFilterData>();
 
         private String topic;
 

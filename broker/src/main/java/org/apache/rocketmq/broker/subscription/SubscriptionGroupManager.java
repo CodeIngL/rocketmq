@@ -136,12 +136,14 @@ public class SubscriptionGroupManager extends ConfigManager {
         }
         //线上，请关闭这个自动创建的选项，我们通过手动的方式去创建
         if (brokerController.getBrokerConfig().isAutoCreateSubscriptionGroup() || isSysConsumerGroup(group)) { //自动创建订阅组或者是一个系统组，我们构建一个
+            //支持自动的消费组对应的订阅配置信息，订阅配置信息并没有描述订阅内部的内容，而是描绘了配置
             config = new SubscriptionGroupConfig();
             config.setGroupName(group);
             SubscriptionGroupConfig preConfig = this.subscriptionGroupTable.putIfAbsent(group, config);
             if (null == preConfig) {
                 log.info("auto create a subscription group, {}", config.toString());
             }
+            //版本更新
             this.dataVersion.nextVersion();
             this.persist(); //持久化
         }
