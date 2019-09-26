@@ -757,34 +757,34 @@ public class MQClientInstance {
     }
 
     /**
-     * 构建心跳信息
-     * @return
+     * 客户端构建自己的心跳信息
+     * @return 心跳数据
      */
     private HeartbeatData prepareHeartbeatData() {
         HeartbeatData heartbeatData = new HeartbeatData();
 
-        // clientID
+        // clientID，设置客户端标识
         heartbeatData.setClientID(this.clientId);
 
-        // Consumer
-        // 遍历相关的consumer时构建data进入，主要是构建consumerData，从inner中提起
+        // 该客户端下的所有consumer时构建data进入，主要是构建consumerData，从inner中提起
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
             if (impl == null){
                 continue;
             }
+            //消费描述数据
             ConsumerData consumerData = new ConsumerData();
             consumerData.setGroupName(impl.groupName());
             consumerData.setConsumeType(impl.consumeType());
             consumerData.setMessageModel(impl.messageModel());
             consumerData.setConsumeFromWhere(impl.consumeFromWhere());
+            //追加方式
             consumerData.getSubscriptionDataSet().addAll(impl.subscriptions());
             consumerData.setUnitMode(impl.isUnitMode());
             heartbeatData.getConsumerDataSet().add(consumerData);
         }
 
-        // Producer
-        // 遍历相关的producer时构建data进入
+        // 该客户端下的遍历相关的producer时构建data进入
         for (Map.Entry<String/* group */, MQProducerInner> entry : this.producerTable.entrySet()) {
             MQProducerInner impl = entry.getValue();
             if( impl == null){
@@ -1071,7 +1071,7 @@ public class MQClientInstance {
     }
 
     /**
-     * 唤醒正处于睡眠的负载均衡服务
+     * 唤醒正处于睡眠的负载均衡服务，执行相关的平衡事件
      */
     public void rebalanceImmediately() {
         this.rebalanceService.wakeup();

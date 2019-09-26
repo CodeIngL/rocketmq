@@ -144,8 +144,8 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
     public RemotingCommand notifyConsumerIdsChanged(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         try {
             final NotifyConsumerIdsChangedRequestHeader reqHeader = (NotifyConsumerIdsChangedRequestHeader) req.decodeCommandCustomHeader(NotifyConsumerIdsChangedRequestHeader.class);
-            log.info("receive broker's notification[{}], the consumer group: {} changed, rebalance immediately",
-                parseChannelRemoteAddr(ctx.channel()), reqHeader.getConsumerGroup());
+            log.info("receive broker's notification[{}], the consumer group: {} changed, rebalance immediately", parseChannelRemoteAddr(ctx.channel()), reqHeader.getConsumerGroup());
+            //立即发生重平衡操作，甚至忽略了唯一的参数也就是consumerGroup
             this.mqClientFactory.rebalanceImmediately();
         } catch (Exception e) {
             log.error("notifyConsumerIdsChanged exception", RemotingHelper.exceptionSimpleDesc(e));
