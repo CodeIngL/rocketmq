@@ -127,7 +127,7 @@ public class RouteInfoManager {
             try {
                 this.lock.writeLock().lockInterruptibly();
 
-                //获取集群下的brokerNames
+                //获取集群下的brokerNames,构建内存的信息
                 Set<String> brokerNames = this.clusterAddrTable.get(clusterName);
                 if (null == brokerNames) {
                     brokerNames = new HashSet<>();
@@ -213,6 +213,11 @@ public class RouteInfoManager {
         return null == prev || !prev.equals(dataVersion);
     }
 
+    /**
+     * 查询broker地址上在NameServer上的数据版本，用以确定是否发生了变更
+     * @param brokerAddr
+     * @return
+     */
     public DataVersion queryBrokerTopicConfig(final String brokerAddr) {
         BrokerLiveInfo prev = this.brokerLiveTable.get(brokerAddr);
         if (prev != null) {
@@ -235,9 +240,11 @@ public class RouteInfoManager {
      * @param topicConfig
      */
     private void createAndUpdateQueueData(final String brokerName, final TopicConfig topicConfig) {
+        //构建队列数据信心，由topic配置信息决定
         String topicName = topicConfig.getTopicName();
         QueueData queueData = new QueueData();
         queueData.setBrokerName(brokerName);
+        //以下默认都是16
         queueData.setWriteQueueNums(topicConfig.getWriteQueueNums());
         queueData.setReadQueueNums(topicConfig.getReadQueueNums());
         queueData.setPerm(topicConfig.getPerm());

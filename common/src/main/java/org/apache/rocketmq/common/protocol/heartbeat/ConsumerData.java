@@ -30,15 +30,15 @@ import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 public class ConsumerData {
     //消费组
     private String groupName;
-    //
+    //方式类型
     private ConsumeType consumeType;
-    //
+    //消息消费类型
     private MessageModel messageModel;
-    //
+    //偏向从哪里拉取消息
     private ConsumeFromWhere consumeFromWhere;
     //消费组下的订阅信息，这里不是针对一个topic，topic的信息，由订阅数据自行描述
     private Set<SubscriptionData> subscriptionDataSet = new HashSet<SubscriptionData>();
-    //
+    //？？？
     private boolean unitMode;
 
     public String getGroupName() {
