@@ -31,8 +31,10 @@ public class MQFaultStrategy {
 
     private boolean sendLatencyFaultEnable = false;
 
-    private long[] latencyMax = {50L, 100L, 550L, 1000L, 2000L, 3000L, 15000L};
-    private long[] notAvailableDuration = {0L, 0L, 30000L, 60000L, 120000L, 180000L, 600000L};
+    //最大的延迟规格
+    private long[] latencyMax =            {50L, 100L, 550L,  1000L,   2000L,   3000L,  15000L};
+    //不可用的持续时间规格
+    private long[] notAvailableDuration = {0L,  0L,  30000L, 60000L, 120000L, 180000L, 600000L};
 
     public long[] getNotAvailableDuration() {
         return notAvailableDuration;
@@ -74,7 +76,8 @@ public class MQFaultStrategy {
                         pos = 0;
                     MessageQueue mq = tpInfo.getMessageQueueList().get(pos); //获得该mq
                     if (latencyFaultTolerance.isAvailable(mq.getBrokerName())) { //检查一下该broker是否可用
-                        if (null == lastBrokerName || mq.getBrokerName().equals(lastBrokerName)) //参数不传递，或者名字相符，直接返回
+                        //参数不传递，或者名字相符，直接返回
+                        if (null == lastBrokerName || mq.getBrokerName().equals(lastBrokerName))
                             return mq;
                     }
                 }

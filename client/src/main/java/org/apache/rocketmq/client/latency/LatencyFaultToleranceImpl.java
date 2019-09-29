@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.rocketmq.client.common.ThreadLocalIndex;
 
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
+    //维护的错误信息表
     private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
 
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
@@ -96,6 +97,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
         final int half = copyList.size() / 2;
         if (half <= 0) {
+            //没得选
             return copyList.get(0).getName();
         } else {
             final int i = this.whichItemWorst.getAndIncrement() % half;
