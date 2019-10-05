@@ -43,6 +43,10 @@ import static org.apache.rocketmq.common.protocol.RequestCode.UPDATE_CONSUMER_OF
 import static org.apache.rocketmq.remoting.common.RemotingHelper.parseChannelRemoteAddr;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createResponseCommand;
 
+/**
+ * 消费端的管理器，管理连接到该broker节点上的相关的consumer信息
+ * 提供查询消费组相关信息，和更新消费组相关的offset
+ */
 public class ConsumerManageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
 

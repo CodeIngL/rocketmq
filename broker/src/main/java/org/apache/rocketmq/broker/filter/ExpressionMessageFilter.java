@@ -64,42 +64,51 @@ public class ExpressionMessageFilter implements MessageFilter {
     }
 
     /**
-     * 过滤指定的信息是否匹配相关的consumerQueue
+     * 过滤指定的信息是否匹配相关的consumerQueue，
+     * 用于消息过滤器，进行第一次匹配的时候，我们优先进行匹配我们的consumerQueue
      * @param tagsCode tagsCode
      * @param cqExtUnit extend unit of consume queue
      * @return
      */
     @Override
     public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
-        if (null == subscriptionData) { //不存在订阅数据直接返回
+        if (null == subscriptionData) {
+            //不存在订阅数据直接返回
             return true;
         }
 
-        if (subscriptionData.isClassFilterMode()) { //订阅数据是class模式，匹配
+        if (subscriptionData.isClassFilterMode()) {
+            //订阅数据是class模式，匹配
             return true;
         }
 
         // by tags code.
-        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) { //是tag类型
+        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+            //是tag类型
 
             if (tagsCode == null) {
+                //不存在tag的code
                 return true;
             }
 
             if (subscriptionData.getSubString().equals(SubscriptionData.SUB_ALL)) {
+                //订阅全部
                 return true;
             }
-
-            return subscriptionData.getCodeSet().contains(tagsCode.intValue()); //是否包含这个tag的hashcode
-        } else { //不是tag类型的
-            // no expression or no bloom //没有表达式以及没有bloom过滤器
+            //是否在tag上匹配符合，包含这个tag的hashcode，notice: 没有完整的精确的匹配
+            return subscriptionData.getCodeSet().contains(tagsCode.intValue());
+        } else {
+            //不是tag类型的
+            // no expression or no bloom
             if (consumerFilterData == null || consumerFilterData.getExpression() == null
                 || consumerFilterData.getCompiledExpression() == null || consumerFilterData.getBloomFilterData() == null) {
+                //没有表达式以及没有bloom过滤器
                 return true;
             }
 
             // message is before consumer
             if (cqExtUnit == null || !consumerFilterData.isMsgInLive(cqExtUnit.getMsgStoreTime())) {
+                //消息在消费之前
                 log.debug("Pull matched because not in live: {}, {}", consumerFilterData, cqExtUnit);
                 return true;
             }
@@ -120,8 +129,7 @@ public class ExpressionMessageFilter implements MessageFilter {
                 log.debug("Pull {} by bit map:{}, {}, {}", ret, consumerFilterData, bitsArray, cqExtUnit);
                 return ret;
             } catch (Throwable e) {
-                log.error("bloom filter error, sub=" + subscriptionData
-                    + ", filter=" + consumerFilterData + ", bitMap=" + bitsArray, e);
+                log.error("bloom filter error, sub=" + subscriptionData + ", filter=" + consumerFilterData + ", bitMap=" + bitsArray, e);
             }
         }
 
@@ -130,15 +138,18 @@ public class ExpressionMessageFilter implements MessageFilter {
 
     @Override
     public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
-        if (subscriptionData == null) {  //没有订阅数据，匹配
+        if (subscriptionData == null) {
+            //没有订阅数据，匹配
             return true;
         }
 
-        if (subscriptionData.isClassFilterMode()) { //类模式匹配
+        if (subscriptionData.isClassFilterMode()) {
+            //类模式匹配
             return true;
         }
 
-        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) { //数据tag类型，匹配
+        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+            //数据tag类型，匹配
             return true;
         }
 

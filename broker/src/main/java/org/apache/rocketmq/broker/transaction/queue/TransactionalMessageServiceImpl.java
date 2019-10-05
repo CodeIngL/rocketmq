@@ -317,7 +317,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
      * @return Op message result.
      */
     private PullResult fillOpRemoveMap(HashMap<Long, Long> removeMap, MessageQueue opQueue, long pullOffsetOfOp, long miniOffset, List<Long> doneOpOffset) {
-        //拉取一批op消息，op消息是带有一些特殊的状态
+        //broker自己拉取一批op消息进行消费，op消息是带有一些特殊的状态
         PullResult result = pullOpMsg(opQueue, pullOffsetOfOp, 32);
         if (null == result) {
             return null;
@@ -332,6 +332,8 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             log.warn("The miss op offset={} in queue={} is NO_NEW_MSG, pullResult={}", pullOffsetOfOp, opQueue, result);
             return result;
         }
+
+
         List<MessageExt> opMsgs = result.getMsgFoundList(); //拉取的消息
         if (opMsgs == null) {
             log.warn("The miss op offset={} in queue={} is empty, pullResult={}", pullOffsetOfOp, opQueue, result);

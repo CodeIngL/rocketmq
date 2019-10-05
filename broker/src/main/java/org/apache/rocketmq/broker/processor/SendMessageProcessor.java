@@ -266,30 +266,37 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         String newTopic = reqHeader.getTopic();
         // 消息重发，属于消息重发
         if (null != newTopic && newTopic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
-            String groupName = newTopic.substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length()); //旧的消费组
-            //获得订阅组配置
+            //提取重发消息中的消费组
+            String groupName = newTopic.substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length());
+            //获得消费组订阅配置信息
             SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(groupName);
+
             if (null == subscriptionGroupConfig) {
+                //消费组没有相关的订阅配置，我们返回
                 response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
                 response.setRemark("subscription group not exist, " + groupName + " " + suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
                 return false;
             }
 
-            //最大重试
+            //最大重发次数
             int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
             if (req.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
+                //可以设定的重发次数
                 maxReconsumeTimes = reqHeader.getMaxReconsumeTimes();
             }
-            //重试次数
+            //提取已经重试次数
             int reconsumeTimes = reqHeader.getReconsumeTimes() == null ? 0 : reqHeader.getReconsumeTimes();
-            if (reconsumeTimes >= maxReconsumeTimes) { //大于最大消息重试次数，让我们放置到死信队列
-                newTopic = MixAll.getDLQTopic(groupName); //构建死信队列topic
+            if (reconsumeTimes >= maxReconsumeTimes) {
+                //大于最大消息重试次数，让我们放置到死信队列
+                newTopic = MixAll.getDLQTopic(groupName);
+                //构建死信队列topic
                 int queueIdInt = Math.abs(this.random.nextInt() % 99999999) % DLQ_NUMS_PER_GROUP;
                 //构建或拿到队列对应的死信队列的配置
                 topicConfig = this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, DLQ_NUMS_PER_GROUP, PermName.PERM_WRITE, 0);
                 msg.setTopic(newTopic);
                 msg.setQueueId(queueIdInt);
                 if (null == topicConfig) {
+                    //topic配置信息不存在
                     response.setCode(SYSTEM_ERROR);
                     response.setRemark("topic[" + newTopic + "] not exist");
                     return false;
@@ -325,15 +332,19 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         //构造响应的头部
         final SendMessageResponseHeader respHeader = (SendMessageResponseHeader)resp.readCustomHeader();
 
-        //设置
+        //设置唯一id
         resp.setOpaque(req.getOpaque());
 
+        //该broker的配置信息
         BrokerConfig brokerConfig = this.brokerController.getBrokerConfig();
 
+        //支持regionId，支持TraceID
         //添加消息所属的regioin，broker使用regionid来区分集群下不同的字节,tip这里存在一个regionId
         resp.addExtField(PROPERTY_MSG_REGION, brokerConfig.getRegionId());
         //添加追踪是否开启字段，broker配置文件支持
         resp.addExtField(PROPERTY_TRACE_SWITCH, String.valueOf(brokerConfig.isTraceOn()));
+
+
 
         log.debug("receive SendMessage request command, {}", req);
 
@@ -355,6 +366,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         //获得消息对应的topic的配置信息
         String topic = reqHeader.getTopic();
+        //获得topic的配置信息
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(topic);
 
         //获得queueId，总是一个数字

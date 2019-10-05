@@ -36,6 +36,12 @@ import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
  * 消费组信息
  * 位于内存中
  * 包括在该消费组下，消费端对不同topic的订阅关系。
+ *
+ * 一个消费组，维护了其下的相关信息，
+ * 可以有多个topic和对应订阅信息
+ * 多个客户端channel和客户端的信息，
+ * 该消费组支持的消费方式和类型
+ *
  */
 public class ConsumerGroupInfo {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -216,7 +222,8 @@ public class ConsumerGroupInfo {
                 //不存在，我们发现是变更
 
                 log.warn("subscription changed, group: {} remove topic {} {}", this.groupName, oldTopic, next.getValue().toString());
-                //删除这个不存在的topic
+                //删除这个不存在的topic，这是由客户端发生的
+                //同一消费组下，不同的topic订阅就会发生相关的问题，会删除两者相关的搽剂部分
                 it.remove();
                 updated = true;
             }

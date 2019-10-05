@@ -151,9 +151,17 @@ public class TransactionalMessageBridge {
         return getMessage(group, topic, queueId, offset, nums, sub);
     }
 
+    /**
+     * 获取一批Op消息
+     * @param queueId
+     * @param offset
+     * @param nums
+     * @return
+     */
     public PullResult getOpMessage(int queueId, long offset, int nums) {
         String group = buildConsumerGroup();
         String topic = buildOpTopic();
+        //构建订阅信息，订阅所有的信息
         SubscriptionData sub = new SubscriptionData(topic, "*");
         return getMessage(group, topic, queueId, offset, nums, sub);
     }
@@ -248,9 +256,9 @@ public class TransactionalMessageBridge {
      * @return
      */
     private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msg) {
-        //真实的topic
+        //真实的topic REAL_TOPIC
         putProperty(msg, PROPERTY_REAL_TOPIC, msg.getTopic());
-        //真实的queueId
+        //真实的queueId REAL_QID
         putProperty(msg, PROPERTY_REAL_QUEUE_ID, valueOf(msg.getQueueId()));
         //重置消息的相关标记
         msg.setSysFlag(resetTransactionValue(msg.getSysFlag(), TRANSACTION_NOT_TYPE));
@@ -397,6 +405,7 @@ public class TransactionalMessageBridge {
             }
         }
         if (opQueue == null) {
+            //不存在opqueue，我们构建一个opQueue
             opQueue = new MessageQueue(buildOpTopic(), mq.getBrokerName(), mq.getQueueId());
         }
         putMessage(makeOpMessageInner(message, opQueue));

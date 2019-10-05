@@ -41,11 +41,13 @@ public class ExpressionForRetryMessageFilter extends ExpressionMessageFilter {
 
     @Override
     public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
-        if (subscriptionData == null) { //没有订阅数据，默认支持
+        if (subscriptionData == null) {
+            //没有订阅数据，默认支持
             return true;
         }
 
-        if (subscriptionData.isClassFilterMode()) { //class过滤模式。我们自动支持
+        if (subscriptionData.isClassFilterMode()) {
+            //class过滤模式。我们自动支持
             return true;
         }
 

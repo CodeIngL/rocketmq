@@ -953,6 +953,11 @@ public class BrokerController {
 
     }
 
+    /**
+     * 注册broker
+     * @param topicConfig
+     * @param dataVersion
+     */
     public synchronized void registerIncrementBrokerData(TopicConfig topicConfig, DataVersion dataVersion) {
         TopicConfig registerTopicConfig = topicConfig;
         if (!isWriteable(this.getBrokerConfig().getBrokerPermission())
@@ -970,6 +975,12 @@ public class BrokerController {
         doRegisterBrokerAll(true, false, topicConfigSerializeWrapper);
     }
 
+    /**
+     * 注册相关broker到nameserver上
+     * @param checkOrderConfig
+     * @param oneway
+     * @param forceRegister
+     */
     public synchronized void registerBrokerAll(final boolean checkOrderConfig, boolean oneway, boolean forceRegister) {
         TopicConfigSerializeWrapper topicConfigWrapper = this.getTopicConfigManager().buildTopicConfigSerializeWrapper();
         int perm = this.brokerConfig.getBrokerPermission();
@@ -992,6 +1003,12 @@ public class BrokerController {
         }
     }
 
+    /**
+     * 注册broker到nameServer上
+     * @param checkOrderConfig
+     * @param oneway
+     * @param topicConfigWrapper
+     */
     private void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway,
         TopicConfigSerializeWrapper topicConfigWrapper) {
         List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(

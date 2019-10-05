@@ -79,11 +79,13 @@ import static org.apache.rocketmq.store.stats.BrokerStatsManager.StatsType.RCV_E
 import static org.apache.rocketmq.store.stats.BrokerStatsManager.StatsType.RCV_SUCCESS;
 
 /**
- * 拉取消息处理器
+ * 拉取消息处理器，处理所有模式下的消息拉取信息，支持挂起的长轮训方式
  */
 public class PullMessageProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
+    //broker控制器
     private final BrokerController brokerController;
+    //支持消费的钩子
     private List<ConsumeMessageHook> consumeMessageHookList;
 
     public PullMessageProcessor(final BrokerController brokerController) {
@@ -131,7 +133,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         if (checkSubscriptionGroupConfig(resp, consumerGroup, subscriptionGroupConfig)) return resp;
 
         final boolean hasSuspendFlag = hasSuspendFlag(reqHeader.getSysFlag()); //支持挂起
-        final boolean hasCommitOffsetFlag = hasCommitOffsetFlag(reqHeader.getSysFlag());//支持存在offset
+        final boolean hasCommitOffsetFlag = hasCommitOffsetFlag(reqHeader.getSysFlag());//支持存在已经提交的即commitOffset
         final boolean hasSubscriptionFlag = hasSubscriptionFlag(reqHeader.getSysFlag()); //支持订阅描述符
 
         final long suspendTimeoutMillisLong = hasSuspendFlag ? reqHeader.getSuspendTimeoutMillis() : 0; //如果支持挂起，我们得出挂起的超时时间
@@ -157,6 +159,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         SubscriptionData subscriptionData;
         //消息过滤的数据
         ConsumerFilterData consumerFilterData = null;
+
+
         if (hasSubscriptionFlag) {
             //请求中自带，存在订阅标记，请求中带着相关订阅数据，我们从中进行解析即可
             try {
@@ -173,8 +177,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 return resp;
             }
         } else {
-            //请求中不带相关订阅数据，我们从broker上尝试做出相关的信心
-            //消费组
+            //请求中不带相关订阅数据，我们从broker上尝试做出相关的信息，也就是broker上存在相关订阅信息，客户端不存在相关的订阅信息
+            //因此，我们选择相关的消费组来获得这些内置的订阅信息数据。
             ConsumerGroupInfo consumerGroupInfo = this.brokerController.getConsumerManager().getConsumerGroupInfo(consumerGroup);
             if (null == consumerGroupInfo) { //消费组部存在
                 log.warn("the consumer's group info not exist, group: {}", consumerGroup);
@@ -230,30 +234,41 @@ public class PullMessageProcessor implements NettyRequestProcessor {
 
         //消息过滤器
         MessageFilter messageFilter;
-        if (this.brokerController.getBrokerConfig().isFilterSupportRetry()) { //是否支持重试
+        if (this.brokerController.getBrokerConfig().isFilterSupportRetry()) {
+            //是否支持重试，支持重试，是在普通的模式下的进一步的进行相关的支持
             messageFilter = new ExpressionForRetryMessageFilter(subscriptionData, consumerFilterData, this.brokerController.getConsumerFilterManager()); //支持重试
         } else {
             messageFilter = new ExpressionMessageFilter(subscriptionData, consumerFilterData, this.brokerController.getConsumerFilterManager()); //不支持重试
         }
 
+        //broker配置
         BrokerConfig brokerConfig = this.brokerController.getBrokerConfig();
+        //存储配置
         MessageStoreConfig storeConfig = this.brokerController.getMessageStoreConfig();
         MessageStore messageStore = this.brokerController.getMessageStore();
+        //broker的角色
         BrokerRole brokerRole = storeConfig.getBrokerRole();
         //消息结果
         final GetMessageResult result = messageStore.getMessage(consumerGroup, topic, queueId, reqHeader.getQueueOffset(), reqHeader.getMaxMsgNums(), messageFilter);
+
+        //获取消息的结果
         if (result != null) {
             resp.setRemark(result.getStatus().name()); //状态
             respHeader.setNextBeginOffset(result.getNextBeginOffset()); //下一次开始的offset
             respHeader.setMinOffset(result.getMinOffset());//最小的offset
             respHeader.setMaxOffset(result.getMaxOffset()); //最大的offset
 
-            if (result.isSuggestPullingFromSlave()) { //建议从slave去消费
+            if (result.isSuggestPullingFromSlave()) {
+                //结果拉却显示我们建议从slave去消费
                 respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly()); //消费满，建议去其他节点
-            } else { //masterId
+            } else {
+                //设置从masterId进行拉取，下一次消息拉取的时候
                 respHeader.setSuggestWhichBrokerId(MASTER_ID);
             }
 
+            /**
+             * 当前的broker的角色，如果是slave，我们需要特别的处理，尤其是关掉了slave的支持后，重新从master上进行相关的消费
+             */
             switch (brokerRole) {
                 case ASYNC_MASTER:
                 case SYNC_MASTER:
@@ -325,7 +340,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                     break;
             }
 
-            //存在钩子
+            //存在钩子，构建进行相关的处理
             if (this.hasConsumeMessageHook()) {
                 //构建上下文
                 ConsumeMessageContext context = new ConsumeMessageContext();
@@ -367,18 +382,20 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 this.executeConsumeMessageHookBefore(context);
             }
 
-            //统计
+            //统计相关的数据
             switch (resp.getCode()) {
                 case SUCCESS:
                     this.brokerController.getBrokerStatsManager().incGroupGetNums(consumerGroup, topic, result.getMessageCount());
                     this.brokerController.getBrokerStatsManager().incGroupGetSize(consumerGroup, topic, result.getBufferTotalSize());
                     this.brokerController.getBrokerStatsManager().incBrokerGetNums(result.getMessageCount());
-                    if (brokerConfig.isTransferMsgByHeap()) { //使用堆内进行发送
+                    if (brokerConfig.isTransferMsgByHeap()) {
+                        //使用堆内进行发送
                         final long beginTimeMills = messageStore.now();
                         final byte[] r = this.readGetMessageResult(result, consumerGroup, topic, queueId);
                         this.brokerController.getBrokerStatsManager().incGroupGetLatency(consumerGroup, topic, queueId, (int) (messageStore.now() - beginTimeMills));
                         resp.setBody(r);
-                    } else { //直接发送
+                    } else {
+                        //直接发送，支持FileRegion这种方式
                         try {
                             FileRegion fileRegion = new ManyMessageTransfer(resp.encodeHeader(result.getBufferTotalSize()), result);
                             channel.writeAndFlush(fileRegion).addListener((ChannelFutureListener) future -> {

@@ -153,6 +153,7 @@ public class BrokerOuterAPI {
         final boolean compressed) {
 
         final List<RegisterBrokerResult> registerBrokerResultList = Lists.newArrayList();
+        //获得nameserver地址
         List<String> nameServerAddressList = this.remotingClient.getNameServerAddressList();
         if (nameServerAddressList != null && nameServerAddressList.size() > 0) {
 
@@ -171,6 +172,7 @@ public class BrokerOuterAPI {
             final int bodyCrc32 = UtilAll.crc32(body);
             reqHeader.setBodyCrc32(bodyCrc32);
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
+            //像每一个nameServer都进行注册相关broker
             for (final String namesrvAddr : nameServerAddressList) {
                 brokerOuterExecutor.execute(() -> {
                     try {
@@ -189,6 +191,7 @@ public class BrokerOuterAPI {
             }
 
             try {
+                //控制并发
                 countDownLatch.await(timeoutMills, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
             }

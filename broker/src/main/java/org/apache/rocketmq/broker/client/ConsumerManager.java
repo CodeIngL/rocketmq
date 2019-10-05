@@ -124,9 +124,9 @@ public class ConsumerManager {
             consumerGroupInfo = prev != null ? prev : tmp;
         }
 
-        //更新channel
+        //更新channel，一般是向其中继续添加新得客户端，或者不再更改相关的信息
         boolean r1 = consumerGroupInfo.updateChannel(clientChannelInfo, consumeType, messageModel, consumeFromWhere);
-        //更新一下订阅的关系
+        //更新一下订阅的关系，这里是值得注意的地方
         boolean r2 = consumerGroupInfo.updateSubscription(subList);
 
         if (r1 || r2) {

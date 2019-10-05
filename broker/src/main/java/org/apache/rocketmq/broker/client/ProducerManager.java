@@ -35,20 +35,24 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
+/**
+ * 生产者管理器
+ */
 public class ProducerManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long LOCK_TIMEOUT_MILLIS = 3000;
     private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;
     private static final int GET_AVALIABLE_CHANNEL_RETRY_COUNT = 3;
+    //锁
     private final Lock groupChannelLock = new ReentrantLock();
+    //组名和对应的关系
     private final HashMap<String /* group name */, HashMap<Channel, ClientChannelInfo>> groupChannelTable = new HashMap<String, HashMap<Channel, ClientChannelInfo>>();
     private PositiveAtomicCounter positiveAtomicCounter = new PositiveAtomicCounter();
     public ProducerManager() {
     }
 
     public HashMap<String, HashMap<Channel, ClientChannelInfo>> getGroupChannelTable() {
-        HashMap<String /* group name */, HashMap<Channel, ClientChannelInfo>> newGroupChannelTable =
-            new HashMap<String, HashMap<Channel, ClientChannelInfo>>();
+        HashMap<String /* group name */, HashMap<Channel, ClientChannelInfo>> newGroupChannelTable = new HashMap<String, HashMap<Channel, ClientChannelInfo>>();
         try {
             if (this.groupChannelLock.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
@@ -63,12 +67,14 @@ public class ProducerManager {
         return newGroupChannelTable;
     }
 
+    /**
+     * 扫描非活着的Channel
+     */
     public void scanNotActiveChannel() {
         try {
             if (this.groupChannelLock.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
-                    for (final Map.Entry<String, HashMap<Channel, ClientChannelInfo>> entry : this.groupChannelTable
-                        .entrySet()) {
+                    for (final Map.Entry<String, HashMap<Channel, ClientChannelInfo>> entry : this.groupChannelTable.entrySet()) {
                         final String group = entry.getKey();
                         final HashMap<Channel, ClientChannelInfo> chlMap = entry.getValue();
 
@@ -81,8 +87,7 @@ public class ProducerManager {
                             long diff = System.currentTimeMillis() - info.getLastUpdateTimestamp();
                             if (diff > CHANNEL_EXPIRED_TIMEOUT) {
                                 it.remove();
-                                log.warn(
-                                    "SCAN: remove expired channel[{}] from ProducerManager groupChannelTable, producer group name: {}",
+                                log.warn("SCAN: remove expired channel[{}] from ProducerManager groupChannelTable, producer group name: {}",
                                     RemotingHelper.parseChannelRemoteAddr(info.getChannel()), group);
                                 RemotingUtil.closeChannel(info.getChannel());
                             }
