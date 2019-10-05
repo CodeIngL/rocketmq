@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Spin lock Implementation to put message, suggest using this with low race conditions
+ * 自旋锁，用于竞争放置消息，建议低级别的竞争使用能够这个
  */
 public class PutMessageSpinLock implements PutMessageLock {
     //true: Can lock, false : in lock.

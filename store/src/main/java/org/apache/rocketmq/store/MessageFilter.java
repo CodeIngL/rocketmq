@@ -19,6 +19,9 @@ package org.apache.rocketmq.store;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+/**
+ * 消息过滤器，用于过滤消费端的基本消息，准确的消息是由消费端自行控制
+ */
 public interface MessageFilter {
     /**
      * match by tags code or filter bit map which is calculated when message received

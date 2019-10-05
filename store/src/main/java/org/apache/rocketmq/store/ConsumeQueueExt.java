@@ -419,13 +419,16 @@ public class ConsumeQueueExt {
 
     /**
      * Store unit.
+     * 存储单元，关于consumerQueue的扩展
      */
     public static class CqExtUnit {
+        //最小的扩展单元
         public static final short MIN_EXT_UNIT_SIZE
             = 2 * 1 // size, 32k max
             + 8 * 2 // msg time + tagCode
             + 2; // bitMapSize
 
+        //最大的扩展单元
         public static final int MAX_EXT_UNIT_SIZE = Short.MAX_VALUE;
 
         public CqExtUnit() {

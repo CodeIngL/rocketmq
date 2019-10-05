@@ -637,6 +637,7 @@ public class CommitLog {
         if (tranType == TRANSACTION_NOT_TYPE || tranType == TRANSACTION_COMMIT_TYPE) { //非事务消息，或者事务提交消息
             // 上述的消息是支持延迟队列进行延迟投递的，其他的事务消息是不支持这种方式
             if (msg.getDelayTimeLevel() > 0) { //消息指定了延迟投递 延迟投递处理，支持消息是无事务的或者是事务提交的消息
+                //校验设定延迟级别的合理性，大于最大值，我们进行相关的转换
                 //投递时间，大于消息调度的最大延迟时间
                 ScheduleMessageService scheduleService = this.defaultMessageStore.getScheduleMessageService();
                 if (msg.getDelayTimeLevel() > scheduleService.getMaxDelayLevel()) {
@@ -647,7 +648,7 @@ public class CommitLog {
                 //延迟功能也是将原始的消息，投递到一个特殊的队列中，和 事务队列类似
                 //topic是SCHEDULE_TOPIC_XXXX，然后内部将这个队列进行转换
                 topic = SCHEDULE_TOPIC;
-                //将消息中延迟级别转换为queueId
+                //将消息中延迟级别转换为queueId，不同延迟级别的转换为不同的queueId
                 queueId = delayLevel2QueueId(msg.getDelayTimeLevel());
 
                 // 备份真实的topic和queueId
@@ -666,6 +667,7 @@ public class CommitLog {
         MappedFile unlockMappedFile = null;
         MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
 
+        //锁定，也就是说，最终写入是单线程
         putMessageLock.lock(); //spin or ReentrantLock ,depending on store config 自旋锁还是可重入锁，取决于存储配置项
         try {
             //更新锁开始时间
@@ -1466,7 +1468,7 @@ public class CommitLog {
             this.msgStoreItemMemory.putInt(msgInner.getFlag());
             // 6 QUEUEOFFSET，queue的offset
             this.msgStoreItemMemory.putLong(queueOffset);
-            // 7 PHYSICALOFFSET，物理的存储路径
+            // 7 PHYSICALOFFSET，物理存储的offset
             this.msgStoreItemMemory.putLong(fileFromOffset + byteBuffer.position());
             // 8 SYSFLAG，sys标记
             this.msgStoreItemMemory.putInt(msgInner.getSysFlag());
