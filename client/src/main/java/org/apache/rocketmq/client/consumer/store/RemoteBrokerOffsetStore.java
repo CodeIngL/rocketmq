@@ -164,6 +164,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
 
     /**
      * 单个持久化
+     * 作为支持远程的offset存储，在本身进行持久化的时候，需要更新远程的broker上对应的offset相关的信息
      * @param mq
      */
     @Override
@@ -172,11 +173,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
         if (offset != null) {
             try {
                 this.updateConsumeOffsetToBroker(mq, offset.get());
-                log.info("[persist] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}",
-                    this.groupName,
-                    this.mQClientFactory.getClientId(),
-                    mq,
-                    offset.get());
+                log.info("[persist] Group: {} ClientId: {} updateConsumeOffsetToBroker {} {}", this.groupName, this.mQClientFactory.getClientId(), mq, offset.get());
             } catch (Exception e) {
                 log.error("updateConsumeOffsetToBroker exception, " + mq.toString(), e);
             }

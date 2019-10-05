@@ -262,10 +262,11 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Whether update subscription relationship when every pull
+     * 支持更新订阅关系，当每一次拉取信息的时候，默认是不支持
      */
     private boolean postSubscriptionWhenPull = false;
 
-    /**
+/**
      * Whether the unit of subscription group
      */
     private boolean unitMode = false;
@@ -763,6 +764,10 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         return postSubscriptionWhenPull;
     }
 
+    /**
+     * 设置支持每一次的订阅信息
+     * @param postSubscriptionWhenPull
+     */
     public void setPostSubscriptionWhenPull(boolean postSubscriptionWhenPull) {
         this.postSubscriptionWhenPull = postSubscriptionWhenPull;
     }

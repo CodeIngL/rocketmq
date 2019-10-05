@@ -17,7 +17,10 @@
 package org.apache.rocketmq.client.impl;
 
 /**
- * 发现Broker的结果
+ * 查找Broker的结果
+ * 最终确定的broker的地址
+ * broker的角色是master还是slave
+ * broker的版本
  */
 public class FindBrokerResult {
     //地址

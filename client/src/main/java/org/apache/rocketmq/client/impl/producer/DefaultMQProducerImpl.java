@@ -225,8 +225,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
                     throw new MQClientException("The producer group[" + producerGroup
-                        + "] has been created before, specify another name please." + suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
-                        null);
+                        + "] has been created before, specify another name please." + suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL), null);
                 }
 
                 //topic表放置一个特殊的发布
@@ -792,11 +791,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     /**
      * 使用topic找到对应的topic发布的信息。
      * 这里是一个对于消息发送者的关键点，因为我们可能发生相关的远程交互，如果我们本地是没有相关的发布映射关系缓存的话
+     * 我们尝试去寻找topic的发布信息，这种发布信息应该是从远程获得的
      * @param topic
      * @return
      */
     private TopicPublishInfo tryToFindTopicPublishInfo(final String topic) {
-        //从内存中获得topic的发布信息。
+        //从内存中获得topic的发布信息。对于远程发布信息的缓存
         TopicPublishInfo topicPublishInfo = this.topicPublishInfoTable.get(topic);
         if (null == topicPublishInfo || !topicPublishInfo.ok()) { //不存在，或者没有消息队列
             this.topicPublishInfoTable.putIfAbsent(topic, new TopicPublishInfo()); //我们先放置一个空的发布消息对象，然后我们尝试从nameserver中获得相关的发布订阅消息列表
@@ -807,7 +807,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
         if (topicPublishInfo.isHaveTopicRouterInfo() || topicPublishInfo.ok()) { //存在相关的topic的发布的信息，直接返回就ok，里面存有相关的topic信息了
             return topicPublishInfo;
-        } else { //再次更新
+        } else {
+            //再次更新,我们使用系统默认的topic也就是TBW102
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic, true, this.defaultMQProducer); //尝试再一次拉取信息，使用默认的策略进行拉取
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
             return topicPublishInfo;

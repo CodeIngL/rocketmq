@@ -1355,6 +1355,15 @@ public class MQClientAPIImpl {
 
     /**
      * 从nameServer上获得消息
+     * @param topic 要创建的topic
+     * @param timeoutMillis 超时时间
+     * @param allowTopicNotExist 是否允许构建不存在的topic
+     * @return
+     * @throws MQClientException
+     * @throws InterruptedException
+     * @throws RemotingTimeoutException
+     * @throws RemotingSendRequestException
+     * @throws RemotingConnectException
      */
     public TopicRouteData getTopicRouteInfoFromNameServer(final String topic, final long timeoutMillis,
         boolean allowTopicNotExist) throws MQClientException, InterruptedException, RemotingTimeoutException, RemotingSendRequestException, RemotingConnectException {
@@ -1368,6 +1377,7 @@ public class MQClientAPIImpl {
         assert resp != null;
         switch (resp.getCode()) {
             case TOPIC_NOT_EXIST: {
+                //topic不存在，我们并不允许构建topic，我们输出一些特殊的信息，警告
                 if (allowTopicNotExist && !topic.equals(AUTO_CREATE_TOPIC_KEY_TOPIC)) {
                     log.warn("get Topic [{}] RouteInfoFromNameServer is not exist value", topic);
                 }
@@ -1383,6 +1393,7 @@ public class MQClientAPIImpl {
                 break;
         }
 
+        //抛出异常
         throw new MQClientException(resp.getCode(), resp.getRemark());
     }
 

@@ -512,7 +512,9 @@ public class MQClientInstance {
     public void sendHeartbeatToAllBrokerWithLock() {
         if (this.lockHeartbeat.tryLock()) {
             try {
+                //发送心跳信息给Broker
                 this.sendHeartbeatToAllBroker();
+                //上传相关的filterClass源
                 this.uploadFilterClassSource();
             } catch (final Exception e) {
                 log.error("sendHeartbeatToAllBroker exception", e);
@@ -630,8 +632,7 @@ public class MQClientInstance {
                     if (this.isBrokerInNameServer(addr)) {
                         log.info("send heart beat to broker[{} {} {}] failed", brokerName, id, addr, e);
                     } else {
-                        log.info("send heart beat to broker[{} {} {}] exception, because the broker not up, forget it", brokerName,
-                                id, addr, e);
+                        log.info("send heart beat to broker[{} {} {}] exception, because the broker not up, forget it", brokerName, id, addr, e);
                     }
                 }
             }
@@ -675,12 +676,17 @@ public class MQClientInstance {
      */
     public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault, DefaultMQProducer defaultMQProducer) {
         try {
+            //尝试加锁，如果超时会出现相关的问题
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
-                    if (isDefault && defaultMQProducer != null) { //存在后面的两个选项，使用默认的topickey // TBW102
+                    if (isDefault && defaultMQProducer != null) {
+                        // 存在后面的两个选项，使用默认的topickey，note这里是使用了特殊的topic也就是这里不再有是有传递进来的topic，
+                        // 最终默认的topic作为我们的路由信息 TBW102
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(), 1000 * 3);
+
                         if (topicRouteData != null) {
+                            //存在相关的信息
                             for (QueueData data : topicRouteData.getQueueDatas()) {
                                 //使用本地默认数量和远程数据的数量进行比较，选取其中小的
                                 int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums()); //4和设定值中选取小的
@@ -1160,10 +1166,10 @@ public class MQClientInstance {
 
 
     /**
-     * 根据
+     * 查找broker结果
      * @param brokerName
      * @param brokerId
-     * @param onlyThisBroker
+     * @param onlyThisBroker 是否支持找不到进行转移 false支持，true不支持
      * @return 查找broker的结果
      */
     public FindBrokerResult findBrokerAddressInSubscribe(final String brokerName, final long brokerId, final boolean onlyThisBroker) {
@@ -1171,16 +1177,26 @@ public class MQClientInstance {
         boolean slave = false;
         boolean found = false;
 
+        //获得同一brokerName下的相关的节点，一般是主从节点
         HashMap<Long/* brokerId */, String/* address */> map = this.brokerAddrTable.get(brokerName);
+
         if (map != null && !map.isEmpty()) {
+            //使用broker标识获得地址
             brokerAddr = map.get(brokerId);
+            //是否是salve
             slave = brokerId != MixAll.MASTER_ID;
+            //是否找到
             found = brokerAddr != null;
 
             if (!found && !onlyThisBroker) {
+                //找不到，且没有强制指出必须获得这个指定的Broker
+
+                //遍历获得一个可以找到的Broker
                 Entry<Long, String> entry = map.entrySet().iterator().next();
                 brokerAddr = entry.getValue();
+                //确定是否是slave
                 slave = entry.getKey() != MixAll.MASTER_ID;
+                //找到节点
                 found = true;
             }
         }
