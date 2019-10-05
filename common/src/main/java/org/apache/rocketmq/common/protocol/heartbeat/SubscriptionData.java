@@ -41,7 +41,7 @@ public class SubscriptionData implements Comparable<SubscriptionData> {
     private String subString;
     //tag集合
     private Set<String> tagsSet = new HashSet<String>();
-    //code集合，tag的hashcode值
+    //code集合，tag的hashcode值集合
     private Set<Integer> codeSet = new HashSet<Integer>();
     //版本
     private long subVersion = System.currentTimeMillis();

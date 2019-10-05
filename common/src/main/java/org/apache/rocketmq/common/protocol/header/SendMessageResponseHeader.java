@@ -24,6 +24,12 @@ import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
+/**
+ * 发送消息的结果相应
+ * 消息id，队列id
+ * 队列offset，
+ * 事物id，如果事物存在的话
+ */
 public class SendMessageResponseHeader implements CommandCustomHeader {
     @CFNotNull
     private String msgId;

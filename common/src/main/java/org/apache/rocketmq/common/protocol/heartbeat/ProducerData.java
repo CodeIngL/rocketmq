@@ -24,7 +24,7 @@ package org.apache.rocketmq.common.protocol.heartbeat;
  * 生产者信息，提取自生产者本身的配置信息，
  */
 public class ProducerData {
-    //组
+    //生产者指定的组名
     private String groupName;
 
     public String getGroupName() {

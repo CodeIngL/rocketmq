@@ -28,7 +28,7 @@ import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
  * 消费端数据，提取子消费端本身相关的配置项信息
  */
 public class ConsumerData {
-    //消费组
+    //消费组名
     private String groupName;
     //方式类型
     private ConsumeType consumeType;

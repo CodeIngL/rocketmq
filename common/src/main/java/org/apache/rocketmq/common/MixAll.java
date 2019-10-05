@@ -125,7 +125,13 @@ public class MixAll {
         return topic.startsWith(SYSTEM_TOPIC_PREFIX);
     }
 
+    /**
+     * 获得一个消费组对应的死信队列
+     * @param consumerGroup 消费组
+     * @return 死信队列组
+     */
     public static String getDLQTopic(final String consumerGroup) {
+        //%DLQ%
         return DLQ_GROUP_TOPIC_PREFIX + consumerGroup;
     }
 

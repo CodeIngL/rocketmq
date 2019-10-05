@@ -26,6 +26,9 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 /**
  * 心跳数据
+ * 保存了客户端的Id
+ * 保存了客户端提交上来关于生产者的信息
+ * 保存了客户端提交上来的关于消费者的信息
  */
 public class HeartbeatData extends RemotingSerializable {
     //客户端的ID

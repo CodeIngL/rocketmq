@@ -16,6 +16,11 @@
  */
 package org.apache.rocketmq.common.sysflag;
 
+/**
+ * 拉取消息时带上的相关标记
+ * 支持commitOffset支持挂起，支持自带的订阅标记，支持classFilter模式
+ * 最终pull和push在表现上会存在相关的不同
+ */
 public class PullSysFlag {
     private final static int FLAG_COMMIT_OFFSET = 0x1 << 0;
     private final static int FLAG_SUSPEND = 0x1 << 1; //支持挂起
@@ -52,9 +57,16 @@ public class PullSysFlag {
         return flag;
     }
 
+    /**
+     * 清除commit标记
+     * @param sysFlag
+     * @return
+     */
     public static int clearCommitOffsetFlag(final int sysFlag) {
         return sysFlag & (~FLAG_COMMIT_OFFSET);
     }
+
+    //校验是否存在相关的标记
 
     public static boolean hasCommitOffsetFlag(final int sysFlag) {
         return (sysFlag & FLAG_COMMIT_OFFSET) == FLAG_COMMIT_OFFSET;
