@@ -438,6 +438,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         SubscriptionData sd = this.rebalanceImpl.getSubscriptionInner().get(pullRequest.getMessageQueue().getTopic());
         if (sd != null) {
             if (this.defaultMQPushConsumer.isPostSubscriptionWhenPull() && !sd.isClassFilterMode()) {
+                //支持构建订阅的信息，我们会在标记中构建支持的订阅信息，并且不是基于类过滤的模式
                 subExpression = sd.getSubString();
             }
 
@@ -445,6 +446,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
 
         /* commitOffset*//* suspend*/ /* subscription*//* class filter*/
+        /**
+         * push模式支持长轮训的方式，也就是支持在broker端进行挂起
+         */
         int sysFlag = buildSysFlag(commitOffsetEnable, true, subExpression != null, classFilter);
         try {
             //开始拉取消息，核心的拉取消息api

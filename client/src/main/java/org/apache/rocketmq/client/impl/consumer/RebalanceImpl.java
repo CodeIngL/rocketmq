@@ -241,8 +241,11 @@ public abstract class RebalanceImpl {
      */
     public void doRebalance(final boolean isOrder) {
         //遍历所有的订阅关系
+        //topic和订阅的相关的配置信息映射
         Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
+        //存在映射关系
         if (subTable != null) {
+            //只处理本节点关注的订阅信息，也就是主动发起的订阅的相关信息
             //从本节点订阅的数据，寻找相关的topic，然后对每一个topic进行相关的操作rebalance操作
             for (final Map.Entry<String, SubscriptionData> entry : subTable.entrySet()) {
                 String topic = entry.getKey();
@@ -257,6 +260,7 @@ public abstract class RebalanceImpl {
         }
 
         //rebalance之后，删除不是我们的topic
+        // 因为发生了变更
         this.truncateMessageQueueNotMyTopic();
     }
 
@@ -266,7 +270,7 @@ public abstract class RebalanceImpl {
 
     /**
      * 根据topic进行负载均衡，同理pull方式不支持isOrder，push方式根据设置进行支持与否
-     * @param topic 可能要负载均衡的topic
+     * @param topic 可能要负载均衡的topic，本节点订阅的topic
      * @param isOrder 是否有序
      */
     private void rebalanceByTopic(final String topic, final boolean isOrder) {
@@ -288,7 +292,8 @@ public abstract class RebalanceImpl {
             }
             case CLUSTERING: { //集群方式
                 if (null == mqSet) {
-                    if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) { //没有对应的消息队列，而且这个topic也不是重试的topic，说明没有相关的信息直接返回
+                    if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
+                        //没有对应的消息队列，而且这个topic也不是重试的topic，说明没有相关的信息直接返回
                         log.warn("doRebalance, {}, but the topic[{}] not exist.", consumerGroup, topic);
                     }
                     return;

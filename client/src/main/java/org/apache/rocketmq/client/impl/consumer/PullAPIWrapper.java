@@ -208,6 +208,7 @@ public class PullAPIWrapper {
             int sysFlagInner = sysFlag;
 
             if (findBrokerResult.isSlave()) {
+                //是slave我们删除携带的commitOffset相关标记
                 sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
             }
 
@@ -251,11 +252,13 @@ public class PullAPIWrapper {
             return this.defaultBrokerId;
         }
 
+        //从缓存中获得我们建议的拉取broker节点
         AtomicLong suggest = this.pullFromWhichNodeTable.get(mq);
         if (suggest != null) {
             return suggest.get();
         }
 
+        //默认返回主节点
         return MixAll.MASTER_ID;
     }
 

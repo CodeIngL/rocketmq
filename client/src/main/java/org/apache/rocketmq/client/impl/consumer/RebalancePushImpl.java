@@ -52,6 +52,12 @@ public class RebalancePushImpl extends RebalanceImpl {
         this.defaultMQPushConsumerImpl = defaultMQPushConsumerImpl;
     }
 
+    /**
+     * 消费队列发生变更后，需要做出的相关调整
+     * @param topic
+     * @param mqAll
+     * @param mqDivided
+     */
     @Override
     public void messageQueueChanged(String topic, Set<MessageQueue> mqAll, Set<MessageQueue> mqDivided) {
         /**
@@ -69,6 +75,7 @@ public class RebalancePushImpl extends RebalanceImpl {
         int currentQueueCount = this.processQueueTable.size(); //当前的queue数量
         DefaultMQPushConsumer pushConsumer =  this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer();
         if (currentQueueCount != 0) {
+            //拉取的阈值
             int pullThresholdForTopic = pushConsumer.getPullThresholdForTopic();
             if (pullThresholdForTopic != -1) {
                 int newVal = Math.max(1, pullThresholdForTopic / currentQueueCount);
@@ -76,6 +83,7 @@ public class RebalancePushImpl extends RebalanceImpl {
                 pushConsumer.setPullThresholdForQueue(newVal); //新的阈值
             }
 
+            //大小的阈值
             int pullThresholdSizeForTopic = pushConsumer.getPullThresholdSizeForTopic();
             if (pullThresholdSizeForTopic != -1) {
                 int newVal = Math.max(1, pullThresholdSizeForTopic / currentQueueCount); //新的阈值
@@ -84,7 +92,7 @@ public class RebalancePushImpl extends RebalanceImpl {
             }
         }
 
-        // notify broker
+        // notify broker，通知broker，消费端发生的变化
         this.getmQClientFactory().sendHeartbeatToAllBrokerWithLock(); //通知broker
     }
 

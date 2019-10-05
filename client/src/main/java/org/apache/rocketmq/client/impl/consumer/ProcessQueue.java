@@ -37,7 +37,7 @@ import org.apache.rocketmq.common.protocol.body.ProcessQueueInfo;
 /**
  * Queue consumption snapshot
  * <p>
- *     队列消费快照
+ *     队列消费快照，存储在内存中
  * </p>
  */
 public class ProcessQueue {
@@ -46,6 +46,7 @@ public class ProcessQueue {
     public final static long REBALANCE_LOCK_INTERVAL = Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockInterval", "20000"));
     //最大拉取时间
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
+    
     private final InternalLogger log = ClientLogger.getLog();
     //锁
     private final ReadWriteLock lockTreeMap = new ReentrantReadWriteLock();
@@ -142,8 +143,8 @@ public class ProcessQueue {
     }
 
     /**
-     * 将消息投递到内部的结构中，等待被消费
-     * @param msgs
+     * 将消息投递到内部的结构中，等待最终被消费
+     * @param msgs 待消费的消息
      * @return 需要稍后被消费
      */
     public boolean putMessage(final List<MessageExt> msgs) {
