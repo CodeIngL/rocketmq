@@ -233,8 +233,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
             if (null == topicConfig) {
                 resp.setCode(ResponseCode.TOPIC_NOT_EXIST);
-                resp.setRemark("topic[" + reqHeader.getTopic() + "] not exist, apply first please!"
-                    + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
+                resp.setRemark("topic[" + reqHeader.getTopic() + "] not exist, apply first please!" + FAQUrl.suggestTodo(FAQUrl.APPLY_TOPIC_URL));
                 return resp;
             }
         }
@@ -245,9 +244,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         int idValid = Math.max(topicConfig.getWriteQueueNums(), topicConfig.getReadQueueNums());
         if (queueIdInt >= idValid) {
             String errorInfo = String.format("request queueId[%d] is illegal, %s Producer: %s",
-                queueIdInt,
-                topicConfig.toString(),
-                parseChannelRemoteAddr(ctx.channel()));
+                queueIdInt, topicConfig.toString(), parseChannelRemoteAddr(ctx.channel()));
 
             log.warn(errorInfo);
             resp.setCode(ResponseCode.SYSTEM_ERROR);

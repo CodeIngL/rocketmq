@@ -235,46 +235,45 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
     /**
      * 更新或者构建topic
      * @param ctx
-     * @param request
+     * @param req
      * @return
      * @throws RemotingCommandException
      */
-    private synchronized RemotingCommand updateAndCreateTopic(ChannelHandlerContext ctx,
-        RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(null);
-        final CreateTopicRequestHeader requestHeader = (CreateTopicRequestHeader) request.decodeCommandCustomHeader(CreateTopicRequestHeader.class);
+    private synchronized RemotingCommand updateAndCreateTopic(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
+        final RemotingCommand resp = createResponseCommand(null);
+        final CreateTopicRequestHeader reqHeader = (CreateTopicRequestHeader) req.decodeCommandCustomHeader(CreateTopicRequestHeader.class);
         log.info("updateAndCreateTopic called by {}", parseChannelRemoteAddr(ctx.channel()));
 
-        if (requestHeader.getTopic().equals(this.brokerController.getBrokerConfig().getBrokerClusterName())) { //名字校验，topic名字不可以使用系统保留字
-            String errorMsg = "the topic[" + requestHeader.getTopic() + "] is conflict with system reserved words.";
+        if (reqHeader.getTopic().equals(this.brokerController.getBrokerConfig().getBrokerClusterName())) { //名字校验，topic名字不可以使用系统保留字
+            String errorMsg = "the topic[" + reqHeader.getTopic() + "] is conflict with system reserved words.";
             log.warn(errorMsg);
-            response.setCode(SYSTEM_ERROR);
-            response.setRemark(errorMsg);
-            return response;
+            resp.setCode(SYSTEM_ERROR);
+            resp.setRemark(errorMsg);
+            return resp;
         }
 
         try {
-            response.setCode(SUCCESS);
-            response.setOpaque(request.getOpaque());
-            response.markResponseType();
-            response.setRemark(null);
-            ctx.writeAndFlush(response);
+            resp.setCode(SUCCESS);
+            resp.setOpaque(req.getOpaque());
+            resp.markResponseType();
+            resp.setRemark(null);
+            ctx.writeAndFlush(resp);
         } catch (Exception e) {
             log.error("Failed to produce a proper response", e);
         }
 
         //topic配置
-        TopicConfig topicConfig = new TopicConfig(requestHeader.getTopic());
+        TopicConfig topicConfig = new TopicConfig(reqHeader.getTopic());
         //设置要被读的队列
-        topicConfig.setReadQueueNums(requestHeader.getReadQueueNums());
+        topicConfig.setReadQueueNums(reqHeader.getReadQueueNums());
         //设置要被写的队列
-        topicConfig.setWriteQueueNums(requestHeader.getWriteQueueNums());
+        topicConfig.setWriteQueueNums(reqHeader.getWriteQueueNums());
         //类型
-        topicConfig.setTopicFilterType(requestHeader.getTopicFilterTypeEnum());
+        topicConfig.setTopicFilterType(reqHeader.getTopicFilterTypeEnum());
         //权限
-        topicConfig.setPerm(requestHeader.getPerm());
+        topicConfig.setPerm(reqHeader.getPerm());
         //系统标记
-        topicConfig.setTopicSysFlag(requestHeader.getTopicSysFlag() == null ? 0 : requestHeader.getTopicSysFlag());
+        topicConfig.setTopicSysFlag(reqHeader.getTopicSysFlag() == null ? 0 : reqHeader.getTopicSysFlag());
 
         this.brokerController.getTopicConfigManager().updateTopicConfig(topicConfig);
 
@@ -329,6 +328,12 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    /**
+     * 更新Broker的配置，触发对nameserver上保存的信息更新
+     * @param ctx
+     * @param request
+     * @return
+     */
     private synchronized RemotingCommand updateBrokerConfig(ChannelHandlerContext ctx, RemotingCommand request) {
         final RemotingCommand response = createResponseCommand(null);
 
@@ -480,10 +485,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
         LockBatchRequestBody reqBody = LockBatchRequestBody.decode(req.getBody(), LockBatchRequestBody.class);
 
         //获得成功被锁定的消息队列
-        Set<MessageQueue> lockOKMQSet = this.brokerController.getRebalanceLockManager().tryLockBatch(
-            reqBody.getConsumerGroup(),
-            reqBody.getMqSet(),
-            reqBody.getClientId());
+        Set<MessageQueue> lockOKMQSet = this.brokerController.getRebalanceLockManager().tryLockBatch(reqBody.getConsumerGroup(), reqBody.getMqSet(), reqBody.getClientId());
 
         //构建结果
         LockBatchResponseBody respBody = new LockBatchResponseBody();

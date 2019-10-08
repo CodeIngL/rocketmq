@@ -131,8 +131,7 @@ public class FilterServerManager {
     public void doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         FilterServerInfo old = this.filterServerTable.remove(channel);
         if (old != null) {
-            log.warn("The Filter Server<{}> connection<{}> closed, remove it", old.getFilterServerAddr(),
-                remoteAddr);
+            log.warn("The Filter Server<{}> connection<{}> closed, remove it", old.getFilterServerAddr(), remoteAddr);
         }
     }
 

@@ -253,6 +253,7 @@ public class TopicConfigManager extends ConfigManager {
         }
 
         if (createNew) {
+            //新构建要进行broker注册，相关的信息发生了变更，需要更新到NameServer上
             this.brokerController.registerBrokerAll(false, true,true);
         }
 
@@ -308,6 +309,11 @@ public class TopicConfigManager extends ConfigManager {
         return topicConfig;
     }
 
+    /**
+     * 更新topic的相关标记
+     * @param topic
+     * @param unit
+     */
     public void updateTopicUnitFlag(final String topic, final boolean unit) {
 
         TopicConfig topicConfig = this.topicConfigTable.get(topic);
@@ -347,6 +353,7 @@ public class TopicConfigManager extends ConfigManager {
             this.dataVersion.nextVersion();
 
             this.persist();
+            //更新标记，需要向nameserver传递信息
             this.brokerController.registerBrokerAll(false, true,true);
         }
     }

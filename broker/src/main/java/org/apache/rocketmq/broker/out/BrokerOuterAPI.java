@@ -67,10 +67,13 @@ import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createReques
  */
 public class BrokerOuterAPI {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
+    //网络端
     private final RemotingClient remotingClient;
+    //获取nameServer的服务地址
     private final TopAddressing topAddressing = new TopAddressing(MixAll.getWSAddr());
-    //服务端地址
+    //nameServer地址
     private String nameSrvAddr = null;
+
     private BrokerFixedThreadPoolExecutor brokerOuterExecutor = new BrokerFixedThreadPoolExecutor(4, 10, 1, TimeUnit.MINUTES,
             new ArrayBlockingQueue<>(32), new ThreadFactoryImpl("brokerOutApi_thread_", true));
 
@@ -93,7 +96,7 @@ public class BrokerOuterAPI {
     }
 
     /**
-     * 获得nameServer地址
+     * 通过访问其他服务来获得nameServer地址
      * @return
      */
     public String fetchNameServerAddr() {
@@ -176,7 +179,7 @@ public class BrokerOuterAPI {
             for (final String namesrvAddr : nameServerAddressList) {
                 brokerOuterExecutor.execute(() -> {
                     try {
-                        RegisterBrokerResult result = registerBroker(namesrvAddr,oneway, timeoutMills,reqHeader,body);
+                        RegisterBrokerResult result = registerBroker(namesrvAddr, oneway, timeoutMills, reqHeader, body);
                         if (result != null) {
                             registerBrokerResultList.add(result);
                         }
@@ -217,6 +220,7 @@ public class BrokerOuterAPI {
      */
     private RegisterBrokerResult registerBroker(final String namesrvAddr, final boolean oneway, final int timeoutMills, final RegisterBrokerRequestHeader reqHeader, final byte[] body)
             throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
+
         RemotingCommand req = createRequestCommand(RequestCode.REGISTER_BROKER, reqHeader);
         req.setBody(body);
 
@@ -383,8 +387,7 @@ public class BrokerOuterAPI {
 
 
     //-------------给予slave进行使用------------//
-    public TopicConfigSerializeWrapper getAllTopicConfig(
-        final String addr) throws RemotingConnectException, RemotingSendRequestException,
+    public TopicConfigSerializeWrapper getAllTopicConfig(final String addr) throws RemotingConnectException, RemotingSendRequestException,
         RemotingTimeoutException, InterruptedException, MQBrokerException {
         RemotingCommand request = createRequestCommand(RequestCode.GET_ALL_TOPIC_CONFIG, null);
 

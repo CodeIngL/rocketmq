@@ -33,7 +33,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.rocketmq.acl.AccessValidator;
-import org.apache.rocketmq.acl.common.Permission;
 import org.apache.rocketmq.broker.client.ClientHousekeepingService;
 import org.apache.rocketmq.broker.client.ConsumerIdsChangeListener;
 import org.apache.rocketmq.broker.client.ConsumerManager;
@@ -391,9 +390,9 @@ public class BrokerController {
             //注册所有处理器
             this.registerProcessor();
 
+            //调度服务，记录broker状态
             final long initialDelay = UtilAll.computNextMorningTimeMillis() - System.currentTimeMillis();
             final long period = 1000 * 60 * 60 * 24;
-            //调度服务，记录broker状态
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.getBrokerStats().record();
@@ -402,7 +401,7 @@ public class BrokerController {
                 }
             }, initialDelay, period, TimeUnit.MILLISECONDS);
 
-            //调度服务持久化消费者消费进度
+            //调度服务,持久化消费者消费进度
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.consumerOffsetManager.persist();
@@ -411,7 +410,7 @@ public class BrokerController {
                 }
             }, 1000 * 10, this.brokerConfig.getFlushConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
-            //调度服务持久化消费者过滤数据
+            //调度服务,持久化消费者过滤数据
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.consumerFilterManager.persist();
@@ -420,7 +419,7 @@ public class BrokerController {
                 }
             }, 1000 * 10, 1000 * 10, TimeUnit.MILLISECONDS);
 
-            //保护broker
+            //调度服务,保护broker
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     BrokerController.this.protectBroker();
@@ -438,7 +437,7 @@ public class BrokerController {
                 }
             }, 10, 1, TimeUnit.SECONDS);
 
-            //f
+            //调度服务，分发落后的消息
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     log.info("dispatch behind commit log {} bytes", BrokerController.this.getMessageStore().dispatchBehindBytes());
@@ -447,17 +446,21 @@ public class BrokerController {
                 }
             }, 1000 * 10, 1000 * 60, TimeUnit.MILLISECONDS);
 
+
+
             if (this.brokerConfig.getNamesrvAddr() != null) {
+                //直接配置了nameserver地址，我们直接使用其nameServer的地址
                 this.brokerOuterAPI.updateNameServerAddressList(this.brokerConfig.getNamesrvAddr());
                 log.info("Set user specified name server address: {}", this.brokerConfig.getNamesrvAddr());
             } else if (this.brokerConfig.isFetchNamesrvAddrByAddressServer()) {
+                //配置了获得nameserve地址的服务地址，调度服务，定时去拉取nameserver地址
                 this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                     try {
                         BrokerController.this.brokerOuterAPI.fetchNameServerAddr();
                     } catch (Throwable e) {
                         log.error("ScheduledTask fetchNameServerAddr exception", e);
                     }
-                }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
+                }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);//120S
             }
 
             if (!messageStoreConfig.isEnableDLegerCommitLog()) {
@@ -469,6 +472,7 @@ public class BrokerController {
                         this.updateMasterHAServerAddrPeriodically = true;
                     }
                 } else {
+                    //调度服务，定时打印落后的差距
                     this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                         try {
                             BrokerController.this.printMasterAndSlaveDiff();
@@ -525,6 +529,9 @@ public class BrokerController {
         return result;
     }
 
+    /**
+     * 初始化事务支持
+     */
     private void initialTransaction() {
         this.transactionalMessageService = ServiceProvider.loadClass(ServiceProvider.TRANSACTION_SERVICE_ID, TransactionalMessageService.class);
         if (null == this.transactionalMessageService) {
@@ -540,6 +547,9 @@ public class BrokerController {
         this.transactionalMessageCheckService = new TransactionalMessageCheckService(this);
     }
 
+    /**
+     * 初始化ACL的支持
+     */
     private void initialAcl() {
         if (!this.brokerConfig.isAclEnable()) {
             log.info("The broker dose not enable acl");
@@ -570,6 +580,9 @@ public class BrokerController {
     }
 
 
+    /**
+     * 初始化RPC钩子的支持
+     */
     private void initialRpcHooks() {
 
         List<RPCHook> rpcHooks = ServiceProvider.load(ServiceProvider.RPC_HOOK_ID, RPCHook.class);
@@ -928,9 +941,10 @@ public class BrokerController {
         }
 
 
-        //注册相关的broker
+        //注册相关的broker，向所有的nameserver进行自己的注册
         this.registerBrokerAll(true, false, true);
 
+        //定期向所有的nameServer进行broker信息的注册更新,10S到60S进行注册一次
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
                 BrokerController.this.registerBrokerAll(true, false, brokerConfig.isForceRegister());
@@ -976,7 +990,7 @@ public class BrokerController {
     }
 
     /**
-     * 注册相关broker到nameserver上
+     * 注册相关broker到所有的nameserver上
      * @param checkOrderConfig
      * @param oneway
      * @param forceRegister
@@ -987,8 +1001,7 @@ public class BrokerController {
         if (!isWriteable(perm) || !isReadable(perm)) {
             ConcurrentHashMap<String, TopicConfig> topicConfigTable = new ConcurrentHashMap<String, TopicConfig>();
             for (TopicConfig topicConfig : topicConfigWrapper.getTopicConfigTable().values()) {
-                TopicConfig tmp =
-                    new TopicConfig(topicConfig.getTopicName(), topicConfig.getReadQueueNums(), topicConfig.getWriteQueueNums(), perm);
+                TopicConfig tmp = new TopicConfig(topicConfig.getTopicName(), topicConfig.getReadQueueNums(), topicConfig.getWriteQueueNums(), perm);
                 topicConfigTable.put(topicConfig.getTopicName(), tmp);
             }
             topicConfigWrapper.setTopicConfigTable(topicConfigTable);
@@ -1004,13 +1017,12 @@ public class BrokerController {
     }
 
     /**
-     * 注册broker到nameServer上
+     * 注册broker到所有的nameServer上
      * @param checkOrderConfig
      * @param oneway
      * @param topicConfigWrapper
      */
-    private void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway,
-        TopicConfigSerializeWrapper topicConfigWrapper) {
+    private void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway, TopicConfigSerializeWrapper topicConfigWrapper) {
         List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(
             this.brokerConfig.getBrokerClusterName(),
             this.getBrokerAddr(),
@@ -1024,15 +1036,19 @@ public class BrokerController {
             this.brokerConfig.isCompressedRegister());
 
         if (registerBrokerResultList.size() > 0) {
+            //注册结果存在
             RegisterBrokerResult registerBrokerResult = registerBrokerResultList.get(0);
+
             if (registerBrokerResult != null) {
                 if (this.updateMasterHAServerAddrPeriodically && registerBrokerResult.getHaServerAddr() != null) {
+                    //更新高可用地址
                     this.messageStore.updateHaMasterAddress(registerBrokerResult.getHaServerAddr());
                 }
-
+                //设置主节点的地址
                 this.slaveSynchronize.setMasterAddr(registerBrokerResult.getMasterAddr());
 
                 if (checkOrderConfig) {
+                    //更新支持顺序消费的topic
                     this.getTopicConfigManager().updateOrderTopicConfig(registerBrokerResult.getKvTable());
                 }
             }
@@ -1212,6 +1228,10 @@ public class BrokerController {
         }
     }
 
+    /**
+     * 转换到slave，由DLedger进行使用
+     * @param brokerId
+     */
     public void changeToSlave(int brokerId) {
         log.info("Begin to change to slave brokerName={} brokerId={}", brokerConfig.getBrokerName(), brokerId);
 
@@ -1245,7 +1265,10 @@ public class BrokerController {
     }
 
 
-
+    /**
+     * 转换为master节点，由DLedger使用
+     * @param role
+     */
     public void changeToMaster(BrokerRole role) {
         if (role == BrokerRole.SLAVE) {
             return;

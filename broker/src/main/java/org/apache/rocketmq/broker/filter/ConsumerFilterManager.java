@@ -20,6 +20,7 @@ package org.apache.rocketmq.broker.filter;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.BrokerPathConfigHelper;
+import org.apache.rocketmq.common.BrokerConfig;
 import org.apache.rocketmq.common.ConfigManager;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
@@ -59,16 +60,17 @@ public class ConsumerFilterManager extends ConfigManager {
         this.bloomFilter = BloomFilter.createByFn(20, 64);
     }
 
+    /**
+     * 构建消息过滤
+     * @param brokerController
+     */
     public ConsumerFilterManager(BrokerController brokerController) {
         this.brokerController = brokerController;
-        this.bloomFilter = BloomFilter.createByFn(
-            brokerController.getBrokerConfig().getMaxErrorRateOfBloomFilter(),
-            brokerController.getBrokerConfig().getExpectConsumerNumUseFilter()
+        BrokerConfig config  = brokerController.getBrokerConfig();
+        this.bloomFilter = BloomFilter.createByFn(config.getMaxErrorRateOfBloomFilter(), config.getExpectConsumerNumUseFilter()
         );
         // then set bit map length of store config.
-        brokerController.getMessageStoreConfig().setBitMapLengthConsumeQueueExt(
-            this.bloomFilter.getM()
-        );
+        brokerController.getMessageStoreConfig().setBitMapLengthConsumeQueueExt(this.bloomFilter.getM());
     }
 
     /**

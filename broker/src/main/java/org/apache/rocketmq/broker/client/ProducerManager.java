@@ -36,7 +36,8 @@ import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
 /**
- * 生产者管理器
+ * 位于broker中关于producer的管理注册表
+ * 和consumer管理器区别，后者需要维护更多信息，而不是简单组合对应的对象的映射关系
  */
 public class ProducerManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -45,11 +46,10 @@ public class ProducerManager {
     private static final int GET_AVALIABLE_CHANNEL_RETRY_COUNT = 3;
     //锁
     private final Lock groupChannelLock = new ReentrantLock();
-    //组名和对应的关系
+    //组名和对应对象的映射关系
     private final HashMap<String /* group name */, HashMap<Channel, ClientChannelInfo>> groupChannelTable = new HashMap<String, HashMap<Channel, ClientChannelInfo>>();
+
     private PositiveAtomicCounter positiveAtomicCounter = new PositiveAtomicCounter();
-    public ProducerManager() {
-    }
 
     public HashMap<String, HashMap<Channel, ClientChannelInfo>> getGroupChannelTable() {
         HashMap<String /* group name */, HashMap<Channel, ClientChannelInfo>> newGroupChannelTable = new HashMap<String, HashMap<Channel, ClientChannelInfo>>();
@@ -122,8 +122,7 @@ public class ProducerManager {
                             final ClientChannelInfo clientChannelInfo =
                                 clientChannelInfoTable.remove(channel);
                             if (clientChannelInfo != null) {
-                                log.info(
-                                    "NETTY EVENT: remove channel[{}][{}] from ProducerManager groupChannelTable, producer group: {}",
+                                log.info("NETTY EVENT: remove channel[{}][{}] from ProducerManager groupChannelTable, producer group: {}",
                                     clientChannelInfo.toString(), remoteAddr, group);
                             }
 

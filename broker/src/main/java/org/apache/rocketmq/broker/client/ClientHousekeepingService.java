@@ -29,6 +29,7 @@ import org.apache.rocketmq.remoting.ChannelEventListener;
 
 /**
  * 用于清理remotingServer，fastRemotingServer，brokerOuterAPI中心跳超时的链接
+ * broker上客户端的维护者，notice: broker存活才有意义，区别broker挂掉的场景
  */
 public class ClientHousekeepingService implements ChannelEventListener {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -43,6 +44,9 @@ public class ClientHousekeepingService implements ChannelEventListener {
 
     public void start() {
 
+        /**
+         * 定时调度扫描清理存在问题的channel，10S一次
+         */
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {

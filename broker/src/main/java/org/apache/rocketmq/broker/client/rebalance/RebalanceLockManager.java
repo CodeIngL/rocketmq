@@ -114,7 +114,8 @@ public class RebalanceLockManager {
             if (lockEntry != null) {
                 boolean locked = lockEntry.isLocked(clientId); //是否被该客户端锁定
                 if (locked) {
-                    lockEntry.setLastUpdateTimestamp(System.currentTimeMillis()); //更新一下时间
+                    //更新一下时间
+                    lockEntry.setLastUpdateTimestamp(System.currentTimeMillis());
                 }
                 return locked;
             }
@@ -130,8 +131,7 @@ public class RebalanceLockManager {
      * @param clientId 发起锁定的客户端
      * @return
      */
-    public Set<MessageQueue> tryLockBatch(final String group, final Set<MessageQueue> mqs,
-        final String clientId) {
+    public Set<MessageQueue> tryLockBatch(final String group, final Set<MessageQueue> mqs, final String clientId) {
         Set<MessageQueue> lockedMqs = new HashSet<>(mqs.size());
         Set<MessageQueue> notLockedMqs = new HashSet<>(mqs.size());
 
@@ -170,7 +170,8 @@ public class RebalanceLockManager {
 
                         String oldClientId = lockEntry.getClientId();
 
-                        if (lockEntry.isExpired()) { //超时的话再更新一下
+                        if (lockEntry.isExpired()) {
+                            //超时的话再更新一下
                             lockEntry.setClientId(clientId);
                             lockEntry.setLastUpdateTimestamp(System.currentTimeMillis());
                             log.warn("tryLockBatch, message queue lock expired, I got it. Group: {} OldClientId: {} NewClientId: {} {}", group, oldClientId, clientId, mq);
@@ -271,7 +272,7 @@ public class RebalanceLockManager {
          * @return
          */
         public boolean isExpired() {
-            return (System.currentTimeMillis() - this.lastUpdateTimestamp) > REBALANCE_LOCK_MAX_LIVE_TIME;
+            return (System.currentTimeMillis() - this.lastUpdateTimestamp) > REBALANCE_LOCK_MAX_LIVE_TIME; //6000
         }
     }
 }

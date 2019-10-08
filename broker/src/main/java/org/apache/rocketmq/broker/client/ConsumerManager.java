@@ -37,8 +37,10 @@ import org.apache.rocketmq.remoting.common.RemotingUtil;
  * 位于broker中关于consumer的管理注册表
  */
 public class ConsumerManager {
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;
+    //消费组和对应信息的映射
     private final ConcurrentMap<String/* Group */, ConsumerGroupInfo> consumerTable = new ConcurrentHashMap<String, ConsumerGroupInfo>(1024);
     //监听器，一旦发生变更，需要通知相关事件
     private final ConsumerIdsChangeListener consumerIdsChangeListener;
@@ -115,21 +117,23 @@ public class ConsumerManager {
     public boolean registerConsumer(final String group, final ClientChannelInfo clientChannelInfo, ConsumeType consumeType, MessageModel messageModel, ConsumeFromWhere consumeFromWhere,
         final Set<SubscriptionData> subList, boolean isNotifyConsumerIdsChangedEnable) {
 
-        //获得映射关系，获得group的映射关系
+        //获得group的映射关系
         ConsumerGroupInfo consumerGroupInfo = this.consumerTable.get(group);
         if (null == consumerGroupInfo) {
-            //不存在我们构建一个映射关系
+            //不存在构建一个映射关系
             ConsumerGroupInfo tmp = new ConsumerGroupInfo(group, consumeType, messageModel, consumeFromWhere);
             ConsumerGroupInfo prev = this.consumerTable.putIfAbsent(group, tmp);
             consumerGroupInfo = prev != null ? prev : tmp;
         }
 
-        //更新channel，一般是向其中继续添加新得客户端，或者不再更改相关的信息
+        //更新消费组对象的内部信息，channel，一般是向其中继续添加新得客户端，或者不再更改相关的信息
         boolean r1 = consumerGroupInfo.updateChannel(clientChannelInfo, consumeType, messageModel, consumeFromWhere);
-        //更新一下订阅的关系，这里是值得注意的地方
+        //更新消费组对象的内部信息，订阅的关系，这里是值得注意的地方
         boolean r2 = consumerGroupInfo.updateSubscription(subList);
 
+
         if (r1 || r2) {
+            //发生了变更我们尝试进行通知相关的客户端，如果我们支持通知的化
             if (isNotifyConsumerIdsChangedEnable) {
                 this.consumerIdsChangeListener.handle(ConsumerGroupEvent.CHANGE, group, consumerGroupInfo.getAllChannel());
             }

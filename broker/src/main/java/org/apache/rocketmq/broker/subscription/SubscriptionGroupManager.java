@@ -54,48 +54,51 @@ public class SubscriptionGroupManager extends ConfigManager {
     }
 
     private void init() {
+        /**
+         * 构建系统自带的信息
+         */
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
-            subscriptionGroupConfig.setGroupName(MixAll.TOOLS_CONSUMER_GROUP);
+            subscriptionGroupConfig.setGroupName(MixAll.TOOLS_CONSUMER_GROUP); //TOOLS_CONSUMER
             this.subscriptionGroupTable.put(MixAll.TOOLS_CONSUMER_GROUP, subscriptionGroupConfig);
         }
 
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
-            subscriptionGroupConfig.setGroupName(MixAll.FILTERSRV_CONSUMER_GROUP);
+            subscriptionGroupConfig.setGroupName(MixAll.FILTERSRV_CONSUMER_GROUP);//FILTERSRV_CONSUMER
             this.subscriptionGroupTable.put(MixAll.FILTERSRV_CONSUMER_GROUP, subscriptionGroupConfig);
         }
 
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
-            subscriptionGroupConfig.setGroupName(MixAll.SELF_TEST_CONSUMER_GROUP);
+            subscriptionGroupConfig.setGroupName(MixAll.SELF_TEST_CONSUMER_GROUP); //SELF_TEST_C_GROUP
             this.subscriptionGroupTable.put(MixAll.SELF_TEST_CONSUMER_GROUP, subscriptionGroupConfig);
         }
 
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
-            subscriptionGroupConfig.setGroupName(MixAll.ONS_HTTP_PROXY_GROUP);
+            subscriptionGroupConfig.setGroupName(MixAll.ONS_HTTP_PROXY_GROUP); //CID_ONS-HTTP-PROXY
             subscriptionGroupConfig.setConsumeBroadcastEnable(true);
             this.subscriptionGroupTable.put(MixAll.ONS_HTTP_PROXY_GROUP, subscriptionGroupConfig);
         }
 
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
-            subscriptionGroupConfig.setGroupName(MixAll.CID_ONSAPI_PULL_GROUP);
+            subscriptionGroupConfig.setGroupName(MixAll.CID_ONSAPI_PULL_GROUP); //CID_ONSAPI_PULL
             subscriptionGroupConfig.setConsumeBroadcastEnable(true);
             this.subscriptionGroupTable.put(MixAll.CID_ONSAPI_PULL_GROUP, subscriptionGroupConfig);
         }
 
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
-            subscriptionGroupConfig.setGroupName(MixAll.CID_ONSAPI_PERMISSION_GROUP);
+            subscriptionGroupConfig.setGroupName(MixAll.CID_ONSAPI_PERMISSION_GROUP); //CID_ONSAPI_PERMISSION
             subscriptionGroupConfig.setConsumeBroadcastEnable(true);
             this.subscriptionGroupTable.put(MixAll.CID_ONSAPI_PERMISSION_GROUP, subscriptionGroupConfig);
         }
 
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
-            subscriptionGroupConfig.setGroupName(MixAll.CID_ONSAPI_OWNER_GROUP);
+            subscriptionGroupConfig.setGroupName(MixAll.CID_ONSAPI_OWNER_GROUP); //CID_ONSAPI_OWNER
             subscriptionGroupConfig.setConsumeBroadcastEnable(true);
             this.subscriptionGroupTable.put(MixAll.CID_ONSAPI_OWNER_GROUP, subscriptionGroupConfig);
         }

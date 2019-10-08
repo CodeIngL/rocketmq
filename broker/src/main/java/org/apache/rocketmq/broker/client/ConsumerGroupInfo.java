@@ -128,9 +128,7 @@ public class ConsumerGroupInfo {
     public boolean doChannelCloseEvent(final String remoteAddr, final Channel channel) {
         final ClientChannelInfo info = this.channelInfoTable.remove(channel);
         if (info != null) {
-            log.warn(
-                "NETTY EVENT: remove not active channel[{}] from ConsumerGroupInfo groupChannelTable, consumer group: {}",
-                info.toString(), groupName);
+            log.warn("NETTY EVENT: remove not active channel[{}] from ConsumerGroupInfo groupChannelTable, consumer group: {}", info.toString(), groupName);
             return true;
         }
 
@@ -138,7 +136,7 @@ public class ConsumerGroupInfo {
     }
 
     /**
-     * 跟新channel
+     * 更新channel
      * @param infoNew
      * @param consumeType
      * @param messageModel
@@ -223,7 +221,7 @@ public class ConsumerGroupInfo {
 
                 log.warn("subscription changed, group: {} remove topic {} {}", this.groupName, oldTopic, next.getValue().toString());
                 //删除这个不存在的topic，这是由客户端发生的
-                //同一消费组下，不同的topic订阅就会发生相关的问题，会删除两者相关的搽剂部分
+                //同一消费组下，不同的topic订阅就会发生相关的问题，会删除两者相关的差集部分
                 it.remove();
                 updated = true;
             }
@@ -234,6 +232,8 @@ public class ConsumerGroupInfo {
         //是否发生了变更
         return updated;
     }
+
+    //-----get and set -----//
 
     public Set<String> getSubscribeTopics() {
         return subscriptionTable.keySet();
