@@ -78,6 +78,7 @@ public class MixAll {
     public static final List<String> LOCAL_INET_ADDRESS = getLocalInetAddress();
     public static final String LOCALHOST = localhost();
     public static final String DEFAULT_CHARSET = "UTF-8";
+    //master节点，也就是这个节点的标记是0
     public static final long MASTER_ID = 0L;
     public static final long CURRENT_JVM_PID = getPID();
 
@@ -94,6 +95,10 @@ public class MixAll {
     public static final String RMQ_SYS_TRANS_OP_HALF_TOPIC = "RMQ_SYS_TRANS_OP_HALF_TOPIC";
     public static final String CID_SYS_RMQ_TRANS = "CID_RMQ_SYS_TRANS";
 
+    /**
+     * 获得一个地址
+     * @return
+     */
     public static String getWSAddr() {
         //"jmenv.tbsite.net";
         String wsDomainName = System.getProperty("rocketmq.namesrv.domain", DEFAULT_NAMESRV_ADDR_LOOKUP);
@@ -135,6 +140,13 @@ public class MixAll {
         return DLQ_GROUP_TOPIC_PREFIX + consumerGroup;
     }
 
+    /**
+     * 获得最终地址，取决于vip是否放开
+     * 通常的通道-2就是vip通道
+     * @param isChange
+     * @param brokerAddr
+     * @return
+     */
     public static String brokerVIPChannel(final boolean isChange, final String brokerAddr) {
         if (isChange) {
             String[] ipAndPort = brokerAddr.split(":");

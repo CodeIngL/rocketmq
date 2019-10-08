@@ -49,7 +49,7 @@ public class SubscriptionGroupConfig {
     //brokerId
     private long brokerId = MixAll.MASTER_ID;
 
-    //从broker角色拉取的消息的id
+    //当消费慢的时候，建议去其他角色拉取的消息，这个是其他角色的id
     private long whichBrokerWhenConsumeSlowly = 1;
 
     //是否支持通知客户端

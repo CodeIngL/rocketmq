@@ -21,7 +21,11 @@ import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
+/**
+ * broker上的客户端发生了变更
+ */
 public class NotifyConsumerIdsChangedRequestHeader implements CommandCustomHeader {
+    //变更的消费组，暂无使用用处
     @CFNotNull
     private String consumerGroup;
 

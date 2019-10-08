@@ -29,6 +29,9 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.common.utils.HttpTinyClient;
 
+/***
+ * 地址服务
+ */
 public class TopAddressing {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
@@ -60,6 +63,10 @@ public class TopAddressing {
         return newString;
     }
 
+    /**
+     * 抓取nameServer的地址
+     * @return
+     */
     public final String fetchNSAddr() {
         return fetchNSAddr(true, 3000);
     }

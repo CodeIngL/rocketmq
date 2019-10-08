@@ -95,12 +95,15 @@ public class RequestCode {
     public static final int GET_ALL_TOPIC_LIST_FROM_NAMESERVER = 206;
 
     public static final int DELETE_SUBSCRIPTIONGROUP = 207;
+
     public static final int GET_CONSUME_STATS = 208;
 
     public static final int SUSPEND_CONSUMER = 209;
 
     public static final int RESUME_CONSUMER = 210;
+
     public static final int RESET_CONSUMER_OFFSET_IN_CONSUMER = 211;
+
     public static final int RESET_CONSUMER_OFFSET_IN_BROKER = 212;
 
     public static final int ADJUST_CONSUMER_THREAD_POOL = 213;

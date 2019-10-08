@@ -26,18 +26,22 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createRequestCommand;
 
+/**
+ * mq辅助类，用于将一个broker地址注册到指定的nameServer上
+ */
 public class MQProtosHelper {
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.COMMON_LOGGER_NAME);
 
-    public static boolean registerBrokerToNameServer(final String nsaddr, final String brokerAddr,
-        final long timeoutMillis) {
-        RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
-        requestHeader.setBrokerAddr(brokerAddr);
+    public static boolean registerBrokerToNameServer(final String nsaddr, final String brokerAddr, final long timeoutMillis) {
 
-        RemotingCommand request = createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
+        RegisterBrokerRequestHeader reqHeader = new RegisterBrokerRequestHeader();
+        reqHeader.setBrokerAddr(brokerAddr);
+
+        RemotingCommand req = createRequestCommand(RequestCode.REGISTER_BROKER, reqHeader);
 
         try {
-            RemotingCommand response = RemotingHelper.invokeSync(nsaddr, request, timeoutMillis);
+            RemotingCommand response = RemotingHelper.invokeSync(nsaddr, req, timeoutMillis);
             if (response != null) {
                 return ResponseCode.SUCCESS == response.getCode();
             }
