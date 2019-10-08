@@ -171,6 +171,11 @@ public class ConsumeQueue {
         }
     }
 
+    /**
+     * 二分法进行搜索来根据相关的时间戳进行处理
+     * @param timestamp
+     * @return
+     */
     public long getOffsetInQueueByTime(final long timestamp) {
         MappedFile mappedFile = this.mappedFileQueue.getMappedFileByTime(timestamp);
         if (mappedFile != null) {
@@ -522,9 +527,9 @@ public class ConsumeQueue {
     }
 
     /**
-     * 获得index对应的
-     * @param startIndex
-     * @return
+     * 获得index对应的buffer
+     * @param startIndex 开始的Index
+     * @return bufferResult
      */
     public SelectMappedBufferResult getIndexBuffer(final long startIndex) {
         int mappedFileSize = this.mappedFileSize; //文件大小

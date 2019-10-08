@@ -31,12 +31,29 @@ import org.apache.rocketmq.tools.command.CommandUtil;
 public class MQAdmin {
     private static Logger log = Logger.getLogger(MQAdmin.class);
 
+    /**
+     * 创建Topic
+     * @param nameSrvAddr nameServer地址
+     * @param clusterName 集群名字
+     * @param topic topic
+     * @param queueNum 队列的数量
+     * @return 创建是否成功
+     */
     public static boolean createTopic(String nameSrvAddr, String clusterName, String topic,
         int queueNum) {
         int defaultWaitTime = 5;
         return createTopic(nameSrvAddr, clusterName, topic, queueNum, defaultWaitTime);
     }
 
+    /**
+     * @see #createTopic(String, String, String, int)
+     * @param nameSrvAddr
+     * @param clusterName
+     * @param topic
+     * @param queueNum
+     * @param waitTimeSec
+     * @return
+     */
     public static boolean createTopic(String nameSrvAddr, String clusterName, String topic,
         int queueNum, int waitTimeSec) {
         boolean createResult = false;

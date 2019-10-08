@@ -582,11 +582,13 @@ public class DefaultMessageStore implements MessageStore {
      * @return
      */
     public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset, final int maxMsgNums, final MessageFilter filter) {
+        //状态关闭了
         if (this.shutdown) {
             log.warn("message store has shutdown, so getMessage is forbidden");
             return null;
         }
 
+        //不支持读，可以设定不支持读模式，支持写模式
         if (!this.runningFlags.isReadable()) {
             log.warn("message store is not readable, so getMessage is forbidden " + this.runningFlags.getFlagBits());
             return null;
@@ -720,14 +722,15 @@ public class DefaultMessageStore implements MessageStore {
 
                         if (diskFallRecorded) { //记录落后
                             long fallBehind = maxOffsetPy - maxPhyOffsetPulling; //落后长度
-                            brokerStatsManager.recordDiskFallBehindSize(group, topic, queueId, fallBehind); //记录一下
+                            brokerStatsManager.recordDiskFallBehindSize(group, topic, queueId, fallBehind); //记录一下落后的信息
                         }
 
                         nextBeginOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE); //下一个开始
 
                         long diff = maxOffsetPy - maxPhyOffsetPulling; //最大内存-最大拉取offset
                         long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0)); //内存大小
-                        result.setSuggestPullingFromSlave(diff > memory); //是否建议从其他slave进行拉取，差距过大，可能master很麻烦，我们尝试从slave读取
+                        //是否建议从其他slave进行拉取，差距过大，可能master很麻烦，我们尝试从slave读取
+                        result.setSuggestPullingFromSlave(diff > memory);
                     } finally {
                         bufferConsumeQueue.release();
                     }
@@ -794,6 +797,13 @@ public class DefaultMessageStore implements MessageStore {
         return 0;
     }
 
+    /**
+     * 根据时间戳来搜索消息队列对应的offset
+     * @param topic Topic of the message.
+     * @param queueId Queue ID.
+     * @param timestamp Timestamp to look up.
+     * @return
+     */
     public long getOffsetInQueueByTime(String topic, int queueId, long timestamp) {
         ConsumeQueue logic = this.findConsumeQueue(topic, queueId);
         if (logic != null) {

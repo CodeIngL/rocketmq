@@ -54,13 +54,36 @@ import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.tools.admin.api.MessageTrack;
 
 public interface MQAdminExt extends MQAdmin {
+
     void start() throws MQClientException;
 
     void shutdown();
 
+    /**
+     * 更新BrokerConfig
+     * @param brokerAddr
+     * @param properties
+     * @throws RemotingConnectException
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     * @throws UnsupportedEncodingException
+     * @throws InterruptedException
+     * @throws MQBrokerException
+     */
     void updateBrokerConfig(final String brokerAddr, final Properties properties) throws RemotingConnectException,
         RemotingSendRequestException, RemotingTimeoutException, UnsupportedEncodingException, InterruptedException, MQBrokerException;
 
+    /**
+     * 获得BrokerConfig
+     * @param brokerAddr
+     * @return
+     * @throws RemotingConnectException
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     * @throws UnsupportedEncodingException
+     * @throws InterruptedException
+     * @throws MQBrokerException
+     */
     Properties getBrokerConfig(final String brokerAddr) throws RemotingConnectException,
         RemotingSendRequestException, RemotingTimeoutException, UnsupportedEncodingException, InterruptedException, MQBrokerException;
 

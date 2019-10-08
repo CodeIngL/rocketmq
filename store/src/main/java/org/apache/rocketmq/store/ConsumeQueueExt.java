@@ -153,6 +153,7 @@ public class ConsumeQueueExt {
 
     /**
      * Get data from buffer, and set to {@code cqExtUnit}
+     * 从buffer中获得数据，并填充到cqExtUnit中
      *
      * @param address less than 0
      */
