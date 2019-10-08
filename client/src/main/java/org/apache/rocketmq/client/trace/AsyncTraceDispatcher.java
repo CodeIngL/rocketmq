@@ -23,7 +23,6 @@ import org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl;
 import org.apache.rocketmq.client.impl.producer.TopicPublishInfo;
 import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
-import org.apache.rocketmq.client.producer.MessageQueueSelector;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.MixAll;
@@ -214,6 +213,9 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
         }
     }
 
+    /**
+     * 异步任务处理追踪信息
+     */
     class AsyncRunnable implements Runnable {
         private boolean stopped;
 
@@ -234,6 +236,7 @@ public class AsyncTraceDispatcher implements TraceDispatcher {
                         break;
                     }
                 }
+                //提交线程池进行相关的处理
                 if (contexts.size() > 0) {
                     AsyncAppenderRequest request = new AsyncAppenderRequest(contexts);
                     traceExecuter.submit(request);

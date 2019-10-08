@@ -24,16 +24,20 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.rocketmq.client.common.ThreadLocalIndex;
 
+/**
+ * 延迟容错的实现
+ */
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
     private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
 
+    //当前得坐标的索引
     private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
 
     /**
-     * 更新一下容错的item
-     * @param name
-     * @param currentLatency
-     * @param notAvailableDuration
+     * 更新一下容错的item，主要是更新当前的延迟和不可用的持续时间
+     * @param name broker名
+     * @param currentLatency 当前的延迟
+     * @param notAvailableDuration 持续的无法工作的时间
      */
     @Override
     public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
@@ -63,8 +67,10 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
      */
     @Override
     public boolean isAvailable(final String name) {
+        //获得brokerName对应的容错项
         final FaultItem faultItem = this.faultItemTable.get(name);
         if (faultItem != null) {
+            ///存在容错项，我们观察一下是否可用
             return faultItem.isAvailable();
         }
         return true;
@@ -81,6 +87,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
      */
     @Override
     public String pickOneAtLeast() {
+        //首先copy一份
         final Enumeration<FaultItem> elements = this.faultItemTable.elements();
         List<FaultItem> copyList = new LinkedList<FaultItem>();
         while (elements.hasMoreElements()) {
@@ -94,10 +101,13 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
         Collections.sort(copyList);
 
+        //一半
         final int half = copyList.size() / 2;
         if (half <= 0) {
+            //取第一个
             return copyList.get(0).getName();
         } else {
+            //拿个item最糟糕是他
             final int i = this.whichItemWorst.getAndIncrement() % half;
             return copyList.get(i).getName();
         }
@@ -120,7 +130,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         private final String name;
         //当前延迟
         private volatile long currentLatency;
-        //开始时间
+        //开始能正常使用的时间
         private volatile long startTimestamp;
 
         public FaultItem(final String name) {
@@ -153,7 +163,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         }
 
         /**
-         * 当前时间大于开始时间
+         * 当前时间大于可以服务的开始时间时，返回true
          * @return
          */
         public boolean isAvailable() {

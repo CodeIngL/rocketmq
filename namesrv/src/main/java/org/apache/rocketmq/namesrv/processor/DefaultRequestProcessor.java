@@ -114,7 +114,8 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
             case UNREGISTER_BROKER:
                 return this.unregisterBroker(ctx, req);
 
-            case GET_ROUTEINTO_BY_TOPIC: //比较核心的请求，通过topic获得相关的路由信息
+            case GET_ROUTEINTO_BY_TOPIC:
+                //比较核心的请求，通过topic获得相关的路由信息
                 return this.getRouteInfoByTopic(ctx, req);
             case GET_BROKER_CLUSTER_INFO:
                 return this.getBrokerClusterInfo(ctx, req);
@@ -325,14 +326,8 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         }
 
         RegisterBrokerResult result = this.namesrvController.getRouteInfoManager().registerBroker(
-                reqHeader.getClusterName(),
-                reqHeader.getBrokerAddr(),
-                reqHeader.getBrokerName(),
-                reqHeader.getBrokerId(),
-                reqHeader.getHaServerAddr(),
-                wrapper,
-                null,
-                ctx.channel()
+                reqHeader.getClusterName(), reqHeader.getBrokerAddr(), reqHeader.getBrokerName(), reqHeader.getBrokerId(),
+                reqHeader.getHaServerAddr(), wrapper, null, ctx.channel()
         );
 
         respHeader.setHaServerAddr(result.getHaServerAddr());
@@ -373,11 +368,12 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         final RemotingCommand resp = createResponseCommand(null);
         final GetRouteInfoRequestHeader reqHeader = (GetRouteInfoRequestHeader) req.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
-        //根据topic选择相关的路由信息
+        //根据topic选择相关的路由信息，我们通过内存中相关来获得
         TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(reqHeader.getTopic());
 
         if (topicRouteData != null) {
-            if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) { //nameserver配置支持顺序消费
+            if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
+                //nameserver配置支持顺序消费，配置的顺序消费队列及其，格式topic:num;topic2:num2
                 String orderTopicConf = this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, reqHeader.getTopic());
                 topicRouteData.setOrderTopicConf(orderTopicConf);
             }
@@ -406,23 +402,19 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
     }
 
     private RemotingCommand wipeWritePermOfBroker(ChannelHandlerContext ctx,
-                                                  RemotingCommand request) throws RemotingCommandException {
-        final RemotingCommand response = createResponseCommand(WipeWritePermOfBrokerResponseHeader.class);
-        final WipeWritePermOfBrokerResponseHeader responseHeader = (WipeWritePermOfBrokerResponseHeader) response.readCustomHeader();
-        final WipeWritePermOfBrokerRequestHeader requestHeader =
-                (WipeWritePermOfBrokerRequestHeader) request.decodeCommandCustomHeader(WipeWritePermOfBrokerRequestHeader.class);
+                                                  RemotingCommand req) throws RemotingCommandException {
+        final RemotingCommand resp = createResponseCommand(WipeWritePermOfBrokerResponseHeader.class);
+        final WipeWritePermOfBrokerResponseHeader respHeader = (WipeWritePermOfBrokerResponseHeader) resp.readCustomHeader();
+        final WipeWritePermOfBrokerRequestHeader reqHeader = (WipeWritePermOfBrokerRequestHeader) req.decodeCommandCustomHeader(WipeWritePermOfBrokerRequestHeader.class);
 
-        int wipeTopicCnt = this.namesrvController.getRouteInfoManager().wipeWritePermOfBrokerByLock(requestHeader.getBrokerName());
+        int wipeTopicCnt = this.namesrvController.getRouteInfoManager().wipeWritePermOfBrokerByLock(reqHeader.getBrokerName());
 
-        log.info("wipe write perm of broker[{}], client: {}, {}",
-                requestHeader.getBrokerName(),
-                RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
-                wipeTopicCnt);
+        log.info("wipe write perm of broker[{}], client: {}, {}", reqHeader.getBrokerName(), RemotingHelper.parseChannelRemoteAddr(ctx.channel()), wipeTopicCnt);
 
-        responseHeader.setWipeTopicCount(wipeTopicCnt);
-        response.setCode(ResponseCode.SUCCESS);
-        response.setRemark(null);
-        return response;
+        respHeader.setWipeTopicCount(wipeTopicCnt);
+        resp.setCode(ResponseCode.SUCCESS);
+        resp.setRemark(null);
+        return resp;
     }
 
     private RemotingCommand getAllTopicListFromNameserver(ChannelHandlerContext ctx, RemotingCommand request) {
@@ -469,6 +461,13 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
         return resp;
     }
 
+    /**
+     * 获得集群下相关topic
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     private RemotingCommand getTopicsByCluster(ChannelHandlerContext ctx,
                                                RemotingCommand request) throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(null);

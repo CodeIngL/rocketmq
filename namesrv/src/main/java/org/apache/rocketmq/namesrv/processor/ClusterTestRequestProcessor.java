@@ -58,8 +58,7 @@ public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
     }
 
     @Override
-    public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx,
-        RemotingCommand req) throws RemotingCommandException {
+    public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx, RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(null);
         final GetRouteInfoRequestHeader reqHeader = (GetRouteInfoRequestHeader) req.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
 
@@ -67,8 +66,7 @@ public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
         if (topicRouteData != null) {
             //有顺序的topic配置
             String orderTopicConf =
-                this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG,
-                    reqHeader.getTopic());
+                this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, reqHeader.getTopic());
             topicRouteData.setOrderTopicConf(orderTopicConf);
         } else {
             try {

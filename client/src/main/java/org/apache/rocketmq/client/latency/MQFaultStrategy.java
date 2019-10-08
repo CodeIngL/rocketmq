@@ -65,7 +65,8 @@ public class MQFaultStrategy {
      * @return
      */
     public MessageQueue selectOneMessageQueue(final TopicPublishInfo tpInfo, final String lastBrokerName) {
-        if (this.sendLatencyFaultEnable) { //支持容错
+        if (this.sendLatencyFaultEnable) {
+            //支持容错退避
             try {
                 int index = tpInfo.getSendWhichQueue().getAndIncrement(); //获得queue序号
                 for (int i = 0; i < tpInfo.getMessageQueueList().size(); i++) { //相关的messageQueue所有的队列
@@ -73,7 +74,9 @@ public class MQFaultStrategy {
                     if (pos < 0)
                         pos = 0;
                     MessageQueue mq = tpInfo.getMessageQueueList().get(pos); //获得该mq
-                    if (latencyFaultTolerance.isAvailable(mq.getBrokerName())) { //检查一下该broker是否可用
+
+                    if (latencyFaultTolerance.isAvailable(mq.getBrokerName())) {
+                        //检查一下该broker是否可用
                         if (null == lastBrokerName || mq.getBrokerName().equals(lastBrokerName)) //参数不传递，或者名字相符，直接返回
                             return mq;
                     }
@@ -89,6 +92,7 @@ public class MQFaultStrategy {
                     }
                     return mq;
                 } else {
+                    //不支持写，我们之间删除这个broker，因为不支持写入，不支持写入可以通过admin进行操作
                     latencyFaultTolerance.remove(notBestBroker); //删除这个broker
                 }
             } catch (Exception e) {
@@ -98,6 +102,7 @@ public class MQFaultStrategy {
             return tpInfo.selectOneMessageQueue();
         }
 
+        //使用传递进来的broker上的相关的队列
         return tpInfo.selectOneMessageQueue(lastBrokerName);
     }
 
@@ -108,7 +113,8 @@ public class MQFaultStrategy {
      * @param isolation 隔离
      */
     public void updateFaultItem(final String brokerName, final long currentLatency, boolean isolation) {
-        if (this.sendLatencyFaultEnable) { //支持发送容错
+        if (this.sendLatencyFaultEnable) {
+            //支持发送容错
             long duration = computeNotAvailableDuration(isolation ? 30000 : currentLatency); //isolation为true则固定是30000，否则由入参决定这个值
             this.latencyFaultTolerance.updateFaultItem(brokerName, currentLatency, duration);
         }

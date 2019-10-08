@@ -25,7 +25,7 @@ import org.apache.rocketmq.common.message.MessageExt;
 public class PullResult {
     //拉取状态
     private final PullStatus pullStatus;
-    //下一个开始的位置
+    //下一个应该拉取消息的开始位置
     private final long nextBeginOffset;
     //最小的offset
     private final long minOffset;
