@@ -207,6 +207,9 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         }
     }
 
+    /**
+     * 定期的锁定相关消息队列
+     */
     public synchronized void lockMQPeriodically() {
         if (!this.stopped) {
             this.defaultMQPushConsumerImpl.getRebalanceImpl().lockAll();
@@ -225,8 +228,10 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
         this.scheduledExecutorService.schedule(() -> {
             boolean lockOK = ConsumeMessageOrderlyService.this.lockOneMQ(mq);
             if (lockOK) {
+                //立即尝试提交消费
                 ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 10);
             } else {
+                //延迟的等待消费
                 ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 3000);
             }
         }, delayMills, TimeUnit.MILLISECONDS);

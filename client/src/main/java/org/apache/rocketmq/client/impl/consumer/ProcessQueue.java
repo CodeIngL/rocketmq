@@ -381,6 +381,9 @@ public class ProcessQueue {
         return true;
     }
 
+    /**
+     * 清除所有的内容
+     */
     public void clear() {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();

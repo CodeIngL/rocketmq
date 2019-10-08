@@ -46,8 +46,9 @@ public class PullMessageService extends ServiceThread {
 
     /**
      * 延迟拉取，通过在中间抽象一层，将构造的请求先由调度的服务进行调度，然后在调用立即的发起的额请求
-     * @param pullRequest
-     * @param timeDelay
+     * @see #executePullRequestImmediately(PullRequest)
+     * @param pullRequest 拉取请求对象
+     * @param timeDelay 延迟时间
      */
     public void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
         if (!isStopped()) {
@@ -58,8 +59,8 @@ public class PullMessageService extends ServiceThread {
     }
 
     /**
-     * 立即请求拉取，通过构建请求置于请求的队列中，然后由统一拉取服务进行处理
-     * @param pullRequest
+     * 立即请求拉取消息，通过构建请求置于请求的队列中，然后由统一拉取服务进行处理
+     * @param pullRequest 拉取请求对象
      */
     public void executePullRequestImmediately(final PullRequest pullRequest) {
         try {
@@ -83,12 +84,12 @@ public class PullMessageService extends ServiceThread {
     }
 
     /**
-     * 拉取消息
+     * 拉取消息，push方式总是通过这种方式进行拉取消息
      * @param pullRequest
      */
     private void pullMessage(final PullRequest pullRequest) {
         /**
-         * 根据消费组选择相关实现
+         * 根据消费组选择相关实现，一个消费组对应一哥内部的消费对象
          */
         final MQConsumerInner consumer = this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
         if (consumer != null) {
@@ -99,12 +100,14 @@ public class PullMessageService extends ServiceThread {
         }
     }
 
+    /**
+     * 拉取消息的线程逻辑，通过异步获取队列中的拉取请求，进行对远程broker进行消息拉取
+     */
     @Override
     public void run() {
         log.info(this.getServiceName() + " service started");
         while (!this.isStopped()) {
             try {
-                //从拉取的请求中获得相关的拉取请求，然后向远程的broker发起请求
                 PullRequest pullRequest = this.pullRequestQueue.take();
                 this.pullMessage(pullRequest);
             } catch (InterruptedException ignored) {

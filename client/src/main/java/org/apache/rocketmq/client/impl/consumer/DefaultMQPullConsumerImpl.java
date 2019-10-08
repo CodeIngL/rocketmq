@@ -337,6 +337,12 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
         return ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
     }
 
+    /**
+     * pull方式的订阅信息，获得相关注册的topic并使用*号来表示。
+     * 这样做的原因pull方式总是不适用远程保留的相关的订阅信息来进行匹配，
+     * 而push方式总是使用远程的订阅信息来进行相关的消息匹配
+     * @return
+     */
     @Override
     public Set<SubscriptionData> subscriptions() {
         Set<SubscriptionData> result = new HashSet<SubscriptionData>();

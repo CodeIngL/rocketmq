@@ -78,6 +78,14 @@ public class MQAdminImpl {
         createTopic(key, newTopic, queueNum, 0);
     }
 
+    /**
+     * 创建topic
+     * @param key 集群名字
+     * @param newTopic
+     * @param queueNum
+     * @param topicSysFlag
+     * @throws MQClientException
+     */
     public void createTopic(String key, String newTopic, int queueNum, int topicSysFlag) throws MQClientException {
         try {
             TopicRouteData topicRouteData = this.mQClientFactory.getMQClientAPIImpl().getTopicRouteInfoFromNameServer(key, timeoutMillis);
@@ -113,10 +121,7 @@ public class MQAdminImpl {
                         }
 
                         if (createOK) {
-                            orderTopicString.append(brokerData.getBrokerName());
-                            orderTopicString.append(":");
-                            orderTopicString.append(queueNum);
-                            orderTopicString.append(";");
+                            orderTopicString.append(brokerData.getBrokerName()).append(":").append(queueNum).append(";");
                         }
                     }
                 }
@@ -168,6 +173,13 @@ public class MQAdminImpl {
         throw new MQClientException("Unknow why, Can not find Message Queue for this topic, " + topic, null);
     }
 
+    /**
+     * 根据时间戳来搜索消息队列对应的offset
+     * @param mq
+     * @param timestamp
+     * @return
+     * @throws MQClientException
+     */
     public long searchOffset(MessageQueue mq, long timestamp) throws MQClientException {
         String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {
@@ -187,6 +199,12 @@ public class MQAdminImpl {
         throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);
     }
 
+    /**
+     * 获得消息队列当前最大的offset
+     * @param mq
+     * @return
+     * @throws MQClientException
+     */
     public long maxOffset(MessageQueue mq) throws MQClientException {
         String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {
@@ -205,6 +223,12 @@ public class MQAdminImpl {
         throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);
     }
 
+    /**
+     * 获得消息队列当前的最小的offset
+     * @param mq
+     * @return
+     * @throws MQClientException
+     */
     public long minOffset(MessageQueue mq) throws MQClientException {
         String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         if (null == brokerAddr) {

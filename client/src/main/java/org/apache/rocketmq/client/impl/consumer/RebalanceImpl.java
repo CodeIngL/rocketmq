@@ -149,7 +149,7 @@ public abstract class RebalanceImpl {
      * @return
      */
     public boolean lock(final MessageQueue mq) {
-        //查找相关的信息
+        //查找Broker的信息
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
         if (findBrokerResult == null){
             return false;
@@ -160,6 +160,7 @@ public abstract class RebalanceImpl {
         requestBody.getMqSet().add(mq);
 
         try {
+            //锁定远程相关的mq，获得自己成功锁定的队列
             Set<MessageQueue> lockedMq = this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
             for (MessageQueue mmqq : lockedMq) {
                 ProcessQueue processQueue = this.processQueueTable.get(mmqq);
@@ -169,6 +170,7 @@ public abstract class RebalanceImpl {
                 }
             }
 
+            //包含自己mq
             boolean lockOK = lockedMq.contains(mq);
             log.info("the message queue lock {}, {} {}", lockOK ? "OK" : "Failed", this.consumerGroup, mq);
             return lockOK;

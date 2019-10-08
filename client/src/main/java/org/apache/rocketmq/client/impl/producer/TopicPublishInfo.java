@@ -23,6 +23,9 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
+/**
+ * producer侧使用关注的关于topic发布的信息
+ */
 public class TopicPublishInfo {
 
     //是否有序
@@ -34,8 +37,10 @@ public class TopicPublishInfo {
     //对应的消息队列
     private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
 
+    //应该发送到哪一个队里中
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
 
+    //元数据，从中也可以找到消费端的相关的数据，以及broker的相关信息
     private TopicRouteData topicRouteData;
 
     public boolean isOrderTopic() {

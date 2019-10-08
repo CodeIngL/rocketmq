@@ -73,29 +73,31 @@ public class PullAPIWrapper {
     }
 
     /**
-     * 处理消息拉取结果
+     * 处理消息拉取结果，需要再进行匹配，因为，broker端还是不是完全完善的
      * @param mq
      * @param pullResult
      * @param subscriptionData
      * @return
      */
     public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult, final SubscriptionData subscriptionData) {
+        //结果
         PullResultExt pullResultExt = (PullResultExt) pullResult;
 
-        //更新建议拉取的消息来自哪个节点
+        //更新下一次建议拉取的消息来自哪个节点，拉取结果会告诉我们下一个合适拉取broker
         this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
-        if (FOUND == pullResult.getPullStatus()) { //有消息
+
+        if (FOUND == pullResult.getPullStatus()) {
             //解码成消息
             List<MessageExt> msgList = MessageDecoder.decodes(ByteBuffer.wrap(pullResultExt.getMessageBinary()));
 
             //过滤的消息
             List<MessageExt> msgListFilterAgain = msgList;
-            // 存在tag，要匹配tag
-            // 精确匹配消息
+            // 存在tag，要匹配tag notice:精确匹配消息
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
                 msgListFilterAgain = new ArrayList<>(msgList.size());
                 for (MessageExt msg : msgList) {
                     if (msg.getTags() != null) {
+                        //消息的tag需要是订阅信息的一个子集，才能保证
                         if (subscriptionData.getTagsSet().contains(msg.getTags())) {
                             msgListFilterAgain.add(msg);
                         }
@@ -111,9 +113,8 @@ public class PullAPIWrapper {
                 this.executeHook(filterMessageContext);
             }
 
-            //
             for (MessageExt msg : msgListFilterAgain) {
-                //事务消息
+                //事务消息处理
                 String traFlag = msg.getProperty(PROPERTY_TRANSACTION_PREPARED);
                 if (traFlag != null && Boolean.parseBoolean(traFlag)) {
                     msg.setTransactionId(msg.getProperty(PROPERTY_UNIQ_CLIENT_MESSAGE_ID_KEYIDX)); //设置事物id
@@ -126,6 +127,7 @@ public class PullAPIWrapper {
             pullResultExt.setMsgFoundList(msgListFilterAgain);
         }
 
+        //减小压力
         pullResultExt.setMessageBinary(null);
 
         return pullResult;
@@ -189,7 +191,7 @@ public class PullAPIWrapper {
         final long offset, final int maxNums, final int sysFlag, final long commitOffset, final long brokerSuspendMaxTimeMillis,
         final long timeoutMillis, final CommunicationMode communicationMode, final PullCallback pullCallback
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-        //发现broker
+        //查找broker
         FindBrokerResult findBrokerResult = mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
         if (null == findBrokerResult) {
             //找不到从nameserver中跟新本地的信息
@@ -226,15 +228,14 @@ public class PullAPIWrapper {
             reqHeader.setSubVersion(subVersion);
             reqHeader.setExpressionType(expressionType);
 
-            //获得broker地址，我们从我们上述查找的brokerResult来查找地址
+            //获得broker地址
             String brokerAddr = findBrokerResult.getBrokerAddr();
             if (hasClassFilterFlag(sysFlagInner)) {
-                //存在filterServer
-                //我们从filterServer上计算一下可能发生变化的地址
+                //存在filterServer，从filterServer这个代理的角色上拉取消息
                 brokerAddr = computePullFromWhichFilterServer(mq.getTopic(), brokerAddr);
             }
 
-            //获得消息
+            //正是拉取消息
             return this.mQClientFactory.getMQClientAPIImpl().pullMessage(brokerAddr, reqHeader, timeoutMillis, communicationMode, pullCallback);
         }
 
@@ -263,15 +264,15 @@ public class PullAPIWrapper {
     }
 
     /**
-     * 计算broker地址
+     * 存在filterServer计算broker对应的filterServer地址
      */
     private String computePullFromWhichFilterServer(final String topic, final String brokerAddr) throws MQClientException {
         ConcurrentMap<String, TopicRouteData> topicRouteTable = this.mQClientFactory.getTopicRouteTable();
         if (topicRouteTable != null) {
             TopicRouteData topicRouteData = topicRouteTable.get(topic);
-            //filterServer的地址
             List<String> list = topicRouteData.getFilterServerTable().get(brokerAddr);
             if (list != null && !list.isEmpty()) {
+                //随机从获得一个FilterServer的地址
                 return list.get(randomNum() % list.size());
             }
         }
