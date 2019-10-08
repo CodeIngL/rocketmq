@@ -432,7 +432,9 @@ public abstract class NettyRemotingAbstract {
         final int opaque = req.getOpaque();
 
         try {
+            //响应future
             final ResponseFuture respFuture = new ResponseFuture(channel, opaque, timeoutMillis, null, null);
+            //响应表
             this.responseTable.put(opaque, respFuture);
             final SocketAddress addr = channel.remoteAddress();
             channel.writeAndFlush(req).addListener((ChannelFutureListener) f -> {
@@ -452,8 +454,7 @@ public abstract class NettyRemotingAbstract {
             RemotingCommand respCommand = respFuture.waitResponse(timeoutMillis);
             if (null == respCommand) {
                 if (respFuture.isSendRequestOK()) {
-                    throw new RemotingTimeoutException(RemotingHelper.parseSocketAddressAddr(addr), timeoutMillis,
-                        respFuture.getCause());
+                    throw new RemotingTimeoutException(RemotingHelper.parseSocketAddressAddr(addr), timeoutMillis, respFuture.getCause());
                 } else {
                     throw new RemotingSendRequestException(RemotingHelper.parseSocketAddressAddr(addr), respFuture.getCause());
                 }

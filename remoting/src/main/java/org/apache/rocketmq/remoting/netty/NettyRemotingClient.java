@@ -299,6 +299,10 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 关闭维护已经关闭的channel
+     * @param channel
+     */
     public void closeChannel(final Channel channel) {
         if (null == channel)
             return;
@@ -350,6 +354,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
      */
     @Override
     public void updateNameServerAddressList(List<String> addrs) {
+        //老地址
         List<String> old = this.namesrvAddrList.get();
         boolean update = false;
 
@@ -365,6 +370,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                     }
                 }
             }
+            //只要存在相关差异，我们直接使用相关nameServer地址
 
             if (update) {
                 Collections.shuffle(addrs);
@@ -390,15 +396,20 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     public RemotingCommand invokeSync(String addr, final RemotingCommand req, long timeoutMillis)
         throws InterruptedException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException {
         long beginStartTime = System.currentTimeMillis();
+        //得到地址的channel
         final Channel channel = this.getAndCreateChannel(addr);
         if (channel != null && channel.isActive()) {
             try {
+                //do rpc
                 doBeforeRpcHooks(addr, req);
+                //消费时间
                 long costTime = System.currentTimeMillis() - beginStartTime;
                 if (timeoutMillis < costTime) {
                     throw new RemotingTimeoutException("invokeSync call timeout");
                 }
+                //调用
                 RemotingCommand resp = this.invokeSyncImpl(channel, req, timeoutMillis - costTime);
+                //do rpc
                 doAfterRpcHooks(parseChannelRemoteAddr(channel), req, resp);
                 return resp;
             } catch (RemotingSendRequestException e) {
@@ -414,6 +425,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 throw e;
             }
         } else {
+            //网络异常
             this.closeChannel(addr, channel);
             throw new RemotingConnectException(addr);
         }
@@ -427,8 +439,8 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
      * @throws InterruptedException
      */
     private Channel getAndCreateChannel(final String addr) throws InterruptedException {
-        //地址为空，则是获得对应nameServer
         if (null == addr) {
+            //地址为空，则是获得对应nameServer
             return getAndCreateNameserverChannel();
         }
 
@@ -447,18 +459,21 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
      * @throws InterruptedException
      */
     private Channel getAndCreateNameserverChannel() throws InterruptedException {
+        //我们尝试获得一个nameServer的地址，如果他的是可用的，我们就直接使用它
         String addr = this.namesrvAddrChoosed.get();
         if (addr != null) {
+            //这里检查channel的合法性，来确定是否使用这个channel
             ChannelWrapper cw = this.channelTables.get(addr);
             if (cw != null && cw.isOK()) {
                 return cw.getChannel();
             }
         }
 
-        //nameserver列表
+        //处理设定的nameserver列表
         final List<String> addrList = this.namesrvAddrList.get();
-        if (this.lockNamesrvChannel.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
+        if (this.lockNamesrvChannel.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) { //3000
             try {
+                //再次尝试
                 addr = this.namesrvAddrChoosed.get();
                 if (addr != null) {
                     ChannelWrapper cw = this.channelTables.get(addr);
@@ -467,10 +482,10 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                     }
                 }
 
-                //遍历所有的地址，选择一个可用地址就直接返回。
+                //遍历所有的地址，选择一个可用地址就直接返回。我们创建这个地址对应的channel
                 if (addrList != null && !addrList.isEmpty()) {
                     for (int i = 0; i < addrList.size(); i++) {
-                        //序列
+                        //遍历序列
                         int index = this.namesrvIndex.incrementAndGet();
                         index = Math.abs(index);
                         index = index % addrList.size();
@@ -701,7 +716,19 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         }
     }
 
+    /**
+     * 连接管理
+     */
     class NettyConnectManageHandler extends ChannelDuplexHandler {
+
+        /**
+         * 连接处理
+         * @param ctx
+         * @param remoteAddress
+         * @param localAddress
+         * @param promise
+         * @throws Exception
+         */
         @Override
         public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,
             ChannelPromise promise) throws Exception {
@@ -728,6 +755,12 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             }
         }
 
+        /**
+         * channel关闭处理
+         * @param ctx
+         * @param promise
+         * @throws Exception
+         */
         @Override
         public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
             final String remoteAddress = parseChannelRemoteAddr(ctx.channel());
@@ -736,10 +769,17 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             super.close(ctx, promise);
             NettyRemotingClient.this.failFast(ctx.channel());
             if (NettyRemotingClient.this.channelEventListener != null) {
+                //如果存在支持channel事件的监听器，我们发布相关的事件进行触发
                 NettyRemotingClient.this.putNettyEvent(new NettyEvent(NettyEventType.CLOSE, remoteAddress, ctx.channel()));
             }
         }
 
+        /**
+         * 事件触发，进行相关的处理
+         * @param ctx
+         * @param evt
+         * @throws Exception
+         */
         @Override
         public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
             if (evt instanceof IdleStateEvent) {
@@ -758,6 +798,13 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             ctx.fireUserEventTriggered(evt);
         }
 
+
+        /**
+         * 异常处理
+         * @param ctx
+         * @param cause
+         * @throws Exception
+         */
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
             final String remoteAddress = parseChannelRemoteAddr(ctx.channel());

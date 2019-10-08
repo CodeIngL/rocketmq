@@ -30,8 +30,13 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
+/**
+ * 远程帮助类
+ */
 public class RemotingHelper {
+
     public static final String ROCKETMQ_REMOTING = "RocketmqRemoting";
+
     public static final String DEFAULT_CHARSET = "UTF-8";
 
     private static final InternalLogger log = InternalLoggerFactory.getLogger(ROCKETMQ_REMOTING);
@@ -58,6 +63,17 @@ public class RemotingHelper {
         return isa;
     }
 
+    /**
+     * 同步调用
+     * @param addr
+     * @param request
+     * @param timeoutMillis
+     * @return
+     * @throws InterruptedException
+     * @throws RemotingConnectException
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     */
     public static RemotingCommand invokeSync(final String addr, final RemotingCommand request,
         final long timeoutMillis) throws InterruptedException, RemotingConnectException,
         RemotingSendRequestException, RemotingTimeoutException {
@@ -66,11 +82,8 @@ public class RemotingHelper {
         SocketChannel socketChannel = RemotingUtil.connect(socketAddress);
         if (socketChannel != null) {
             boolean sendRequestOK = false;
-
             try {
-
                 socketChannel.configureBlocking(true);
-
                 //bugfix  http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4614802
                 socketChannel.socket().setSoTimeout((int) timeoutMillis);
 
@@ -177,7 +190,6 @@ public class RemotingHelper {
     public static String parseSocketAddressAddr(SocketAddress socketAddress) {
         if (socketAddress != null) {
             final String addr = socketAddress.toString();
-
             if (addr.length() > 0) {
                 return addr.substring(1);
             }
