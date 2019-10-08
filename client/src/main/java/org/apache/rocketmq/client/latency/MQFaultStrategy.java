@@ -31,8 +31,10 @@ public class MQFaultStrategy {
 
     private boolean sendLatencyFaultEnable = false;
 
-    private long[] latencyMax = {50L, 100L, 550L, 1000L, 2000L, 3000L, 15000L};
-    private long[] notAvailableDuration = {0L, 0L, 30000L, 60000L, 120000L, 180000L, 600000L};
+    //最大的延迟规格
+    private long[] latencyMax =            {50L, 100L, 550L,  1000L,   2000L,   3000L,  15000L};
+    //不可用的持续时间规格
+    private long[] notAvailableDuration = {0L,  0L,  30000L, 60000L, 120000L, 180000L, 600000L};
 
     public long[] getNotAvailableDuration() {
         return notAvailableDuration;

@@ -28,6 +28,7 @@ import org.apache.rocketmq.client.common.ThreadLocalIndex;
  * 延迟容错的实现
  */
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
+    //维护的错误信息表
     private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
 
     //当前得坐标的索引
@@ -104,7 +105,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         //一半
         final int half = copyList.size() / 2;
         if (half <= 0) {
-            //取第一个
+            //没得选
             return copyList.get(0).getName();
         } else {
             //拿个item最糟糕是他

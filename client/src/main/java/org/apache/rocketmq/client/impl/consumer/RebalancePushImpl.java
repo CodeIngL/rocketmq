@@ -74,9 +74,10 @@ public class RebalancePushImpl extends RebalanceImpl {
 
         int currentQueueCount = this.processQueueTable.size(); //当前的queue数量
         DefaultMQPushConsumer pushConsumer =  this.defaultMQPushConsumerImpl.getDefaultMQPushConsumer();
+
         if (currentQueueCount != 0) {
-            //拉取的阈值
-            int pullThresholdForTopic = pushConsumer.getPullThresholdForTopic();
+            //存在队列数量的时候我们进行流控相关的设置
+         int pullThresholdForTopic = pushConsumer.getPullThresholdForTopic();
             if (pullThresholdForTopic != -1) {
                 int newVal = Math.max(1, pullThresholdForTopic / currentQueueCount);
                 log.info("The pullThresholdForQueue is changed from {} to {}", pushConsumer.getPullThresholdForQueue(), newVal);

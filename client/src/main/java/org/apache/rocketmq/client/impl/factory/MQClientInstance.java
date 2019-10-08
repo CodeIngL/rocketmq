@@ -174,15 +174,20 @@ public class MQClientInstance {
 
         this.clientId = clientId;
 
+        //管理端
         this.mQAdminImpl = new MQAdminImpl(this);
 
+        //拉取服务
         this.pullMessageService = new PullMessageService(this);
 
+        //重新平衡服务
         this.rebalanceService = new RebalanceService(this);
 
+        //默认的发送者
         this.defaultMQProducer = new DefaultMQProducer(MixAll.CLIENT_INNER_PRODUCER_GROUP);
         this.defaultMQProducer.resetClientConfig(clientConfig);
 
+        //消费者状态管理器
         this.consumerStatsManager = new ConsumerStatsManager(this.scheduledExecutorService);
 
         log.info("Created a new client Instance, InstanceIndex:{}, ClientID:{}, ClientConfig:{}, ClientVersion:{}, SerializerType:{}",
