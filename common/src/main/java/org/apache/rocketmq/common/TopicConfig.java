@@ -27,7 +27,9 @@ import org.apache.rocketmq.common.constant.PermName;
  */
 public class TopicConfig {
     private static final String SEPARATOR = " ";
+    //默认支持读数量
     public static int defaultReadQueueNums = 16;
+    //默认支持写数量
     public static int defaultWriteQueueNums = 16;
     //topic名字
     private String topicName;
@@ -60,15 +62,15 @@ public class TopicConfig {
 
     public String encode() {
         StringBuilder sb = new StringBuilder();
-        sb.append(this.topicName);
-        sb.append(SEPARATOR);
-        sb.append(this.readQueueNums);
-        sb.append(SEPARATOR);
-        sb.append(this.writeQueueNums);
-        sb.append(SEPARATOR);
-        sb.append(this.perm);
-        sb.append(SEPARATOR);
-        sb.append(this.topicFilterType);
+        sb.append(this.topicName)
+                .append(SEPARATOR)
+                .append(this.readQueueNums)
+                .append(SEPARATOR)
+                .append(this.writeQueueNums)
+                .append(SEPARATOR)
+                .append(this.perm)
+                .append(SEPARATOR)
+                .append(this.topicFilterType);
 
         return sb.toString();
     }

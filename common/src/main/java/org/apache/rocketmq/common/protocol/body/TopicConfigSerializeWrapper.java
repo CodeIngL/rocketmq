@@ -25,6 +25,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 /**
  * topic配置文件对应程序的model
+ * 和broker和NameServer之间传输的topic的相关数据信息
  */
 public class TopicConfigSerializeWrapper extends RemotingSerializable {
     //topic配置表

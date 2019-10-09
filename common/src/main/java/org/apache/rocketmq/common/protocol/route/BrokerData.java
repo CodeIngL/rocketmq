@@ -51,18 +51,27 @@ public class BrokerData implements Comparable<BrokerData> {
      * Selects a (preferably master) broker address from the registered list.
      * If the master's address cannot be found, a slave broker address is selected in a random manner.
      *
+     * <p>
+     *     从注册列表中选择一个（优先是主）代理地址。
+     *     如果找不到主服务器的地址，则会以随机方式选择一个从属代理地址。
+     * </p>
+     *
      * @return Broker address.
      */
     public String selectBrokerAddr() {
+        //尝试获得主节点
         String addr = this.brokerAddrs.get(MixAll.MASTER_ID);
 
         if (addr == null) {
             List<String> addrs = new ArrayList<String>(brokerAddrs.values());
+            //随机获得一个从节点
             return addrs.get(random.nextInt(addrs.size()));
         }
 
         return addr;
     }
+
+    //---get and set method
 
     public HashMap<Long, String> getBrokerAddrs() {
         return brokerAddrs;

@@ -56,6 +56,7 @@ public class Configuration {
         if (configObjects == null || configObjects.length == 0) {
             return;
         }
+        //注册配置对象
         for (Object configObject : configObjects) {
             registerConfig(configObject);
         }
@@ -79,8 +80,10 @@ public class Configuration {
 
                 Properties registerProps = MixAll.object2Properties(configObject);
 
+                //合并配置对象的kv配置对到全局配置中
                 merge(registerProps, this.allConfigs);
 
+                //添加到相应列表中
                 configObjectList.add(configObject);
             } finally {
                 readWriteLock.writeLock().unlock();
