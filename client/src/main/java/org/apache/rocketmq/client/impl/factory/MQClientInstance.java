@@ -87,6 +87,7 @@ import static org.apache.rocketmq.remoting.common.RemotingHelper.exceptionSimple
 /**
  * 代表了网络端点中的mqbroker对应客户端，因此这个广泛存在于mq消费端，mq生产端
  * 因此这里主要包括了producer，consumer，还有一个我们以管理者的身份操作，也就是admin
+ * 这是的一个统一的入口，代表了客户端。
  */
 public class MQClientInstance {
 
@@ -120,10 +121,13 @@ public class MQClientInstance {
 
     private final MQClientAPIImpl mQClientAPIImpl;
     private final MQAdminImpl mQAdminImpl;
-    //topic和相关topic路由信息的映射
+
+    //客户端上保存的路由表，定时的被更新
     private final ConcurrentMap<String/* Topic */, TopicRouteData> topicRouteTable = new ConcurrentHashMap<String, TopicRouteData>();
+
     //nameServer锁，当多次访问nameServer，我们使用同步
     private final Lock lockNamesrv = new ReentrantLock();
+
     //心跳锁，当多个心跳时候，我们使用同步
     private final Lock lockHeartbeat = new ReentrantLock();
 
@@ -323,9 +327,10 @@ public class MQClientInstance {
     }
 
     /**
-     * 执行调度任务
+     * 网络客户端内部，定时的的执行调度任务，
      */
     private void startScheduledTask() {
+        // 1. 尝试获取新的NameServer的地址
         if (null == this.clientConfig.getNamesrvAddr()) { //如果没有配置，我们尝试获取相关name服务地址
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
@@ -336,18 +341,23 @@ public class MQClientInstance {
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS); //2分钟执行一次
         }
 
+        // 2. 从NameServer上更新路由信息
+
         /**
          * 调度服务，用于调度更新相关的路由表，信息来自nameServer，默认30s进行拉取一次,更新相关的变动
          * notice非常重要的一个类，提供了重新拉取核心的路由信息的调度服务
          */
         this.scheduledExecutorService.scheduleAtFixedRate(() -> {
             try {
+                //默认30s更新一次
                 MQClientInstance.this.updateTopicRouteInfoFromNameServer();
             } catch (Exception e) {
                 log.error("ScheduledTask updateTopicRouteInfoFromNameServer exception", e);
             }
         }, 10, this.clientConfig.getPollNameServerInterval(), TimeUnit.MILLISECONDS); //30000
 
+
+        // 3. 清理挂掉的Broker，发送心跳给活着的Broker
         /**
          * 调度服务，心跳服务，默认30s发送一次
          * 非常核心的服务，清理宕机掉的broker节点，并发送相关的数据到所有存活的broker上，
@@ -364,6 +374,8 @@ public class MQClientInstance {
             }
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS); //30000
 
+
+        // 4. 持久化消费Offset
         /**
          * 调度服务，定时将消费消息游标持久化到本地
          */
@@ -374,8 +386,10 @@ public class MQClientInstance {
             } catch (Exception e) {
                 log.error("ScheduledTask persistAllConsumerOffset exception", e);
             }
-        }, 1000 * 10, this.clientConfig.getPersistConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
+        }, 1000 * 10, this.clientConfig.getPersistConsumerOffsetInterval(), TimeUnit.MILLISECONDS); //5000
 
+
+        // 5. 调整一下相关的线程池数量
         /**
          * 调度服务
          */
@@ -386,7 +400,7 @@ public class MQClientInstance {
             } catch (Exception e) {
                 log.error("ScheduledTask adjustThreadPool exception", e);
             }
-        }, 1, 1, TimeUnit.MINUTES);
+        }, 1, 1, TimeUnit.MINUTES); //1分钟
     }
 
 
@@ -397,6 +411,7 @@ public class MQClientInstance {
 
     /**
      * 访问nameServer来进行我们的路由表更新
+     * 路由表示针对topic的，我们构建感兴趣的topic列表进行更新
      */
     public void updateTopicRouteInfoFromNameServer() {
         Set<String> topicList = new HashSet<>();
@@ -586,6 +601,7 @@ public class MQClientInstance {
      * 从nameServer中跟新相关的路由
      * 网络客户端通过此来更新当前的信息
      * 路由表总是和topic是紧密相关的
+     * 这是一层不走缓存的获得路由表信息，然后更新到缓存中
      * @param topic 需要更新topic
      * @return 更新成功or失败
      */
@@ -723,7 +739,7 @@ public class MQClientInstance {
                             //存在相关的信息
                             for (QueueData data : topicRouteData.getQueueDatas()) {
                                 //使用本地默认数量和远程数据的数量进行比较，选取其中小的
-                                //这是使用默认路由的时候
+                                //这是使用默认路由的时候，当且仅当使用这种默认的的方式
                                 int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums()); //4和设定值中选取小的
                                 data.setReadQueueNums(queueNums);
                                 data.setWriteQueueNums(queueNums);
@@ -734,23 +750,26 @@ public class MQClientInstance {
                     }
 
                     if (topicRouteData != null) {
-                        //远程的topicInfo存在
+                        //存在相关的信息
                         TopicRouteData old = this.topicRouteTable.get(topic); //内存中旧的topicInfo
                         boolean changed = topicRouteDataIsChange(old, topicRouteData); //是否存在变更
                         if (!changed) {
-                            //发生了变更
-                            changed = this.isNeedUpdateTopicRouteInfo(topic); //是否需要变更
+                            //发生了变更，让感兴趣的客户端来决定是否真的要变更
+                            changed = this.isNeedUpdateTopicRouteInfo(topic);
                         } else {
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
-                        if (changed) { //需要变更
+                        if (changed) {
+                            //真的需要变更
                             TopicRouteData cloneTopicRouteData = topicRouteData.cloneTopicRouteData();
 
+                            //1. 更新broker的信息
                             for (BrokerData bd : topicRouteData.getBrokerDatas()) {
-                                //更新topicinfo携带的broker相关的信息
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
+
+                            //2. 让客户端自己进行变更
 
                             // Update Pub info
                             // 更新发布的信息，让提供方自己更新
@@ -777,7 +796,9 @@ public class MQClientInstance {
                                 }
                             }
                             log.info("topicRouteTable.put. Topic = {}, TopicRouteData[{}]", topic, cloneTopicRouteData);
-                            this.topicRouteTable.put(topic, cloneTopicRouteData); //放置相关的topic和对应的data信息
+
+                            //3. 更新网络客户端维护的内存路由表
+                            this.topicRouteTable.put(topic, cloneTopicRouteData);
                             return true;
                         }
                     } else {
@@ -1021,11 +1042,21 @@ public class MQClientInstance {
         return true;
     }
 
+    /**
+     * 注销指定group对应的consumer
+     * @param group
+     */
     public void unregisterConsumer(final String group) {
         this.consumerTable.remove(group);
         this.unregisterClientWithLock(null, group);
     }
 
+
+    /**
+     * 注销客户端
+     * @param producerGroup
+     * @param consumerGroup
+     */
     private void unregisterClientWithLock(final String producerGroup, final String consumerGroup) {
         try {
             if (this.lockHeartbeat.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
@@ -1044,6 +1075,11 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 注销客户端
+     * @param producerGroup 生产组
+     * @param consumerGroup 消费组
+     */
     private void unregisterClient(final String producerGroup, final String consumerGroup) {
         Iterator<Entry<String, HashMap<Long, String>>> it = this.brokerAddrTable.entrySet().iterator();
         while (it.hasNext()) {
@@ -1092,6 +1128,10 @@ public class MQClientInstance {
         return true;
     }
 
+    /**
+     * 注销group对应的producer
+     * @param group
+     */
     public void unregisterProducer(final String group) {
         this.producerTable.remove(group);
         this.unregisterClientWithLock(group, null);

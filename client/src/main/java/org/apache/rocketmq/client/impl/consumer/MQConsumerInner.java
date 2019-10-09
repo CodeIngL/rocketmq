@@ -70,18 +70,18 @@ public interface MQConsumerInner {
     void persistConsumerOffset();
 
     /**
-     * 更新相关的订阅关系
-     * @param topic
-     * @param info
-     */
-    void updateTopicSubscribeInfo(final String topic, final Set<MessageQueue> info);
-
-    /**
      * 是否要进行更新
      * @param topic
      * @return
      */
     boolean isSubscribeTopicNeedUpdate(final String topic);
+
+    /**
+     * 更新相关的订阅关系
+     * @param topic
+     * @param info
+     */
+    void updateTopicSubscribeInfo(final String topic, final Set<MessageQueue> info);
 
     /**
      * ？是否为订阅组的单位？？

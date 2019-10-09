@@ -217,8 +217,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
             throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(RegisterBrokerResponseHeader.class);
         final RegisterBrokerResponseHeader respHeader = (RegisterBrokerResponseHeader) resp.readCustomHeader();
-        final RegisterBrokerRequestHeader reqHeader =
-                (RegisterBrokerRequestHeader) req.decodeCommandCustomHeader(RegisterBrokerRequestHeader.class);
+        final RegisterBrokerRequestHeader reqHeader = (RegisterBrokerRequestHeader) req.decodeCommandCustomHeader(RegisterBrokerRequestHeader.class);
 
         if (!checksum(ctx, req, reqHeader)) {
             resp.setCode(ResponseCode.SYSTEM_ERROR);

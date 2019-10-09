@@ -203,6 +203,10 @@ public class MQClientAPIImpl {
         return remotingClient;
     }
 
+    /**
+     * 抓取NameServer的地址
+     * @return
+     */
     public String fetchNameServerAddr() {
         try {
             String addrs = this.topAddressing.fetchNSAddr();

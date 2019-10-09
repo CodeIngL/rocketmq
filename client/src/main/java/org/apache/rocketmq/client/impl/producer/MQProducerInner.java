@@ -24,17 +24,31 @@ import org.apache.rocketmq.common.protocol.header.CheckTransactionStateRequestHe
 
 public interface MQProducerInner {
 
+    /**
+     * 获得发布了的topic的列表
+     * @return
+     */
     Set<String> getPublishTopicList();
 
+    /**
+     * 指定topic下的数据是否需要更新
+     * @param topic
+     * @return
+     */
     boolean isPublishTopicNeedUpdate(final String topic);
+
+    /**
+     * 根据topic和其信息来更新本地的数据
+     * @param topic
+     * @param info
+     */
+    void updateTopicPublishInfo(final String topic, final TopicPublishInfo info);
 
     TransactionCheckListener checkListener();
 
     TransactionListener getCheckListener();
 
     void checkTransactionState(final String addr, final MessageExt msg, final CheckTransactionStateRequestHeader checkRequestHeader);
-
-    void updateTopicPublishInfo(final String topic, final TopicPublishInfo info);
 
     boolean isUnitMode();
 }

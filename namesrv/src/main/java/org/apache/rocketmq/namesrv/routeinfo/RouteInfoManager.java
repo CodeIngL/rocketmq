@@ -71,6 +71,10 @@ public class RouteInfoManager {
         this.filterServerTable = new HashMap<String, List<String>>(256);
     }
 
+    /**
+     * 获得所有集群的信息
+     * @return
+     */
     public byte[] getAllClusterInfo() {
         ClusterInfo clusterInfoSerializeWrapper = new ClusterInfo();
         clusterInfoSerializeWrapper.setBrokerAddrTable(this.brokerAddrTable);
