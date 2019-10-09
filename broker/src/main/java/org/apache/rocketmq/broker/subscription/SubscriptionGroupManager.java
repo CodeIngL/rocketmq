@@ -41,7 +41,9 @@ public class SubscriptionGroupManager extends ConfigManager {
 
     //消费组名称和对应的订阅组配置
     private final ConcurrentMap<String, SubscriptionGroupConfig> subscriptionGroupTable = new ConcurrentHashMap<>(1024);
+    //版本关系
     private final DataVersion dataVersion = new DataVersion();
+
     private transient BrokerController brokerController;
 
     public SubscriptionGroupManager() {
@@ -53,6 +55,9 @@ public class SubscriptionGroupManager extends ConfigManager {
         this.init();
     }
 
+    /**
+     * 构建系统自带一些订阅配置信息
+     */
     private void init() {
         /**
          * 构建系统自带的信息

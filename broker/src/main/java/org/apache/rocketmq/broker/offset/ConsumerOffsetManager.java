@@ -39,7 +39,9 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
  * 也包括了由broker本省维护相关的队列
  */
 public class ConsumerOffsetManager extends ConfigManager {
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
+
     private static final String TOPIC_GROUP_SEPARATOR = "@";
 
     //偏移的表结构，topic消费组和队列id和偏移量
@@ -74,6 +76,12 @@ public class ConsumerOffsetManager extends ConfigManager {
         }
     }
 
+    /**
+     * 是否消费的数据远远落后写入数据
+     * @param topic
+     * @param table
+     * @return
+     */
     private boolean offsetBehindMuchThanData(final String topic, ConcurrentMap<Integer, Long> table) {
         Iterator<Entry<Integer, Long>> it = table.entrySet().iterator();
         boolean result = !table.isEmpty();
@@ -213,6 +221,12 @@ public class ConsumerOffsetManager extends ConfigManager {
         this.offsetTable = offsetTable;
     }
 
+    /**
+     * 查询所有组下的最小offset
+     * @param topic
+     * @param filterGroups
+     * @return
+     */
     public Map<Integer, Long> queryMinOffsetInAllGroup(final String topic, final String filterGroups) {
 
         Map<Integer, Long> queueMinOffset = new HashMap<Integer, Long>();

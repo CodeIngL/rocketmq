@@ -48,6 +48,9 @@ public class SlaveSynchronize {
         this.masterAddr = masterAddr;
     }
 
+    /**
+     * 同步信息
+     */
     public void syncAll() {
         this.syncTopicConfig();
         this.syncConsumerOffset();
@@ -55,6 +58,9 @@ public class SlaveSynchronize {
         this.syncSubscriptionGroupConfig();
     }
 
+    /**
+     * 同步topic配置信息
+     */
     private void syncTopicConfig() {
         String masterAddrBak = this.masterAddr;
         if (masterAddrBak != null && !masterAddrBak.equals(brokerController.getBrokerAddr())) {
@@ -79,6 +85,9 @@ public class SlaveSynchronize {
         }
     }
 
+    /**
+     * 同步consumerOffset
+     */
     private void syncConsumerOffset() {
         String masterAddrBak = this.masterAddr;
         if (masterAddrBak != null && !masterAddrBak.equals(brokerController.getBrokerAddr())) {
@@ -95,6 +104,9 @@ public class SlaveSynchronize {
         }
     }
 
+    /**
+     * 同步delayOffset
+     */
     private void syncDelayOffset() {
         String masterAddrBak = this.masterAddr;
         if (masterAddrBak != null && !masterAddrBak.equals(brokerController.getBrokerAddr())) {
@@ -119,6 +131,9 @@ public class SlaveSynchronize {
         }
     }
 
+    /**
+     * 同步subscriptionGroup
+     */
     private void syncSubscriptionGroupConfig() {
         String masterAddrBak = this.masterAddr;
         if (masterAddrBak != null  && !masterAddrBak.equals(brokerController.getBrokerAddr())) {

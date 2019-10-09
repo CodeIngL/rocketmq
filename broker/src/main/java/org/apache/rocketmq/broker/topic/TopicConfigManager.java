@@ -52,8 +52,11 @@ public class TopicConfigManager extends ConfigManager {
     private static final long LOCK_TIMEOUT_MILLIS = 3000;
     private transient final Lock lockTopicConfigTable = new ReentrantLock();
 
+    //topic及其信息映射关系
     private final ConcurrentMap<String, TopicConfig> topicConfigTable = new ConcurrentHashMap<String, TopicConfig>(1024);
+    //版本
     private final DataVersion dataVersion = new DataVersion();
+    //系统构建的topic
     private final Set<String> systemTopicList = new HashSet<String>();
     private transient BrokerController brokerController;
 
@@ -199,15 +202,17 @@ public class TopicConfigManager extends ConfigManager {
                     //存在默认的topic配置，直接返回
                     TopicConfig defaultTopicConfig = this.topicConfigTable.get(defaultTopic);
                     if (defaultTopicConfig != null) {
-                        if (defaultTopic.equals(MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC)) { //是自动创建的那个
-                            if (!this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) { //需要检查一下是否允许
+                        if (defaultTopic.equals(MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC)) { //是自动创建的那个系统的那个
+                            if (!this.brokerController.getBrokerConfig().isAutoCreateTopicEnable()) { //不支持，需要设置一下权限
                                 defaultTopicConfig.setPerm(PERM_READ | PERM_WRITE);
                             }
                         }
 
+                        //有继承的权利
                         if (PermName.isInherited(defaultTopicConfig.getPerm())) {
                             topicConfig = new TopicConfig(topic);
 
+                            //构建数量
                             int queueNums =
                                 clientDefaultTopicQueueNums > defaultTopicConfig.getWriteQueueNums() ? defaultTopicConfig
                                     .getWriteQueueNums() : clientDefaultTopicQueueNums;
@@ -228,13 +233,11 @@ public class TopicConfigManager extends ConfigManager {
                                 defaultTopic, defaultTopicConfig.getPerm(), remoteAddress);
                         }
                     } else {
-                        log.warn("Create new topic failed, because the default topic[{}] not exist. producer:[{}]",
-                            defaultTopic, remoteAddress);
+                        log.warn("Create new topic failed, because the default topic[{}] not exist. producer:[{}]", defaultTopic, remoteAddress);
                     }
 
                     if (topicConfig != null) {
-                        log.info("Create new topic by default topic:[{}] config:[{}] producer:[{}]",
-                            defaultTopic, topicConfig, remoteAddress);
+                        log.info("Create new topic by default topic:[{}] config:[{}] producer:[{}]", defaultTopic, topicConfig, remoteAddress);
 
                         this.topicConfigTable.put(topic, topicConfig);
 
