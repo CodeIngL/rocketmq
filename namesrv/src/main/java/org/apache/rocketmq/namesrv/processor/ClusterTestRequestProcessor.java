@@ -41,7 +41,7 @@ public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     //管理端
     private final DefaultMQAdminExt adminExt;
-    //环境名
+    //环境名，单元名
     private final String productEnvName;
 
     public ClusterTestRequestProcessor(NamesrvController namesrvController, String productEnvName) {
@@ -65,12 +65,11 @@ public class ClusterTestRequestProcessor extends DefaultRequestProcessor {
         TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(reqHeader.getTopic());
         if (topicRouteData != null) {
             //有顺序的topic配置
-            String orderTopicConf =
-                this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, reqHeader.getTopic());
+            String orderTopicConf = this.namesrvController.getKvConfigManager().getKVConfig(NamesrvUtil.NAMESPACE_ORDER_TOPIC_CONFIG, reqHeader.getTopic());
             topicRouteData.setOrderTopicConf(orderTopicConf);
         } else {
             try {
-                //去检查相关
+                //去别的nameServer上去拿相关的topicRoute,也就是NameServer上配置NameServer列表
                 topicRouteData = adminExt.examineTopicRouteInfo(reqHeader.getTopic());
             } catch (Exception e) {
                 log.info("get route info by topic from product environment failed. envName={},", productEnvName);

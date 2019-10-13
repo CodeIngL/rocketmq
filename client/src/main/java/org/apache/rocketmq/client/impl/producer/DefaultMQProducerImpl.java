@@ -305,6 +305,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     /**
+     * 是否要更新
+     * 先前没有数据，或者先前没有队列
      * @param topic
      * @return
      */

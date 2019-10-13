@@ -361,6 +361,10 @@ public class TopicConfigManager extends ConfigManager {
         }
     }
 
+    /**
+     * 更新topic的配置
+     * @param topicConfig
+     */
     public void updateTopicConfig(final TopicConfig topicConfig) {
         TopicConfig old = this.topicConfigTable.put(topicConfig.getTopicName(), topicConfig);
         if (old != null) {

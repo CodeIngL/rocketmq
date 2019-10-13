@@ -308,6 +308,11 @@ public class RouteInfoManager {
         return 0;
     }
 
+    /**
+     * 禁掉broker的写
+     * @param brokerName
+     * @return
+     */
     private int wipeWritePermOfBroker(final String brokerName) {
         int wipeTopicCnt = 0;
         Iterator<Entry<String, List<QueueData>>> itTopic = this.topicQueueTable.entrySet().iterator();

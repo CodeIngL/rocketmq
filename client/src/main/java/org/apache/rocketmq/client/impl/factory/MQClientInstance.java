@@ -754,14 +754,14 @@ public class MQClientInstance {
                         TopicRouteData old = this.topicRouteTable.get(topic); //内存中旧的topicInfo
                         boolean changed = topicRouteDataIsChange(old, topicRouteData); //是否存在变更
                         if (!changed) {
-                            //发生了变更，让感兴趣的客户端来决定是否真的要变更
+                            //没有变更，让感兴趣的客户端来识别一下是否需要变更
                             changed = this.isNeedUpdateTopicRouteInfo(topic);
                         } else {
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
                         if (changed) {
-                            //真的需要变更
+                            //需要变更
                             TopicRouteData cloneTopicRouteData = topicRouteData.cloneTopicRouteData();
 
                             //1. 更新broker的信息
@@ -769,7 +769,7 @@ public class MQClientInstance {
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
 
-                            //2. 让客户端自己进行变更
+                            //2. 让客户端自己进行变更，直接更新
 
                             // Update Pub info
                             // 更新发布的信息，让提供方自己更新
@@ -797,11 +797,12 @@ public class MQClientInstance {
                             }
                             log.info("topicRouteTable.put. Topic = {}, TopicRouteData[{}]", topic, cloneTopicRouteData);
 
-                            //3. 更新网络客户端维护的内存路由表
+                            //3. 更新网络客户端维护的内存路由表，直接更新
                             this.topicRouteTable.put(topic, cloneTopicRouteData);
                             return true;
                         }
                     } else {
+                        //如果nameServer上已经没有了或者被删除了topic，我们简单的记录一下
                         log.warn("updateTopicRouteInfoFromNameServer, getTopicRouteInfoFromNameServer return null, Topic: {}", topic);
                     }
                 } catch (Exception e) {

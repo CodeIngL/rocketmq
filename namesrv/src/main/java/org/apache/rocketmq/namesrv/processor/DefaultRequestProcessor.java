@@ -356,7 +356,7 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
     }
 
     /**
-     * 获得topic的路由信息，从nameServer中获得相关的信息
+     * 获得topic的路由信息，从nameServer中获得相关的信息， 即获得路由表
      *
      * @param ctx
      * @param req
@@ -369,7 +369,6 @@ public class DefaultRequestProcessor implements NettyRequestProcessor {
 
         //根据topic选择相关的路由信息，我们通过内存中相关来获得
         TopicRouteData topicRouteData = this.namesrvController.getRouteInfoManager().pickupTopicRouteData(reqHeader.getTopic());
-
         if (topicRouteData != null) {
             if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
                 //nameserver配置支持顺序消费，配置的顺序消费队列及其，格式topic:num;topic2:num2

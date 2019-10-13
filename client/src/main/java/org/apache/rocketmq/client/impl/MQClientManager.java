@@ -35,6 +35,7 @@ public class MQClientManager {
     private AtomicInteger factoryIndexGenerator = new AtomicInteger();
     /**
      * 客户端id和实例映射关系
+     * 我们可以通过不同unit来构建同一jvm中不同的网络端
      */
     private ConcurrentMap<String/* clientId */, MQClientInstance> factoryTable = new ConcurrentHashMap<String, MQClientInstance>();
 
