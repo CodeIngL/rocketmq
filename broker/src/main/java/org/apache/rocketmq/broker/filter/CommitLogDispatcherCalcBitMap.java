@@ -56,7 +56,6 @@ public class CommitLogDispatcherCalcBitMap implements CommitLogDispatcher {
 
             //获得topic对应的filter
             Collection<ConsumerFilterData> filterDatas = consumerFilterManager.get(request.getTopic());
-
             if (filterDatas == null || filterDatas.isEmpty()) {
                 return;
             }

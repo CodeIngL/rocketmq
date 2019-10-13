@@ -626,9 +626,9 @@ public class DefaultMessageStore implements MessageStore {
             } else if (offset > maxOffset) { //太大了
                 status = OFFSET_OVERFLOW_BADLY;
                 if (0 == minOffset) {
-                    nextBeginOffset = nextOffsetCorrection(offset, minOffset); //最小为0，使用0
+                    nextBeginOffset = nextOffsetCorrection(offset, minOffset); //最小为0，从0开始
                 } else {
-                    nextBeginOffset = nextOffsetCorrection(offset, maxOffset);//使用最大
+                    nextBeginOffset = nextOffsetCorrection(offset, maxOffset);//直接进行使用最大的
                 }
             } else {
                 //获得offset对应的映射buffer
@@ -1306,12 +1306,13 @@ public class DefaultMessageStore implements MessageStore {
     /**
      * 更正下一个offset
      *
-     * @param oldOffset
-     * @param newOffset
+     * @param oldOffset 旧的offset
+     * @param newOffset 新的offset
      * @return
      */
     private long nextOffsetCorrection(long oldOffset, long newOffset) {
         long nextOffset = oldOffset;
+        //只有master支持更正偏移量，或者offsetCheckInSlave生效
         if (this.getMessageStoreConfig().getBrokerRole() != SLAVE || this.getMessageStoreConfig().isOffsetCheckInSlave()) {
             nextOffset = newOffset;
         }

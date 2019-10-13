@@ -41,6 +41,9 @@ public class TransactionalMessageCheckService extends ServiceThread {
         return TransactionalMessageCheckService.class.getSimpleName();
     }
 
+    /**
+     * 通过更改动态的配置可以加速check的频率
+     */
     @Override
     public void run() {
         log.info("Start transaction check service thread!");

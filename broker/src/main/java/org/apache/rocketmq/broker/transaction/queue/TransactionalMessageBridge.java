@@ -161,7 +161,7 @@ public class TransactionalMessageBridge {
     public PullResult getOpMessage(int queueId, long offset, int nums) {
         String group = buildConsumerGroup();
         String topic = buildOpTopic();
-        //构建订阅信息，订阅所有的信息
+        //构建订阅信息，订阅所有的信息，因为是op消息缘故，我们订阅所有信息
         SubscriptionData sub = new SubscriptionData(topic, "*");
         return getMessage(group, topic, queueId, offset, nums, sub);
     }
@@ -177,6 +177,7 @@ public class TransactionalMessageBridge {
      * @return
      */
     private PullResult getMessage(String group, String topic, int queueId, long offset, int nums, SubscriptionData sub) {
+        //内部消息过滤器，不需要进行过滤任何东西
         GetMessageResult getResult = store.getMessage(group, topic, queueId, offset, nums, null);
         if(getResult == null){
             LOGGER.error("Get message from store return null. topic={}, groupId={}, requestOffset={}", topic, group, offset);
@@ -304,12 +305,20 @@ public class TransactionalMessageBridge {
         }
     }
 
+    /**
+     * 重新构建投递到half队列中的消息
+     * @param msgExt
+     * @return
+     */
     public MessageExtBrokerInner renewImmunityHalfMessageInner(MessageExt msgExt) {
+        //消息copy
         MessageExtBrokerInner msgInner = renewHalfMessageInner(msgExt);
         String queueOffsetFromPrepare = msgExt.getUserProperty(PROPERTY_TRANSACTION_PREPARED_QUEUE_OFFSET); //设置offset
         if (null != queueOffsetFromPrepare) {
+            //存在，写入
             putProperty(msgInner, PROPERTY_TRANSACTION_PREPARED_QUEUE_OFFSET, valueOf(queueOffsetFromPrepare));
         } else {
+            //使用默认的
             putProperty(msgInner, PROPERTY_TRANSACTION_PREPARED_QUEUE_OFFSET, valueOf(msgExt.getQueueOffset()));
         }
 
