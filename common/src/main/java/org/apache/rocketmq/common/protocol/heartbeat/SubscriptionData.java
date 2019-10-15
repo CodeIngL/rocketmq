@@ -30,6 +30,7 @@ import java.util.Set;
  * 订阅的数据
  */
 public class SubscriptionData implements Comparable<SubscriptionData> {
+    //标识订阅所有数据
     public final static String SUB_ALL = "*";
     //是否是classFilter
     private boolean classFilterMode = false;

@@ -263,6 +263,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 respHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly()); //消费满，建议去其他节点
             } else {
                 //设置从masterId进行拉取，下一次消息拉取的时候
+                //默认总是从master上拉取
                 respHeader.setSuggestWhichBrokerId(MASTER_ID);
             }
 

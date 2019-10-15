@@ -103,6 +103,8 @@ public class MQClientInstance {
     private final String clientId;
     //启动时间
     private final long bootTimestamp = System.currentTimeMillis();
+
+    //------每一个client都可以维护相关的自己的角色，包括管理角色，而不是生产角色和消费角色
     /**
      * 组名和生产者
      */
@@ -118,8 +120,9 @@ public class MQClientInstance {
 
     private final NettyClientConfig nettyClientConfig;
 
-
+    //数据客户端
     private final MQClientAPIImpl mQClientAPIImpl;
+    //控制客户端
     private final MQAdminImpl mQAdminImpl;
 
     //客户端上保存的路由表，定时的被更新
@@ -132,8 +135,9 @@ public class MQClientInstance {
     private final Lock lockHeartbeat = new ReentrantLock();
 
 
-    //brokerName和其的映射
+    //brokerName和其的集群映射
     private final ConcurrentMap<String/* Broker Name */, HashMap<Long/* brokerId */, String/* address */>> brokerAddrTable = new ConcurrentHashMap<String, HashMap<Long, String>>();
+    //brokerName和其的集群映射
     private final ConcurrentMap<String/* Broker Name */, HashMap<String/* address */, Integer>> brokerVersionTable = new ConcurrentHashMap<String, HashMap<String, Integer>>();
 
     private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(r -> new Thread(r, "MQClientFactoryScheduledThread"));
@@ -330,8 +334,8 @@ public class MQClientInstance {
      * 网络客户端内部，定时的的执行调度任务，
      */
     private void startScheduledTask() {
-        // 1. 尝试获取新的NameServer的地址
-        if (null == this.clientConfig.getNamesrvAddr()) { //如果没有配置，我们尝试获取相关name服务地址
+        // 1. 尝试获取新的NameServer的地址，通过动态更改实现，动态的nameserver控制
+        if (null == this.clientConfig.getNamesrvAddr()) { //如果没有配置，我们尝试获取相关name服务地址，来获取nameserver
             this.scheduledExecutorService.scheduleAtFixedRate(() -> {
                 try {
                     MQClientInstance.this.mQClientAPIImpl.fetchNameServerAddr();
@@ -460,6 +464,7 @@ public class MQClientInstance {
      */
     private void cleanOfflineBroker() {
         try {
+            //加锁，控制并发
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS))
                 try {
                     ConcurrentHashMap<String, HashMap<Long, String>> updatedTable = new ConcurrentHashMap<String, HashMap<Long, String>>();
@@ -616,6 +621,7 @@ public class MQClientInstance {
      * @return true 存在，false 不存在
      */
     private boolean isBrokerAddrExistInTopicRouteTable(final String addr) {
+        //使用路由表来验证是否broker地址存在
         Iterator<Entry<String, TopicRouteData>> it = this.topicRouteTable.entrySet().iterator();
         while (it.hasNext()) {
             Entry<String, TopicRouteData> entry = it.next();

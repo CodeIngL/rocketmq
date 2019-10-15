@@ -40,6 +40,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 /**
  * broker向nameServer注册的核心信息
+ * 类似心跳信息
  */
 public class RegisterBrokerBody extends RemotingSerializable {
 

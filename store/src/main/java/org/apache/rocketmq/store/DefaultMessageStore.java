@@ -728,7 +728,8 @@ public class DefaultMessageStore implements MessageStore {
                         nextBeginOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE); //下一个开始
 
                         long diff = maxOffsetPy - maxPhyOffsetPulling; //最大内存-最大拉取offset
-                        long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0)); //内存大小
+                        //内存大小，阈值为40%*总内存
+                        long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
                         //是否建议从其他slave进行拉取，差距过大，可能master很麻烦，我们尝试从slave读取
                         result.setSuggestPullingFromSlave(diff > memory);
                     } finally {

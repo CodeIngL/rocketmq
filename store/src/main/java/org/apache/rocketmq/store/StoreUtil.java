@@ -20,8 +20,14 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 
 public class StoreUtil {
+    //总共的物理内存大小
     public static final long TOTAL_PHYSICAL_MEMORY_SIZE = getTotalPhysicalMemorySize();
 
+    /**
+     * 默认是24G，
+     * 尝试从系统中获得相关的大小
+     * @return
+     */
     @SuppressWarnings("restriction")
     public static long getTotalPhysicalMemorySize() {
         long physicalTotal = 1024 * 1024 * 1024 * 24L;

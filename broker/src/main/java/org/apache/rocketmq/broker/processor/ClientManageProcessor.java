@@ -80,7 +80,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
     }
 
     /**
-     * 处理心跳信息
+     * 处理客户端上来的心跳信息
      * @param ctx
      * @param req
      * @return
