@@ -367,6 +367,10 @@ public class ProcessQueue {
         return result;
     }
 
+    /**
+     * 还有临时的消息
+     * @return
+     */
     public boolean hasTempMessage() {
         try {
             this.lockTreeMap.readLock().lockInterruptibly();

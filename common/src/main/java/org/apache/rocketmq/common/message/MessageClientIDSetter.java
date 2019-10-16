@@ -32,6 +32,7 @@ public class MessageClientIDSetter {
     private static long nextStartTime;
 
     static {
+        //20位
         LEN = 4 + 2 + 4 + 4 + 2;
         ByteBuffer tempBuffer = ByteBuffer.allocate(10);
         tempBuffer.position(2);
@@ -100,6 +101,10 @@ public class MessageClientIDSetter {
         return result;
     }
 
+    /**
+     * 构建独一无二的Id
+     * @return
+     */
     public static String createUniqID() {
         StringBuilder sb = new StringBuilder(LEN * 2);
         sb.append(FIX_STRING);

@@ -92,6 +92,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
 
     public void start() {
         if (CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) { //集群模式才支持定时的调度，广播消息因为大家都是全量
+            //定时的去broker上锁定所有的本客户端对应的相关的消息队列集合。
             this.scheduledExecutorService.scheduleAtFixedRate(() ->
                     ConsumeMessageOrderlyService.this.lockMQPeriodically(), 1000 * 1, ProcessQueue.REBALANCE_LOCK_INTERVAL, TimeUnit.MILLISECONDS);
         }
@@ -224,19 +225,27 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
      */
     public void tryLockLaterAndReconsume(final MessageQueue mq, final ProcessQueue processQueue,
         final long delayMills) {
-        //s使用调度服务，稍后进行消息的消费
+        //使用调度服务，稍后进行消息的消费
         this.scheduledExecutorService.schedule(() -> {
+            //能成功进行消费首要条件是我们能成功对远程消息队列进行上锁，并获得成功
             boolean lockOK = ConsumeMessageOrderlyService.this.lockOneMQ(mq);
             if (lockOK) {
+                //锁定安全的消息队列，我们进行相关的消费是安全的
                 //立即尝试提交消费
                 ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 10);
             } else {
+                //锁定失败，我们稍后重试进行再一次锁定后进行消费
                 //延迟的等待消费
                 ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, mq, 3000);
             }
         }, delayMills, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 尝试锁定一个消息队列
+     * @param mq
+     * @return
+     */
     public synchronized boolean lockOneMQ(final MessageQueue mq) {
         if (!this.stopped) {
             return this.defaultMQPushConsumerImpl.getRebalanceImpl().lock(mq);

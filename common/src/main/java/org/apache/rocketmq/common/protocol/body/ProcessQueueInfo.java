@@ -19,6 +19,9 @@ package org.apache.rocketmq.common.protocol.body;
 
 import org.apache.rocketmq.common.UtilAll;
 
+/**
+ * processQueue信息
+ */
 public class ProcessQueueInfo {
     private long commitOffset;
 

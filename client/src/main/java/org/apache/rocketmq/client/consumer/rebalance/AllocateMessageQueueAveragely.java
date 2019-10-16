@@ -32,9 +32,9 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
 
     /**
      * 默认的分配算法
-     * @param consumerGroup current consumer group
-     * @param currentCID current consumer id
-     * @param mqAll message queue set in current topic
+     * @param consumerGroup current consumer group 当前的消费组
+     * @param currentCID current consumer id 当前的的consumerId
+     * @param mqAll message queue set in current topic 当前的topic对应的所有的消息队列
      * @param cidAll consumer set in current consumer group
      * @return
      */

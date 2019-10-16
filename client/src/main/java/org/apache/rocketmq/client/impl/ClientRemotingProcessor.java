@@ -197,6 +197,13 @@ public class ClientRemotingProcessor implements NettyRequestProcessor {
         return response;
     }
 
+    /**
+     * 获得consumer运行时的信息
+     * @param ctx
+     * @param req
+     * @return
+     * @throws RemotingCommandException
+     */
     private RemotingCommand getConsumerRunningInfo(ChannelHandlerContext ctx,
         RemotingCommand req) throws RemotingCommandException {
         final RemotingCommand resp = createResponseCommand(null);

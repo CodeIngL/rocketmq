@@ -73,6 +73,11 @@ public abstract class RebalanceImpl {
         this.mQClientFactory = mQClientFactory;
     }
 
+    /**
+     * 解锁远程的消息队列，使用oneway方式
+     * @param mq
+     * @param oneway
+     */
     public void unlock(final MessageQueue mq, final boolean oneway) {
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
         if (findBrokerResult != null) {
@@ -160,7 +165,7 @@ public abstract class RebalanceImpl {
         requestBody.getMqSet().add(mq);
 
         try {
-            //锁定远程相关的mq，获得自己成功锁定的队列
+            //锁定远程相关的mq，获得自己成功锁定的消息队列集合
             Set<MessageQueue> lockedMq = this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
             for (MessageQueue mmqq : lockedMq) {
                 ProcessQueue processQueue = this.processQueueTable.get(mmqq);
@@ -177,10 +182,12 @@ public abstract class RebalanceImpl {
         } catch (Exception e) {
             log.error("lockBatchMQ exception, " + mq, e);
         }
-            return false;
-
+        return false;
     }
 
+    /**
+     * 锁定自己持有的相关消息队列，分配到的所有队列
+     */
     public void lockAll() {
         HashMap<String, Set<MessageQueue>> brokerMqs = this.buildProcessQueueTableByBrokerName();
 

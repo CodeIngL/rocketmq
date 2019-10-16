@@ -28,7 +28,7 @@ import org.apache.rocketmq.client.common.ThreadLocalIndex;
  * 延迟容错的实现
  */
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
-    //维护的错误信息表
+    //维护的错误信息表，key为name，value为容错信息
     private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
 
     //当前得坐标的索引
@@ -71,7 +71,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         //获得brokerName对应的容错项
         final FaultItem faultItem = this.faultItemTable.get(name);
         if (faultItem != null) {
-            ///存在容错项，我们观察一下是否可用
+            //存在容错项，我们观察一下是否可用,容错项已经在可以服务的时间返回true，否则返回false
             return faultItem.isAvailable();
         }
         return true;
@@ -98,17 +98,19 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             return null;
         }
 
+        //随机打乱
         Collections.shuffle(copyList);
 
+        //进行排序
         Collections.sort(copyList);
 
-        //一半
+        //一半的位置
         final int half = copyList.size() / 2;
         if (half <= 0) {
-            //没得选
+            //没得选，直接选第一个就行了，没有其他选择
             return copyList.get(0).getName();
         } else {
-            //拿个item最糟糕是他
+            //索引获得并返回
             final int i = this.whichItemWorst.getAndIncrement() % half;
             return copyList.get(i).getName();
         }
@@ -125,9 +127,10 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
     /**
      * 容错项
+     * 请关注唯一方法isAvailable用于显示该容错项对应的broker是否可用
      */
     class FaultItem implements Comparable<FaultItem> {
-        //名字
+        //名字表示的是broker的名字
         private final String name;
         //当前延迟
         private volatile long currentLatency;
@@ -138,6 +141,11 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
             this.name = name;
         }
 
+        /**
+         * 两者不可用的排在后面，当前延迟的大排后面，当前时间大的排后面
+         * @param other
+         * @return
+         */
         @Override
         public int compareTo(final FaultItem other) {
             if (this.isAvailable() != other.isAvailable()) {

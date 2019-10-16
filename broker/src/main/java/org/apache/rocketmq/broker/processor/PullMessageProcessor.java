@@ -187,7 +187,8 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                 return resp;
             }
 
-            if (!subscriptionGroupConfig.isConsumeBroadcastEnable() && (consumerGroupInfo.getMessageModel() == BROADCASTING)) { //广播的检查
+            if (!subscriptionGroupConfig.isConsumeBroadcastEnable() && (consumerGroupInfo.getMessageModel() == BROADCASTING)) {
+                //广播模式配置的检查
                 resp.setCode(NO_PERMISSION);
                 resp.setRemark("the consumer group[" + consumerGroup + "] can not consume by broadcast way");
                 return resp;
@@ -474,6 +475,15 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         return resp;
     }
 
+    /**
+     * 队列必须在可读队列中央
+     * @param channel
+     * @param resp
+     * @param topic
+     * @param topicConfig
+     * @param queueId
+     * @return
+     */
     private boolean checkQueueId(Channel channel, RemotingCommand resp, String topic, TopicConfig topicConfig, int queueId) {
         if (queueId < 0 || queueId >= topicConfig.getReadQueueNums()) {
             String errorInfo = String.format("queueId[%d] is illegal, topic:[%s] topicConfig.readQueueNums:[%d] consumer:[%s]", queueId, topic, topicConfig.getReadQueueNums(), channel.remoteAddress());
@@ -485,6 +495,14 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    /**
+     * topic需存在，并且支持被消费
+     * @param channel
+     * @param resp
+     * @param topic
+     * @param topicConfig
+     * @return
+     */
     private boolean checkTopicConfig(Channel channel, RemotingCommand resp, String topic, TopicConfig topicConfig) {
         if (null == topicConfig) {
             log.error("the topic {} not exist, consumer: {}",topic, parseChannelRemoteAddr(channel));
@@ -501,6 +519,13 @@ public class PullMessageProcessor implements NettyRequestProcessor {
         return false;
     }
 
+    /**
+     * 校验消费组对应订阅配置信息，相关订阅配置信息必须存在，并且订阅信息支持消费端消费
+     * @param resp
+     * @param consumerGroup
+     * @param subscriptionGroupConfig
+     * @return
+     */
     private boolean checkSubscriptionGroupConfig(RemotingCommand resp, String consumerGroup, SubscriptionGroupConfig subscriptionGroupConfig) {
         if (null == subscriptionGroupConfig) {
             resp.setCode(SUBSCRIPTION_GROUP_NOT_EXIST);

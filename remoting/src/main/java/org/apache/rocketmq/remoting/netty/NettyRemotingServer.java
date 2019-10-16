@@ -76,7 +76,9 @@ import static org.apache.rocketmq.remoting.netty.TlsSystemConfig.tlsMode;
 public class NettyRemotingServer extends NettyRemotingAbstract implements RemotingServer {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
     private final ServerBootstrap serverBootstrap;
+    //selector事件循环器
     private final EventLoopGroup eventLoopGroupSelector;
+    //监听事件循环器
     private final EventLoopGroup eventLoopGroupBoss;
     private final NettyServerConfig nettyServerConfig;
 
@@ -143,8 +145,12 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
         return RemotingUtil.isLinuxPlatform() && nettyServerConfig.isUseEpollNativeSelector() && Epoll.isAvailable();
     }
 
+    /**
+     * 启动网络服务端
+     */
     @Override
     public void start() {
+        //事件循序器
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(nettyServerConfig.getServerWorkerThreads(), new SimplePrefixThreadFactory("NettyServerCodecThread_"));
 
         ServerBootstrap childHandler =
@@ -161,6 +167,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                             @Override
                             public void initChannel(SocketChannel ch) throws Exception {
                                 ch.pipeline()
+                                        //使用默认的事件循环器进行操作
                                         .addLast(defaultEventExecutorGroup,
                                                 HANDSHAKE_HANDLER_NAME, new HandshakeHandler(tlsMode))
                                         .addLast(defaultEventExecutorGroup,

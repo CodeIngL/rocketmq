@@ -97,6 +97,12 @@ public class RebalancePushImpl extends RebalanceImpl {
         this.getmQClientFactory().sendHeartbeatToAllBrokerWithLock(); //通知broker
     }
 
+    /**
+     * 删除不必要的消息队列，最终是否成功
+     * @param mq
+     * @param pq
+     * @return 是否成功删除这个不必要的消息队列
+     */
     @Override
     public boolean removeUnnecessaryMessageQueue(MessageQueue mq, ProcessQueue pq) {
         //首先是持久化相关数据，然后把自己的offset中删除这消息队列
@@ -106,15 +112,17 @@ public class RebalancePushImpl extends RebalanceImpl {
         //如果是集群顺序消费，集群消费还要特殊的处理，这个发生在条件是顺序消费的时候
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly() && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
-                //尝试加锁，因为调整时候，可能还正在被锁定
+                //尝试加锁，因为调整时候，可能还正在被锁定。顺序消费的时候，我们保证相关的锁持有了
                 if (pq.getLockConsume().tryLock(1000, TimeUnit.MILLISECONDS)) {
                     try {
                         return this.unlockDelay(mq, pq);
                     } finally {
+                        //解锁
                         pq.getLockConsume().unlock();
                     }
                 } else {
                     log.warn("[WRONG]mq is consuming, so can not unlock it, {}. maybe hanged for a while, {}", mq, pq.getTryUnlockTimes());
+                    //增加加锁失败的次数
                     pq.incTryUnlockTimes();
                 }
             } catch (Exception e) {
@@ -126,14 +134,22 @@ public class RebalancePushImpl extends RebalanceImpl {
         return true;
     }
 
+    /**
+     * 解锁，解锁远程锁定的mq队列
+     * @param mq
+     * @param pq
+     * @return
+     */
     private boolean unlockDelay(final MessageQueue mq, final ProcessQueue pq) {
         if (pq.hasTempMessage()) {
+            //还有消息，我们稍后进行远程mq队列的解锁
             log.info("[{}]unlockDelay, begin {} ", mq.hashCode(), mq);
             this.defaultMQPushConsumerImpl.getmQClientFactory().getScheduledExecutorService().schedule(() -> {
                 log.info("[{}]unlockDelay, execute at once {}", mq.hashCode(), mq);
                 RebalancePushImpl.this.unlock(mq, true);
             }, UNLOCK_DELAY_TIME_MILLS, TimeUnit.MILLISECONDS);
         } else {
+            //现在我们就发起相关的消息队列的解锁
             this.unlock(mq, true);
         }
         return true;
