@@ -320,10 +320,12 @@ public class HAService {
                             transferOK = HAService.this.push2SlaveMaxOffset.get() >= req.getNextOffset();
                         }
 
+                        //传输失败
                         if (!transferOK) {
                             log.warn("transfer messsage to slave timeout, " + req.getNextOffset());
                         }
 
+                        //唤醒
                         req.wakeupCustomer(transferOK);
                     }
 

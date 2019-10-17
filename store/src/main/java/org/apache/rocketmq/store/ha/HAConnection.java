@@ -296,6 +296,7 @@ public class HAConnection {
                         //大小
                         int size = selectResult.getSize();
                         if (size > HAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig().getHaTransferBatchSize()) {
+                            //最大32K
                             size = HAConnection.this.haService.getDefaultMessageStore().getMessageStoreConfig().getHaTransferBatchSize();
                         }
 
@@ -357,8 +358,10 @@ public class HAConnection {
          * @throws Exception
          */
         private boolean transferData() throws Exception {
+            //没有写内容的次数
             int writeSizeZeroTimes = 0;
             // Write Header
+            // 写头部
             while (this.byteBufferHeader.hasRemaining()) {
                 int writeSize = this.socketChannel.write(this.byteBufferHeader);
                 if (writeSize > 0) {
@@ -380,6 +383,7 @@ public class HAConnection {
             writeSizeZeroTimes = 0;
 
             // Write Body
+            // 写body
             if (!this.byteBufferHeader.hasRemaining()) {
                 while (this.selectMappedBufferResult.getByteBuffer().hasRemaining()) {
                     int writeSize = this.socketChannel.write(this.selectMappedBufferResult.getByteBuffer());

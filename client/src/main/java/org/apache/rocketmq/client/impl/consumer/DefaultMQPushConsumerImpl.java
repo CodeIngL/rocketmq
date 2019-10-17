@@ -1237,6 +1237,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         this.serviceState = serviceState;
     }
 
+    /**
+     * 调整相关的线程池
+     */
     public void adjustThreadPool() {
         long computeAccTotal = this.computeAccumulationTotal();
         long adjustThreadPoolNumsThreshold = this.defaultMQPushConsumer.getAdjustThreadPoolNumsThreshold();
@@ -1246,10 +1249,12 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         long decThreshold = (long) (adjustThreadPoolNumsThreshold * 0.8);
 
         if (computeAccTotal >= incThreshold) {
+            //最终反映到消费服务上
             this.consumeMessageService.incCorePoolSize();
         }
 
         if (computeAccTotal < decThreshold) {
+            //最终反映到消费的服务上
             this.consumeMessageService.decCorePoolSize();
         }
     }

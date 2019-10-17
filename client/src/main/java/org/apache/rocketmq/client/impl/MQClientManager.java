@@ -26,12 +26,13 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.RPCHook;
 
 /**
- * 单例模式，提供了整个网络端点中相关id和对应网络映射关系，他总是单例存在。
- * 通过它我们获得了对应客户端实例
+ * 单例提供了整个网络端点中相关id和对应网络映射关系，他总是单例存在。
+ * 通过它我们获得了对应的网络客户端实例
  */
 public class MQClientManager {
     private final static InternalLogger log = ClientLogger.getLog();
     private static MQClientManager instance = new MQClientManager();
+    //用于产生客户端的标识
     private AtomicInteger factoryIndexGenerator = new AtomicInteger();
     /**
      * 客户端id和实例映射关系

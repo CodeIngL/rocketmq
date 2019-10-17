@@ -122,7 +122,8 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
     }
 
     /**
-     * 持久化的时候
+     * 持久化
+     * 会尝试更新远程broker相关的offset
      * @param mqs
      */
     @Override

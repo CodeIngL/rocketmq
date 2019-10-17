@@ -118,6 +118,7 @@ public class MQClientInstance {
      */
     private final ConcurrentMap<String/* group */, MQAdminExtInner> adminExtTable = new ConcurrentHashMap<>();
 
+    //网络配置
     private final NettyClientConfig nettyClientConfig;
 
     //数据客户端
@@ -307,7 +308,7 @@ public class MQClientInstance {
                     // 启动各种计划任务
                     this.startScheduledTask();
                     // Start pull service
-                    // 开始拉服务
+                    // 开始拉取服务
                     this.pullMessageService.start();
                     // Start rebalance service
                     // 启动重新平衡服务
@@ -595,6 +596,7 @@ public class MQClientInstance {
             }
             try {
                 if (impl instanceof DefaultMQPushConsumerImpl) {
+                    //push方式才支持
                     ((DefaultMQPushConsumerImpl) impl).adjustThreadPool();
                 }
             } catch (Exception e) {
@@ -992,6 +994,9 @@ public class MQClientInstance {
         return result;
     }
 
+    /**
+     * 关闭
+     */
     public void shutdown() {
         // Consumer
         if (!this.consumerTable.isEmpty())
@@ -1366,9 +1371,10 @@ public class MQClientInstance {
         if (brokers.isEmpty()) {
             return null;
         }
-        //随机的选择一个，我们使用该broker的地址
+        //随机的选择一个，我们使用该broker集群
         int index = random.nextInt(brokers.size());
         BrokerData bd = brokers.get(index % brokers.size());
+        //broker集群中随机选择一个节点，总是优先从主节点进行选取
         return bd.selectBrokerAddr();
     }
 

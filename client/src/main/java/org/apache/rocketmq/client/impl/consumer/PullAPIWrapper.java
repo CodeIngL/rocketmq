@@ -59,9 +59,10 @@ public class PullAPIWrapper {
     private final MQClientInstance mQClientFactory;
     private final String consumerGroup;
     private final boolean unitMode;
-    //消息应该从哪个队列拉取
+    //消息应该从消息队列上的哪个角色上进行拉取消息，因为mq维护了brokerName，这里是维护mq应该从broker replication 的哪个节点进行拉取
     private ConcurrentMap<MessageQueue, AtomicLong/* brokerId */> pullFromWhichNodeTable = new ConcurrentHashMap<MessageQueue, AtomicLong>(32);
     private volatile boolean connectBrokerByUser = false;
+    //默认Id
     private volatile long defaultBrokerId = MixAll.MASTER_ID;
     private Random random = new Random(System.currentTimeMillis());
     private ArrayList<FilterMessageHook> filterMessageHookList = new ArrayList<FilterMessageHook>();
@@ -83,7 +84,7 @@ public class PullAPIWrapper {
         //结果
         PullResultExt pullResultExt = (PullResultExt) pullResult;
 
-        //更新下一次建议拉取的消息来自哪个节点，拉取结果会告诉我们下一个合适拉取broker
+        //更新下一次建议拉取的消息来自哪个节点，broker的拉取结果，告诉我们下一个合适拉取broker角色
         this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
 
         if (FOUND == pullResult.getPullStatus()) {
@@ -280,6 +281,10 @@ public class PullAPIWrapper {
         throw new MQClientException("Find Filter Server Failed, Broker Addr: " + brokerAddr + " topic: " + topic, null);
     }
 
+    /**
+     * 用户指定了使用broker
+     * @return
+     */
     public boolean isConnectBrokerByUser() {
         return connectBrokerByUser;
     }

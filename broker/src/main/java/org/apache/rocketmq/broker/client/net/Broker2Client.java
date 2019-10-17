@@ -86,10 +86,17 @@ public class Broker2Client {
         }
     }
 
-    public RemotingCommand callClient(final Channel channel,
-                                      final RemotingCommand request
-    ) throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
-        return this.brokerController.getRemotingServer().invokeSync(channel, request, 10000);
+    /**
+     * 调用Client
+     * @param channel
+     * @param req
+     * @return
+     * @throws RemotingSendRequestException
+     * @throws RemotingTimeoutException
+     * @throws InterruptedException
+     */
+    public RemotingCommand callClient(final Channel channel, final RemotingCommand req) throws RemotingSendRequestException, RemotingTimeoutException, InterruptedException {
+        return this.brokerController.getRemotingServer().invokeSync(channel, req, 10000);
     }
 
     /**
@@ -115,10 +122,27 @@ public class Broker2Client {
         }
     }
 
+    /**
+     * 重置消费端的offset
+     * @param topic
+     * @param group
+     * @param timeStamp
+     * @param isForce
+     * @return
+     */
     public RemotingCommand resetOffset(String topic, String group, long timeStamp, boolean isForce) {
         return resetOffset(topic, group, timeStamp, isForce, false);
     }
 
+    /**
+     * 重置消费端的offset
+     * @param topic
+     * @param group
+     * @param timeStamp
+     * @param isForce
+     * @param isC
+     * @return
+     */
     public RemotingCommand resetOffset(String topic, String group, long timeStamp, boolean isForce,
                                        boolean isC) {
         final RemotingCommand response = RemotingCommand.createResponseCommand(null);
@@ -241,6 +265,14 @@ public class Broker2Client {
         return list;
     }
 
+
+    /**
+     * 获得消费端的状态
+     * @param topic
+     * @param group
+     * @param originClientId
+     * @return
+     */
     public RemotingCommand getConsumeStatus(String topic, String group, String originClientId) {
         final RemotingCommand result = RemotingCommand.createResponseCommand(null);
 
