@@ -135,6 +135,7 @@ public abstract class ServiceThread implements Runnable {
      * @param interval
      */
     protected void waitForRunning(long interval) {
+        //成功，我们进行一次转换
         if (hasNotified.compareAndSet(true, false)) {
             this.onWaitEnd();
             return;

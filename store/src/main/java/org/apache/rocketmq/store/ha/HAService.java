@@ -78,6 +78,10 @@ public class HAService {
         }
     }
 
+    /**
+     * 投递写入请求
+     * @param request
+     */
     public void putRequest(final CommitLog.GroupCommitRequest request) {
         this.groupTransferService.putRequest(request);
     }
@@ -93,6 +97,10 @@ public class HAService {
         return result;
     }
 
+    /**
+     * 通知
+     * @param offset
+     */
     public void notifyTransferSome(final long offset) {
         for (long value = this.push2SlaveMaxOffset.get(); offset > value; ) {
             boolean ok = this.push2SlaveMaxOffset.compareAndSet(value, offset);
@@ -114,9 +122,13 @@ public class HAService {
     // }
 
     public void start() throws Exception {
+        //开始监听
         this.acceptSocketService.beginAccept();
+        //开始
         this.acceptSocketService.start();
+        //组转换
         this.groupTransferService.start();
+        //客户端
         this.haClient.start();
     }
 
@@ -223,8 +235,10 @@ public class HAService {
                                         + sc.socket().getRemoteSocketAddress());
 
                                     try {
+                                        //连接
                                         HAConnection conn = new HAConnection(HAService.this, sc);
                                         conn.start();
+                                        //加入
                                         HAService.this.addConnection(conn);
                                     } catch (Exception e) {
                                         log.error("new HAConnection exception", e);
@@ -264,10 +278,15 @@ public class HAService {
         private volatile List<CommitLog.GroupCommitRequest> requestsWrite = new ArrayList<>();
         private volatile List<CommitLog.GroupCommitRequest> requestsRead = new ArrayList<>();
 
+        /**
+         * 投递写入请求
+         * @param request
+         */
         public synchronized void putRequest(final CommitLog.GroupCommitRequest request) {
             synchronized (this.requestsWrite) {
                 this.requestsWrite.add(request);
             }
+            //如果已经在阻塞了我们通知一下他
             if (hasNotified.compareAndSet(false, true)) {
                 waitPoint.countDown(); // notify
             }
@@ -277,6 +296,9 @@ public class HAService {
             this.notifyTransferObject.wakeup();
         }
 
+        /**
+         * 转换请求
+         */
         private void swapRequests() {
             List<CommitLog.GroupCommitRequest> tmp = this.requestsWrite;
             this.requestsWrite = this.requestsRead;
@@ -287,9 +309,11 @@ public class HAService {
          * 等待传输
          */
         private void doWaitTransfer() {
+            //加锁进行传输
             synchronized (this.requestsRead) {
                 if (!this.requestsRead.isEmpty()) {
                     for (CommitLog.GroupCommitRequest req : this.requestsRead) {
+                        //当前的位置是否大于传输位置
                         boolean transferOK = HAService.this.push2SlaveMaxOffset.get() >= req.getNextOffset();
                         for (int i = 0; !transferOK && i < 5; i++) {
                             this.notifyTransferObject.waitForRunning(1000);
@@ -303,16 +327,21 @@ public class HAService {
                         req.wakeupCustomer(transferOK);
                     }
 
+                    //清空
                     this.requestsRead.clear();
                 }
             }
         }
 
+        /**
+         * 运行
+         */
         public void run() {
             log.info(this.getServiceName() + " service started");
 
             while (!this.isStopped()) {
                 try {
+                    //
                     this.waitForRunning(10);
                     this.doWaitTransfer();
                 } catch (Exception e) {
@@ -323,6 +352,10 @@ public class HAService {
             log.info(this.getServiceName() + " service end");
         }
 
+        /**
+         * 写入读取角色转换
+         *
+         */
         @Override
         protected void onWaitEnd() {
             this.swapRequests();

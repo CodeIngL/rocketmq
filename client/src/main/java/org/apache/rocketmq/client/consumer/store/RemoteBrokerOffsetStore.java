@@ -204,6 +204,9 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
     /**
      * Update the Consumer Offset in one way, once the Master is off, updated to Slave,
      * here need to be optimized.
+     *
+     * <p.
+     * 以使用one way方式更新broker上相关消息队列的offset，一旦主机关闭，更新为从属，则需要对其进行优化。
      */
     private void updateConsumeOffsetToBroker(MessageQueue mq, long offset) throws RemotingException,
         MQBrokerException, InterruptedException, MQClientException {
@@ -259,6 +262,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
      */
     private long fetchConsumeOffsetFromBroker(MessageQueue mq) throws RemotingException, MQBrokerException,
         InterruptedException, MQClientException {
+        //查找broker
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInAdmin(mq.getBrokerName());
         if (null == findBrokerResult) {
             this.mQClientFactory.updateTopicRouteInfoFromNameServer(mq.getTopic());
@@ -271,6 +275,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
             reqHeader.setConsumerGroup(this.groupName);
             reqHeader.setQueueId(mq.getQueueId());
 
+            //查找远程上的Broker保存的offset
             return this.mQClientFactory.getMQClientAPIImpl().queryConsumerOffset(findBrokerResult.getBrokerAddr(), reqHeader, 1000 * 5);
         } else {
             throw new MQClientException("The broker[" + mq.getBrokerName() + "] not exist", null);

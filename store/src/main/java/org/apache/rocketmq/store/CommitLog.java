@@ -1292,9 +1292,15 @@ public class CommitLog {
         }
     }
 
+    /**
+     * 提交的带同步的请求
+     */
     public static class GroupCommitRequest {
+        //下一个offset
         private final long nextOffset;
+        //
         private final CountDownLatch countDownLatch = new CountDownLatch(1);
+        //刷出是否ok
         private volatile boolean flushOK = false;
 
         /**
