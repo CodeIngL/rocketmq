@@ -16,6 +16,10 @@
  */
 package org.apache.rocketmq.broker.mqtrace;
 
+/**
+ * broker对发送的消息进行处理。
+ * 这种东西用于采集，或者监控是非常好的位置
+ */
 public interface SendMessageHook {
     public String hookName();
 

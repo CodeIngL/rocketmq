@@ -206,7 +206,9 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
             this.brokerController.getTopicConfigManager().selectTopicConfig(reqHeader.getTopic());
         if (null == topicConfig) {
             int topicSysFlag = 0;
+            //存在联合模式
             if (reqHeader.isUnitMode()) {
+                //重试topic是否是联合模式，存在子单元
                 if (reqHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 } else {
@@ -271,6 +273,12 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         }
     }
 
+    /**
+     * 处理发送的钩子之前
+     * @param ctx
+     * @param req
+     * @param context
+     */
     public void executeSendMessageHookBefore(final ChannelHandlerContext ctx, final RemotingCommand req, SendMessageContext context) {
         if (!hasSendMessageHook()) {
             return;
@@ -336,10 +344,16 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
         return header;
     }
 
+    /**
+     * 处理发送的钩子之后
+     * @param resp
+     * @param context
+     */
     public void executeSendMessageHookAfter(final RemotingCommand resp, final SendMessageContext context) {
         if (!hasSendMessageHook()){
             return;
         }
+        //存在钩子
         for (SendMessageHook hook : this.sendMessageHookList) {
             try {
                 if (resp != null) {

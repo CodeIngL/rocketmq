@@ -70,6 +70,7 @@ public abstract class AbstractTransactionalMessageCheckListener {
         msg.setQueueId(Integer.parseInt(msg.getUserProperty(PROPERTY_REAL_QUEUE_ID)));
         msg.setStoreSize(0);
         String groupId = msg.getProperty(PROPERTY_PRODUCER_GROUP);
+        //通过groupId拿到对应的channel
         Channel channel = brokerController.getProducerManager().getAvaliableChannel(groupId);
         if (channel != null) {
             brokerController.getBroker2Client().checkProducerTransactionState(groupId, channel, reqHeader, msg);

@@ -381,6 +381,7 @@ public class PullMessageProcessor implements NettyRequestProcessor {
                         break;
                 }
 
+                //处理拉取到的消息，在发送给消费
                 this.executeConsumeMessageHookBefore(context);
             }
 

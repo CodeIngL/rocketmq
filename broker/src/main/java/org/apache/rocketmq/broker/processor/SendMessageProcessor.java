@@ -104,7 +104,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
     }
 
     /**
-     * 处理消费端要求的消息重发
+     * 处理消费端要求的消息重发，钩子在这里执行
      * @param ctx
      * @param req
      * @return
@@ -312,8 +312,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
     }
 
     /**
-     * 发送单个消息、处理来着produce发送过啦的消息，我们的代理服务器，
-     * 需要处理这些消息
+     * 发送单个消息、处理来着produce发送过啦的消息，我们的代理服务器， 需要处理这些消息
      * @param ctx
      * @param req
      * @param context
@@ -636,6 +635,10 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return consumeMessageHookList != null && !this.consumeMessageHookList.isEmpty();
     }
 
+    /**
+     * 消费者消息重发消费的，因此是消费消息后的事情
+     * @param context
+     */
     public void executeConsumeMessageHookAfter(final ConsumeMessageContext context) {
         if (hasConsumeMessageHook()) {
             for (ConsumeMessageHook hook : this.consumeMessageHookList) {

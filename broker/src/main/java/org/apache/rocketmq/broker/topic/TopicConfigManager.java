@@ -162,7 +162,13 @@ public class TopicConfigManager extends ConfigManager {
         return this.systemTopicList;
     }
 
+    /**
+     * 是否支持发送消息
+     * @param topic
+     * @return
+     */
     public boolean isTopicCanSendMessage(final String topic) {
+        //后面的字段是系统保留字段
         return !topic.equals(MixAll.AUTO_CREATE_TOPIC_KEY_TOPIC);
     }
 

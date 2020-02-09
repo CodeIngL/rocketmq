@@ -146,16 +146,19 @@ public class ConsumerManageProcessor implements NettyRequestProcessor {
         long offset = this.brokerController.getConsumerOffsetManager().queryOffset(reqHeader.getConsumerGroup(), reqHeader.getTopic(), reqHeader.getQueueId());
 
         if (offset >= 0) {
+            //存在offset,直接返回offset
             respHeader.setOffset(offset);
             resp.setCode(ResponseCode.SUCCESS);
             resp.setRemark(null);
         } else {
+            //最小
             long minOffset = this.brokerController.getMessageStore().getMinOffsetInQueue(reqHeader.getTopic(), reqHeader.getQueueId());
             if (minOffset <= 0 && !this.brokerController.getMessageStore().checkInDiskByConsumeOffset(reqHeader.getTopic(), reqHeader.getQueueId(), 0)) {
                 respHeader.setOffset(0L);
                 resp.setCode(ResponseCode.SUCCESS);
                 resp.setRemark(null);
             } else {
+                //找不到
                 resp.setCode(ResponseCode.QUERY_NOT_FOUND);
                 resp.setRemark("Not found, V3_0_6_SNAPSHOT maybe this group consumer boot first");
             }
