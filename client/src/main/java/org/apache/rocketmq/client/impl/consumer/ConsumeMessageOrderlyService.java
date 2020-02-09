@@ -403,6 +403,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             //设置延迟队列
             newMsg.setDelayTimeLevel(3 + msg.getReconsumeTimes());
 
+            //消息重发通过网络客户端内部维护的特殊发送者进行实现
             this.defaultMQPushConsumer.getDefaultMQPushConsumerImpl().getmQClientFactory().getDefaultMQProducer().send(newMsg);
             return true;
         } catch (Exception e) {

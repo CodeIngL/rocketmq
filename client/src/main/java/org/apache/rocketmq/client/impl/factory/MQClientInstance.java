@@ -137,10 +137,11 @@ public class MQClientInstance {
 
 
     //brokerName和其的集群映射
-    private final ConcurrentMap<String/* Broker Name */, HashMap<Long/* brokerId */, String/* address */>> brokerAddrTable = new ConcurrentHashMap<String, HashMap<Long, String>>();
+    private final ConcurrentMap<String/* Broker Name */, HashMap<Long/* brokerId */, String/* address */>> brokerAddrTable = new ConcurrentHashMap<>();
     //brokerName和其的集群映射
-    private final ConcurrentMap<String/* Broker Name */, HashMap<String/* address */, Integer>> brokerVersionTable = new ConcurrentHashMap<String, HashMap<String, Integer>>();
+    private final ConcurrentMap<String/* Broker Name */, HashMap<String/* address */, Integer>> brokerVersionTable = new ConcurrentHashMap<>();
 
+    //调度服务
     private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(r -> new Thread(r, "MQClientFactoryScheduledThread"));
 
     //处理broker对客户端的请求
@@ -192,7 +193,7 @@ public class MQClientInstance {
         //重新平衡服务
         this.rebalanceService = new RebalanceService(this);
 
-        //默认的发送者
+        //默认的发送者，网络客户端持有一个特殊的发送者，用于特殊的发送
         this.defaultMQProducer = new DefaultMQProducer(MixAll.CLIENT_INNER_PRODUCER_GROUP);
         this.defaultMQProducer.resetClientConfig(clientConfig);
 
@@ -204,10 +205,10 @@ public class MQClientInstance {
     }
 
     /**
-     * 信息转换，topic路由信息转换为topic发布信息
+     * topic路由信息转换为topic发布信息
      *
-     * @param topic
-     * @param route
+     * @param topic 名称
+     * @param route topic路由信息
      * @return
      */
     public static TopicPublishInfo topicRouteData2TopicPublishInfo(final String topic, final TopicRouteData route) {
@@ -1131,6 +1132,7 @@ public class MQClientInstance {
             return false;
         }
 
+        //注册到网络客户端内存中
         MQProducerInner prev = this.producerTable.putIfAbsent(group, producer);
         if (prev != null) {
             log.warn("the producer group[{}] exist already.", group);

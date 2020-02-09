@@ -29,21 +29,23 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 public interface MQAdmin {
     /**
      * Creates an topic
+     * 向broker创建一个新的topic
      *
-     * @param key accesskey
-     * @param newTopic topic name
-     * @param queueNum topic's queue number
+     * @param key accesskey 集群名
+     * @param newTopic topic name topic名字
+     * @param queueNum topic's queue number 队列数量
      */
     void createTopic(final String key, final String newTopic, final int queueNum)
         throws MQClientException;
 
     /**
      * Creates an topic
+     * 向broker创建一个新的topic
      *
-     * @param key accesskey
-     * @param newTopic topic name
-     * @param queueNum topic's queue number
-     * @param topicSysFlag topic system flag
+     * @param key accesskey 集群名
+     * @param newTopic topic name topic名字
+     * @param queueNum topic's queue number 队列数量
+     * @param topicSysFlag topic system flag topic系统标记，目前暂未使用
      */
     void createTopic(String key, String newTopic, int queueNum, int topicSysFlag)
         throws MQClientException;
@@ -51,6 +53,11 @@ public interface MQAdmin {
     /**
      * Gets the message queue offset according to some time in milliseconds<br>
      * be cautious to call because of more IO overhead
+     *
+     * <p>
+     *     根据某个时间（以毫秒为单位）获取消息队列偏移量<br>
+     *   由于更多的IO开销，请谨慎使用
+     * </p>
      *
      * @param mq Instance of MessageQueue
      * @param timestamp from when in milliseconds.

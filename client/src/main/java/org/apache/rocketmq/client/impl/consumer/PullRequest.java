@@ -30,6 +30,7 @@ public class PullRequest {
     private ProcessQueue processQueue;
     //拉取的offset
     private long nextOffset;
+    //是否是第一次锁定
     private boolean lockedFirst = false;
 
     public boolean isLockedFirst() {

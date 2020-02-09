@@ -620,6 +620,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
             MessageAccessor.setReconsumeTime(newMsg, String.valueOf(msg.getReconsumeTimes() + 1));
             MessageAccessor.setMaxReconsumeTimes(newMsg, String.valueOf(this.defaultMQPullConsumer.getMaxReconsumeTimes()));
             newMsg.setDelayTimeLevel(3 + msg.getReconsumeTimes()); //延迟增大三个级别
+            //发送，通过网络客户端维护的特殊发送者进行发送
             this.mQClientFactory.getDefaultMQProducer().send(newMsg);
         }
     }

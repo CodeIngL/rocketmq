@@ -433,6 +433,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 messageContext.setMq(messageQueue);
                 messageContext.setMsgList(msgs);
                 messageContext.setSuccess(false);
+                //执行hook
                 defaultMQPushConsumerImpl.executeHookBefore(messageContext);
             }
 
@@ -453,7 +454,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 log.warn("consumeMessage exception: {} Group: {} Msgs: {} MQ: {}", exceptionSimpleDesc(e), ConsumeMessageConcurrentlyService.this.consumerGroup, msgs, messageQueue);
                 hasException = true;
             }
-            //消息花费时间
+            //消息消费耗时
             long consumeRT = System.currentTimeMillis() - beginTimestamp;
             if (null == status) {
                 if (hasException) {
@@ -464,6 +465,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                     returnType = ConsumeReturnType.RETURNNULL;
                 }
             } else if (consumeRT >= defaultMQPushConsumer.getConsumeTimeout() * 60 * 1000) {
+                //单位是分钟呀
                 //消费消息超时了
                 returnType = ConsumeReturnType.TIME_OUT;
             } else if (ConsumeConcurrentlyStatus.RECONSUME_LATER == status) {
@@ -480,7 +482,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             }
 
             if (null == status) {
-                //状态为空，我们现在更改一下状态，前面的处理是更改返回值的类型
+                //状态为空，我们将稍后进行消息重发 前面的处理是更改返回值的类型
                 log.warn("consumeMessage return null, Group: {} Msgs: {} MQ: {}", ConsumeMessageConcurrentlyService.this.consumerGroup, msgs, messageQueue);
                 status = ConsumeConcurrentlyStatus.RECONSUME_LATER; //稍后重试
             }
@@ -488,6 +490,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             if (ConsumeMessageConcurrentlyService.this.defaultMQPushConsumerImpl.hasHook()) {
                 messageContext.setStatus(status.toString());
                 messageContext.setSuccess(ConsumeConcurrentlyStatus.CONSUME_SUCCESS == status);
+                //执行钩子
                 ConsumeMessageConcurrentlyService.this.defaultMQPushConsumerImpl.executeHookAfter(messageContext);
             }
 

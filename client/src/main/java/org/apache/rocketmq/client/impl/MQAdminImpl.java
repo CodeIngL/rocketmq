@@ -56,6 +56,9 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
 import static org.apache.rocketmq.common.message.MessageClientIDSetter.getNearlyTimeFromID;
 
+/**
+ * 客户端提供组件直接管理控制支持
+ */
 public class MQAdminImpl {
 
     private final InternalLogger log = ClientLogger.getLog();
@@ -126,6 +129,7 @@ public class MQAdminImpl {
                     }
                 }
 
+                //存在异常，并且一个都没有成功
                 if (exception != null && !createOKAtLeastOnce) {
                     throw exception;
                 }

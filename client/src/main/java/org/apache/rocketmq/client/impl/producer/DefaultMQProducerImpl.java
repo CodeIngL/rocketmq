@@ -116,10 +116,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     private final RPCHook rpcHook;
     protected BlockingQueue<Runnable> checkRequestQueue;
     protected ExecutorService checkExecutor;
+    //服务状态
     private ServiceState serviceState = ServiceState.CREATE_JUST;
     //mq客户端实例
     private MQClientInstance mQClientFactory;
     private ArrayList<CheckForbiddenHook> checkForbiddenHookList = new ArrayList<CheckForbiddenHook>();
+    //zip压缩等级
     private int zipCompressLevel = Integer.parseInt(System.getProperty(MixAll.MESSAGE_COMPRESS_LEVEL, "5"));
 
     /**
@@ -226,11 +228,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 boolean registerOK = mQClientFactory.registerProducer(producerGroup, this);
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
-                    throw new MQClientException("The producer group[" + producerGroup
-                            + "] has been created before, specify another name please." + suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL), null);
+                    throw new MQClientException("The producer group[" + producerGroup + "] has been created before, specify another name please." + suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL), null);
                 }
 
-                //topic表放置一个特殊的发布
+                //topic表放置一个特殊发布信息
                 this.topicPublishInfoTable.put(this.defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
 
                 //启动网络客户端
@@ -245,8 +246,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             case START_FAILED:
             case SHUTDOWN_ALREADY:
                 throw new MQClientException("The producer service state not OK, maybe started once, "
-                        + this.serviceState
-                        + suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
+                        + this.serviceState + suggestTodo(FAQUrl.CLIENT_SERVICE_NOT_OK),
                         null);
             default:
                 break;
@@ -858,23 +858,26 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             byte[] prevBody = msg.getBody();
             try {
                 //for MessageBatch,ID has been set in the generating process
+                //对于MessageBatch，已在生成过程中设置了ID
                 if (!(msg instanceof MessageBatch)) {
+                    //单条消息生成独一无二的id
                     MessageClientIDSetter.setUniqID(msg);
                 }
 
                 int sysFlag = 0;
                 boolean msgBodyCompressed = false;
-                if (this.tryToCompressMessage(msg)) { //压缩消息标记
+                if (this.tryToCompressMessage(msg)) { //压缩消息标记，压缩成功，添加压缩标记
                     sysFlag |= COMPRESSED_FLAG;
                     msgBodyCompressed = true;
                 }
 
                 final String tranMsg = msg.getProperty(PROPERTY_TRANSACTION_PREPARED); //事务标记
-                if (tranMsg != null && Boolean.parseBoolean(tranMsg)) {
+                if (Boolean.parseBoolean(tranMsg)) {
+                    //存在事物标记添加事物标记
                     sysFlag |= TRANSACTION_PREPARED_TYPE;
                 }
 
-                if (hasCheckForbiddenHook()) { //存在校验forbidden
+                if (hasCheckForbiddenHook()) { //存在校验forbidden的hook
                     CheckForbiddenContext checkForbiddenContext = new CheckForbiddenContext();
                     checkForbiddenContext.setNameSrvAddr(this.defaultMQProducer.getNamesrvAddr());
                     checkForbiddenContext.setGroup(this.defaultMQProducer.getProducerGroup());
@@ -883,6 +886,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     checkForbiddenContext.setMessage(msg);
                     checkForbiddenContext.setMq(mq);
                     checkForbiddenContext.setUnitMode(this.isUnitMode());
+                    //执行hook
                     this.executeCheckForbiddenHook(checkForbiddenContext);
                 }
 
@@ -896,7 +900,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     context.setMessage(msg);
                     context.setMq(mq);
                     String isTrans = msg.getProperty(PROPERTY_TRANSACTION_PREPARED);
-                    if (isTrans != null && isTrans.equals("true")) {
+                    if (Boolean.parseBoolean(isTrans)) {
                         context.setMsgType(MessageType.Trans_Msg_Half); //消息类型，half消息
                     }
 
@@ -920,13 +924,16 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 header.setReconsumeTimes(0);
                 header.setUnitMode(this.isUnitMode());
                 header.setBatch(msg instanceof MessageBatch);
+
                 if (header.getTopic().startsWith(RETRY_GROUP_TOPIC_PREFIX)) {
+                    //是重试的消息，从消息中添加到请求中
                     String reconsumeTimes = MessageAccessor.getReconsumeTime(msg);
                     if (reconsumeTimes != null) {
                         header.setReconsumeTimes(Integer.valueOf(reconsumeTimes));
                         MessageAccessor.clearProperty(msg, PROPERTY_RECONSUME_TIME);
                     }
 
+                    //是重试的消息，从消息中添加到请求中
                     String maxReconsumeTimes = MessageAccessor.getMaxReconsumeTimes(msg);
                     if (maxReconsumeTimes != null) {
                         header.setMaxReconsumeTimes(Integer.valueOf(maxReconsumeTimes));
@@ -943,7 +950,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             //If msg body was compressed, msgbody should be reset using prevBody.
                             //Clone new message using commpressed message body and recover origin massage.
                             //Fix bug:https://github.com/apache/rocketmq-externals/issues/66
-                            // 如果msg正文被压缩，则应使用prevBody重置msgbody。 使用commpressed消息体克隆新消息并恢复原始按摩。
+                            // 如果msg正文被压缩，则应使用prevBody重置msgbody。 使用commpressed消息体克隆新消息并恢复原始body。
                             // 修复bug：https：//github.com/apache/rocketmq-externals/issues/66
                             tmpMessage = MessageAccessor.cloneMessage(msg);
                             msg.setBody(prevBody);
@@ -1010,13 +1017,20 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         return mQClientFactory;
     }
 
+    /**
+     * 尝试压缩消息
+     * @param msg 消息
+     * @return
+     */
     private boolean tryToCompressMessage(final Message msg) {
         if (msg instanceof MessageBatch) {
             //batch dose not support compressing right now
+            //批量当前不支持压缩
             return false;
         }
         byte[] body = msg.getBody();
         if (body != null) {
+            //大于默认值为4K的将被压缩
             if (body.length >= this.defaultMQProducer.getCompressMsgBodyOverHowmuch()) {
                 try {
                     byte[] data = UtilAll.compress(body, zipCompressLevel);

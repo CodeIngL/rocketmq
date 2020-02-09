@@ -54,7 +54,7 @@ public abstract class RebalanceImpl {
     //topic和对应的消费队列集合，本地化的数据，受到远程Broker的影响
     protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable = new ConcurrentHashMap<String, Set<MessageQueue>>();
     //topic和订阅信息，note:这些是本地化的信息，无远程broker上的数据没有任何关系
-    protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner = new ConcurrentHashMap<String, SubscriptionData>();
+    protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner = new ConcurrentHashMap<>();
     //消费组
     protected String consumerGroup;
     //消费方式

@@ -52,6 +52,10 @@ public class ConsumeConcurrentlyContext {
         return ackIndex;
     }
 
+    /**
+     * 设置Ack用于在哪里开始确认成功消费的消息
+     * @param ackIndex
+     */
     public void setAckIndex(int ackIndex) {
         this.ackIndex = ackIndex;
     }

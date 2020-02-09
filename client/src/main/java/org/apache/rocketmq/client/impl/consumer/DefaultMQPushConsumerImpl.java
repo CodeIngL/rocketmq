@@ -514,6 +514,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         return pause;
     }
 
+    /**
+     * 暂停消费
+     * @param pause
+     */
     public void setPause(boolean pause) {
         this.pause = pause;
     }
@@ -611,7 +615,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             //设置延迟级别，重新消费，我们需要根据重试的次数，进行设置新的延迟等级
             newMsg.setDelayTimeLevel(3 + msg.getReconsumeTimes());
 
-            //发送
+            //消息重发，通过网络端维护的特殊的发送者实现
             this.mQClientFactory.getDefaultMQProducer().send(newMsg);
         }
     }

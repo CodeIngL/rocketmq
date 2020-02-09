@@ -69,10 +69,12 @@ public class LocalFileOffsetStore implements OffsetStore {
      */
     @Override
     public void load() throws MQClientException {
+        //从磁盘上进行获得
         OffsetSerializeWrapper offsetSerializeWrapper = this.readLocalOffset();
         if (offsetSerializeWrapper != null && offsetSerializeWrapper.getOffsetTable() != null) {
             offsetTable.putAll(offsetSerializeWrapper.getOffsetTable());
 
+            //直接进行获得
             for (MessageQueue mq : offsetSerializeWrapper.getOffsetTable().keySet()) {
                 AtomicLong offset = offsetSerializeWrapper.getOffsetTable().get(mq);
                 log.info("load consumer's offset, {} {} {}", this.groupName, mq, offset.get());

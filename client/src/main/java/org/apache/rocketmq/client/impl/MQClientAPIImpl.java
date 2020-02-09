@@ -158,6 +158,9 @@ import static org.apache.rocketmq.common.protocol.ResponseCode.*;
 import static org.apache.rocketmq.remoting.protocol.RemotingCommand.createRequestCommand;
 import static org.apache.rocketmq.remoting.protocol.RemotingSysResponseCode.SUCCESS;
 
+/**
+ * 客户端提供组件直接数据控制支持
+ */
 public class MQClientAPIImpl {
 
     private final static InternalLogger log = ClientLogger.getLog();
@@ -472,6 +475,7 @@ public class MQClientAPIImpl {
                 } catch (Throwable e) {
                 }
 
+                //更新容错信息
                 producer.updateFaultItem(brokerName, System.currentTimeMillis() - respFuture.getBeginTimestamp(), false);
                 return;
             }
@@ -482,6 +486,7 @@ public class MQClientAPIImpl {
                     assert result != null;
                     if (context != null) {
                         context.setSendResult(result);
+                        //处理钩子
                         context.getProducer().executeSendMessageHookAfter(context);
                     }
 

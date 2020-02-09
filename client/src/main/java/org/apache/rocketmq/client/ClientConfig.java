@@ -31,7 +31,7 @@ public class ClientConfig {
     private String namesrvAddr = System.getProperty(MixAll.NAMESRV_ADDR_PROPERTY, System.getenv(MixAll.NAMESRV_ADDR_ENV));
     //客户端ip
     private String clientIP = RemotingUtil.getLocalAddress();
-    //实例的名字
+    //实例的名字,默认是default，然后会被转换成pid
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
     /**
@@ -102,6 +102,10 @@ public class ClientConfig {
         }
     }
 
+    /**
+     * 重置配置
+     * @param cc
+     */
     public void resetClientConfig(final ClientConfig cc) {
         this.namesrvAddr = cc.namesrvAddr;
         this.clientIP = cc.clientIP;

@@ -114,6 +114,8 @@ public class PullAPIWrapper {
                 this.executeHook(filterMessageContext);
             }
 
+            //如果是事物消息，需要额外的处理
+            //谁知拉取结果的最小offset和最大的offset，每一条消息都进行设置
             for (MessageExt msg : msgListFilterAgain) {
                 //事务消息处理
                 String traFlag = msg.getProperty(PROPERTY_TRANSACTION_PREPARED);
@@ -128,7 +130,7 @@ public class PullAPIWrapper {
             pullResultExt.setMsgFoundList(msgListFilterAgain);
         }
 
-        //减小压力
+        //减小压力，因为解码为实际的消息对象
         pullResultExt.setMessageBinary(null);
 
         return pullResult;

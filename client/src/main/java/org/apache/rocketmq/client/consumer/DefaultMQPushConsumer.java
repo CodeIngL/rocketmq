@@ -257,6 +257,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Batch pull size
+     * 批量拉取的消息数量
      */
     private int pullBatchSize = 32;
 
@@ -518,6 +519,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         return pullBatchSize;
     }
 
+    //设置批量拉取的消息数量
     public void setPullBatchSize(int pullBatchSize) {
         this.pullBatchSize = pullBatchSize;
     }
