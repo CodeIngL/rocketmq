@@ -201,6 +201,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 }
             });
 
+        /**
+         * 定时扫描表
+         */
         this.timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -379,6 +382,8 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             }
         }
     }
+
+    //-----------------------------核心的支持的三种调用方式oneWay,Async,Sync-----------------------------
 
 
     /**

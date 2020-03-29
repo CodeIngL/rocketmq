@@ -19,7 +19,9 @@ package org.apache.rocketmq.remoting.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
+
 import java.nio.ByteBuffer;
+
 import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 import org.apache.rocketmq.logging.InternalLogger;
@@ -30,11 +32,30 @@ import org.apache.rocketmq.remoting.protocol.RemotingCommand;
  * 编码器
  */
 public class NettyEncoder extends MessageToByteEncoder<RemotingCommand> {
+
     private static final InternalLogger log = InternalLoggerFactory.getLogger(RemotingHelper.ROCKETMQ_REMOTING);
+
+    private static final int DEFAULT_INITIAL_CAPACITY = 256;
+
+    @Override
+    protected ByteBuf allocateBuffer(ChannelHandlerContext ctx, RemotingCommand remotingCommand, boolean preferDirect) throws Exception {
+        byte[] body = remotingCommand.getBody();
+        int min = body.length;
+        int newCapacity = 64;
+        while (newCapacity < min) {
+            newCapacity <<= 1;
+        }
+        newCapacity = newCapacity < DEFAULT_INITIAL_CAPACITY ? DEFAULT_INITIAL_CAPACITY : Math.min(newCapacity, Integer.MAX_VALUE);
+        if (preferDirect) {
+            return ctx.alloc().ioBuffer(newCapacity);
+        } else {
+            return ctx.alloc().heapBuffer(newCapacity);
+        }
+    }
 
     @Override
     public void encode(ChannelHandlerContext ctx, RemotingCommand remotingCommand, ByteBuf out)
-        throws Exception {
+            throws Exception {
         try {
             ByteBuffer header = remotingCommand.encodeHeader();
             out.writeBytes(header);
