@@ -34,6 +34,9 @@ public enum MessageModel {
      */
     CLUSTERING("CLUSTERING");
 
+    /**
+     * 信息描述
+     */
     private String modeCN;
 
     MessageModel(String modeCN) {

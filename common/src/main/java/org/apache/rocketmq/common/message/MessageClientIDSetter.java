@@ -112,6 +112,10 @@ public class MessageClientIDSetter {
         return sb.toString();
     }
 
+    /**
+     *
+     * @return
+     */
     private static byte[] createUniqIDBuffer() {
         ByteBuffer buffer = ByteBuffer.allocate(4 + 2);
         long current = System.currentTimeMillis();

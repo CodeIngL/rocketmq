@@ -34,7 +34,7 @@ public class BrokerData implements Comparable<BrokerData> {
     private String brokerName;
     //id和地址的映射
     private HashMap<Long/* brokerId */, String/* broker address */> brokerAddrs;
-    //随机数
+    //随机数，用于选定broker
     private final Random random = new Random();
 
     public BrokerData() {

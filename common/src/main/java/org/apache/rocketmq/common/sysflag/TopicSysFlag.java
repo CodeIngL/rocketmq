@@ -16,10 +16,15 @@
  */
 package org.apache.rocketmq.common.sysflag;
 
+/**
+ * topic系统标记，目前未使用
+ */
 public class TopicSysFlag {
 
+    //标记，联合模式
     private final static int FLAG_UNIT = 0x1 << 0;
 
+    //标记，子联合
     private final static int FLAG_UNIT_SUB = 0x1 << 1;
 
     public static int buildSysFlag(final boolean unit, final boolean hasUnitSub) {

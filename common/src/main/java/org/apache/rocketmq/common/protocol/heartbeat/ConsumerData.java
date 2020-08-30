@@ -25,7 +25,7 @@ import java.util.Set;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 
 /**
- * 消费端数据，提取子消费端本身相关的配置项信息
+ * 心跳消息中的消费端数据，提取子消费端本身相关的配置项信息
  */
 public class ConsumerData {
     //消费组名
@@ -38,7 +38,7 @@ public class ConsumerData {
     private ConsumeFromWhere consumeFromWhere;
     //消费组下的订阅信息，这里不是针对一个topic，topic的信息，由订阅数据自行描述
     private Set<SubscriptionData> subscriptionDataSet = new HashSet<SubscriptionData>();
-    //？？？
+    //？？？暂无使用
     private boolean unitMode;
 
     public String getGroupName() {

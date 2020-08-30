@@ -41,7 +41,7 @@ public class TopicConfig {
     private int perm = PermName.PERM_READ | PermName.PERM_WRITE;
     //支持的类型
     private TopicFilterType topicFilterType = TopicFilterType.SINGLE_TAG;
-    //系统参数
+    //系统参数，预留字段，没有使用
     private int topicSysFlag = 0;
     //是否有序
     private boolean order = false;

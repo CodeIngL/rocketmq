@@ -22,9 +22,15 @@ import java.util.Set;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
+/**
+ * 锁定请求
+ */
 public class LockBatchRequestBody extends RemotingSerializable {
+    //消费组
     private String consumerGroup;
+    //客户端id
     private String clientId;
+    //消息队列
     private Set<MessageQueue> mqSet = new HashSet<MessageQueue>();
 
     public String getConsumerGroup() {

@@ -21,7 +21,8 @@
 package org.apache.rocketmq.common.protocol.heartbeat;
 
 /**
- * 生产者信息，提取自生产者本身的配置信息，
+ * 心跳信息中的生产端信息，提取自生产者本身的配置信息，
+ * this in 商业版使用
  */
 public class ProducerData {
     //生产者指定的组名

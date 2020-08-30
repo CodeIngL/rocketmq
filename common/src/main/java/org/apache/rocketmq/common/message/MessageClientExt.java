@@ -16,6 +16,10 @@
  */
 package org.apache.rocketmq.common.message;
 
+/**
+ * offsetMsgId
+ * MsgId
+ */
 public class MessageClientExt extends MessageExt {
 
     public String getOffsetMsgId() {
