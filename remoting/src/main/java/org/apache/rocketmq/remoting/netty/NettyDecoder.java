@@ -35,6 +35,8 @@ public class NettyDecoder extends LengthFieldBasedFrameDecoder {
     private static final int FRAME_MAX_LENGTH =
         Integer.parseInt(System.getProperty("com.rocketmq.remoting.frameMaxLength", "16777216"));
 
+    //帧最大16M
+    //Header-->字段长度
     public NettyDecoder() {
         super(FRAME_MAX_LENGTH, 0, 4, 0, 4);
     }

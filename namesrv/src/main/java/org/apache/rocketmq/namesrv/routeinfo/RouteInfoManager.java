@@ -64,11 +64,11 @@ public class RouteInfoManager {
     private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 
     public RouteInfoManager() {
-        this.topicQueueTable = new HashMap<String, List<QueueData>>(1024);
-        this.brokerAddrTable = new HashMap<String, BrokerData>(128);
-        this.clusterAddrTable = new HashMap<String, Set<String>>(32);
-        this.brokerLiveTable = new HashMap<String, BrokerLiveInfo>(256);
-        this.filterServerTable = new HashMap<String, List<String>>(256);
+        this.topicQueueTable = new HashMap<>(1024);
+        this.brokerAddrTable = new HashMap<>(128);
+        this.clusterAddrTable = new HashMap<>(32);
+        this.brokerLiveTable = new HashMap<>(256);
+        this.filterServerTable = new HashMap<>(256);
     }
 
     /**
@@ -132,7 +132,7 @@ public class RouteInfoManager {
             try {
                 this.lock.writeLock().lockInterruptibly();
 
-                //添加到相同的集群下
+                //更新集群信息
                 Set<String> brokerNames = this.clusterAddrTable.get(clusterName);
                 if (null == brokerNames) {
                     brokerNames = new HashSet<>();
@@ -146,6 +146,7 @@ public class RouteInfoManager {
                 //获得brokerName下的brokerData信息，没有则说明是开始注册，我们进行构建brokerData
                 BrokerData brokerData = this.brokerAddrTable.get(brokerName);
                 if (null == brokerData) {
+                    //更新brokerAddr信息
                     registerFirst = true;
                     brokerData = new BrokerData(clusterName, brokerName, new HashMap<>());
                     this.brokerAddrTable.put(brokerName, brokerData);
@@ -179,11 +180,14 @@ public class RouteInfoManager {
                     }
                 }
 
+                //更新brokerLive信息
+
                 BrokerLiveInfo prevBrokerLiveInfo = this.brokerLiveTable.put(brokerAddr, new BrokerLiveInfo(System.currentTimeMillis(), topicConfigWrapper.getDataVersion(), channel, haServerAddr));
                 if (null == prevBrokerLiveInfo) {
                     log.info("new broker registered, {} HAServer: {}", brokerAddr, haServerAddr);
                 }
 
+                //更新filterServer信息
                 if (filterServerList != null) {
                     if (filterServerList.isEmpty()) {
                         this.filterServerTable.remove(brokerAddr);
@@ -738,6 +742,10 @@ public class RouteInfoManager {
         return topicList.encode();
     }
 
+    /**
+     * 获得联合模式下topic
+     * @return
+     */
     public byte[] getUnitTopics() {
         TopicList topicList = new TopicList();
         try {
@@ -749,6 +757,7 @@ public class RouteInfoManager {
                     Entry<String, List<QueueData>> topicEntry = topicTableIt.next();
                     String topic = topicEntry.getKey();
                     List<QueueData> queueDatas = topicEntry.getValue();
+                    //存在联合模式下，进行提取
                     if (queueDatas != null && queueDatas.size() > 0
                         && TopicSysFlag.hasUnitFlag(queueDatas.get(0).getTopicSynFlag())) {
                         topicList.getTopicList().add(topic);
@@ -764,6 +773,10 @@ public class RouteInfoManager {
         return topicList.encode();
     }
 
+    /**
+     * 联合子模式下，通常是%RETRY%
+     * @return
+     */
     public byte[] getHasUnitSubTopicList() {
         TopicList topicList = new TopicList();
         try {
