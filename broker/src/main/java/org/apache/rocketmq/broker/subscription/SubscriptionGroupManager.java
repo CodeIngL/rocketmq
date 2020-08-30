@@ -34,7 +34,7 @@ import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 import static org.apache.rocketmq.common.MixAll.isSysConsumerGroup;
 
 /**
- * 订阅组管理器
+ * 订阅组管理器，存储了消费组名称和其对应的订阅组的配置，注意是订阅组配置而不是订阅的数据内容
  */
 public class SubscriptionGroupManager extends ConfigManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
@@ -60,7 +60,7 @@ public class SubscriptionGroupManager extends ConfigManager {
      */
     private void init() {
         /**
-         * 构建系统自带的信息
+         * 构建系统自带的消费组和相关的订阅配置信息
          */
         {
             SubscriptionGroupConfig subscriptionGroupConfig = new SubscriptionGroupConfig();
@@ -124,6 +124,10 @@ public class SubscriptionGroupManager extends ConfigManager {
         this.persist();
     }
 
+    /**
+     * 禁止被消费
+     * @param groupName
+     */
     public void disableConsume(final String groupName) {
         SubscriptionGroupConfig old = this.subscriptionGroupTable.get(groupName);
         if (old != null) {

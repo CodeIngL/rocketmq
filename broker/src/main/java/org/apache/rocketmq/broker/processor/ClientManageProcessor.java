@@ -81,6 +81,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
 
     /**
      * 处理客户端上来的心跳信息
+     *
      * @param ctx
      * @param req
      * @return
@@ -105,7 +106,7 @@ public class ClientManageProcessor implements NettyRequestProcessor {
                 if (data.isUnitMode()) {
                     topicSysFlag = TopicSysFlag.buildSysFlag(false, true);
                 }
-                //获得一个重试的topic，用于构建消息重发的这个消费组的特性的topic
+                //获得一个重试的topic，用于构建消息重发的这个消费组的特性的topic，其相关属性来自我们的订阅配置
                 String newTopic = MixAll.getRetryTopic(data.getGroupName());
                 this.brokerController.getTopicConfigManager().createTopicInSendMessageBackMethod(newTopic, subscriptionGroupConfig.getRetryQueueNums(), PermName.PERM_WRITE | PermName.PERM_READ, topicSysFlag);
             }

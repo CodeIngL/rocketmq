@@ -20,11 +20,21 @@ package org.apache.rocketmq.broker.filtersrv;
 
 import org.apache.rocketmq.logging.InternalLogger;
 
+/**
+ * util
+ * 工具类
+ */
 public class FilterServerUtil {
+
+    /**
+     * 调用shell
+     * @param shellString
+     * @param log
+     */
     public static void callShell(final String shellString, final InternalLogger log) {
         Process process = null;
         try {
-            String[] cmdArray = splitShellString(shellString);
+            String[] cmdArray = shellString.split(" ");
             process = Runtime.getRuntime().exec(cmdArray);
             process.waitFor();
             log.info("CallShell: <{}> OK", shellString);
@@ -36,7 +46,4 @@ public class FilterServerUtil {
         }
     }
 
-    private static String[] splitShellString(final String shellString) {
-        return shellString.split(" ");
-    }
 }

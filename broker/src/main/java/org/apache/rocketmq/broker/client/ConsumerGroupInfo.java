@@ -55,7 +55,7 @@ public class ConsumerGroupInfo {
     private volatile ConsumeType consumeType;
     //消息消费类型
     private volatile MessageModel messageModel;
-    //消息
+    //消息从哪里消费
     private volatile ConsumeFromWhere consumeFromWhere;
     //最后更新时间
     private volatile long lastUpdateTimestamp = System.currentTimeMillis();

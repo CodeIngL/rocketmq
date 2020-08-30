@@ -158,7 +158,7 @@ public class AdminBrokerProcessor implements NettyRequestProcessor {
                 return this.updateBrokerConfig(ctx, req);
             case RequestCode.GET_BROKER_CONFIG: //获得broker的配置
                 return this.getBrokerConfig(ctx, req);
-            case RequestCode.SEARCH_OFFSET_BY_TIMESTAMP: //通过时间搜索offser
+            case RequestCode.SEARCH_OFFSET_BY_TIMESTAMP: //通过时间搜索offset
                 return this.searchOffsetByTimestamp(ctx, req);
             case RequestCode.GET_MAX_OFFSET:    //获得最大maxoffset
                 return this.getMaxOffset(ctx, req);

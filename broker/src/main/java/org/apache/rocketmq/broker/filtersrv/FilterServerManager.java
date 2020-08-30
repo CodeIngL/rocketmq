@@ -62,10 +62,15 @@ public class FilterServerManager {
         }, 1000 * 5, 1000 * 30, TimeUnit.MILLISECONDS); //30S中定时调用一次
     }
 
+    /**
+     * 构建FilterServer
+     */
     public void createFilterServer() {
+        //FilterServer的数量
         int more = this.brokerController.getBrokerConfig().getFilterServerNums() - this.filterServerTable.size();
         String cmd = this.buildStartCommand();
         for (int i = 0; i < more; i++) {
+            //调用命令行
             FilterServerUtil.callShell(cmd, log);
         }
     }

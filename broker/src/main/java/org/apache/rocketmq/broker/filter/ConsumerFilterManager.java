@@ -50,6 +50,7 @@ public class ConsumerFilterManager extends ConfigManager {
 
     private static final long MS_24_HOUR = 24 * 3600 * 1000;
 
+    //topic和topic过滤器的映射
     private ConcurrentMap<String/*Topic*/, FilterDataMapByTopic> filterDataByTopic = new ConcurrentHashMap<String/*consumer group*/, FilterDataMapByTopic>(256);
 
     private transient BrokerController brokerController;
@@ -164,7 +165,7 @@ public class ConsumerFilterManager extends ConfigManager {
             filterDataMapByTopic = prev != null ? prev : temp;
         }
 
-        //构建bloom过滤器
+        //构建bloom过滤器 消费组#topic
         BloomFilterData bloomFilterData = bloomFilter.generate(consumerGroup + "#" + topic);
 
         return filterDataMapByTopic.register(consumerGroup, expression, type, bloomFilterData, clientVersion); //注册
@@ -345,10 +346,11 @@ public class ConsumerFilterManager extends ConfigManager {
     }
 
     /**
-     * filter映射关系
+     * filter映射关系,用于构建相关消费的过滤数据
      */
     public static class FilterDataMapByTopic {
 
+        //一个消费组和一个topic下他们的过滤条件和数据应该是要一致的，这种一致并不是指的大家的tag一致，而是策略和内容是一致的
         private ConcurrentMap<String/*consumer group*/, ConsumerFilterData> groupFilterData = new ConcurrentHashMap<String, ConsumerFilterData>();
 
         private String topic;
@@ -378,6 +380,15 @@ public class ConsumerFilterManager extends ConfigManager {
             data.setDeadTime(now);
         }
 
+        /**
+         *
+         * @param consumerGroup
+         * @param expression
+         * @param type
+         * @param bloomFilterData
+         * @param clientVersion
+         * @return
+         */
         public boolean register(String consumerGroup, String expression, String type, BloomFilterData bloomFilterData,
             long clientVersion) {
             ConsumerFilterData old = this.groupFilterData.get(consumerGroup);

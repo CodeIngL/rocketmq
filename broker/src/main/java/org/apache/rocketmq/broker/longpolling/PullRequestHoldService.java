@@ -47,7 +47,7 @@ public class PullRequestHoldService extends ServiceThread {
     }
 
     /**
-     * 暂停拉取请求
+     * 暂停拉取请求，
      * @param topic
      * @param queueId
      * @param req

@@ -36,8 +36,7 @@ import org.apache.rocketmq.remoting.common.RemotingHelper;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
 /**
- * 位于broker中关于producer的管理注册表
- * 和consumer管理器区别，后者需要维护更多信息，而不是简单组合对应的对象的映射关系
+ * 位于broker中关于producer的管理注册表和consumer管理器区别，后者需要维护更多信息，而不是简单组合对应的对象的映射关系
  */
 public class ProducerManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
