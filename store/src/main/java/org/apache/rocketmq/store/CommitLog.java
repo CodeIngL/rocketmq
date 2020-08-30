@@ -794,7 +794,9 @@ public class CommitLog {
                     //构建请求
                     GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes());
                     service.putRequest(request);
-                    service.getWaitNotifyObject().wakeupAll(); //唤醒所用
+                    //唤醒所用让他们进行写入
+                    service.getWaitNotifyObject().wakeupAll();
+                    //等待超时时间
                     boolean flushOK = request.waitForFlush(this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
                     if (!flushOK) {
                         log.error("do sync transfer other node, wait return, but failed, topic: " + messageExt.getTopic() + " tags: "

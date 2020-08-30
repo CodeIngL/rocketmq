@@ -974,6 +974,7 @@ public class DefaultMessageStore implements MessageStore {
             return false;
         }
 
+        //更新消息
         boolean result = this.commitLog.appendData(startOffset, data);
         if (result) {
             this.reputMessageService.wakeup();
@@ -1196,6 +1197,13 @@ public class DefaultMessageStore implements MessageStore {
         return messageIds;
     }
 
+    /**
+     * 查找磁盘上的报错的offset
+     * @param topic topic.
+     * @param queueId queue ID.
+     * @param consumeOffset consume queue offset.
+     * @return
+     */
     @Override
     public boolean checkInDiskByConsumeOffset(final String topic, final int queueId, long consumeOffset) {
 

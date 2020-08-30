@@ -49,6 +49,12 @@ public class HAConnection {
     //slave应答的offset
     private volatile long slaveAckOffset = -1;
 
+    /**
+     * 构建高可用连接
+     * @param haService
+     * @param socketChannel
+     * @throws IOException
+     */
     public HAConnection(final HAService haService, final SocketChannel socketChannel) throws IOException {
         this.haService = haService;
         this.socketChannel = socketChannel;
@@ -113,6 +119,7 @@ public class HAConnection {
 
             while (!this.isStopped()) {
                 try {
+                    //接收连接
                     this.selector.select(1000);
                     boolean ok = this.processReadEvent();
                     if (!ok) {
@@ -159,6 +166,10 @@ public class HAConnection {
             return ReadSocketService.class.getSimpleName();
         }
 
+        /**
+         * 处理同步消息
+         * @return
+         */
         private boolean processReadEvent() {
             int readSizeZeroTimes = 0;
 
@@ -178,12 +189,14 @@ public class HAConnection {
                             long readOffset = this.byteBufferRead.getLong(pos - 8);
                             this.processPostion = pos;
 
+                            //获得确认的offset
                             HAConnection.this.slaveAckOffset = readOffset;
                             if (HAConnection.this.slaveRequestOffset < 0) {
                                 HAConnection.this.slaveRequestOffset = readOffset;
                                 log.info("slave[" + HAConnection.this.clientAddr + "] request offset " + readOffset);
                             }
 
+                            //通知slave目前的offset
                             HAConnection.this.haService.notifyTransferSome(HAConnection.this.slaveAckOffset);
                         }
                     } else if (readSize == 0) {
@@ -244,6 +257,7 @@ public class HAConnection {
                     //未设置，我们尝试更新设置
                     if (-1 == this.nextTransferFromWhere) {
                         if (0 == HAConnection.this.slaveRequestOffset) {
+                            //master的最大offset
                             long masterOffset = HAConnection.this.haService.getDefaultMessageStore().getCommitLog().getMaxOffset();
                             masterOffset =
                                 masterOffset
@@ -254,13 +268,15 @@ public class HAConnection {
                                 masterOffset = 0;
                             }
 
+                            //使用最大offset
                             this.nextTransferFromWhere = masterOffset;
                         } else {
+                            //使用上报offset
                             this.nextTransferFromWhere = HAConnection.this.slaveRequestOffset;
                         }
 
-                        log.info("master transfer data from " + this.nextTransferFromWhere + " to slave[" + HAConnection.this.clientAddr
-                            + "], and slave request " + HAConnection.this.slaveRequestOffset);
+                        log.info("master transfer data from " + this.nextTransferFromWhere + " to slave[" + HAConnection.this.clientAddr + "], and slave request "
+                                + HAConnection.this.slaveRequestOffset);
                     }
 
                     if (this.lastWriteOver) {
@@ -363,6 +379,7 @@ public class HAConnection {
             // Write Header
             // 写头部
             while (this.byteBufferHeader.hasRemaining()) {
+                //尝试写头部
                 int writeSize = this.socketChannel.write(this.byteBufferHeader);
                 if (writeSize > 0) {
                     writeSizeZeroTimes = 0;
@@ -386,6 +403,7 @@ public class HAConnection {
             // 写body
             if (!this.byteBufferHeader.hasRemaining()) {
                 while (this.selectMappedBufferResult.getByteBuffer().hasRemaining()) {
+                    //尝试写body
                     int writeSize = this.socketChannel.write(this.selectMappedBufferResult.getByteBuffer());
                     if (writeSize > 0) {
                         writeSizeZeroTimes = 0;
