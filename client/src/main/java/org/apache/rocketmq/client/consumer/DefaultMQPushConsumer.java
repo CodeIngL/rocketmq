@@ -267,7 +267,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      */
     private boolean postSubscriptionWhenPull = false;
 
-/**
+    /**
      * Whether the unit of subscription group
      */
     private boolean unitMode = false;

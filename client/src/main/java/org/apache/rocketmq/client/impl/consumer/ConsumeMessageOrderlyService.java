@@ -276,7 +276,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     /**
-     * 处理消息消费结果
+     * 处理顺序消息消费结果
      * @param msgs
      * @param status
      * @param context
@@ -433,6 +433,9 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             return messageQueue;
         }
 
+        /**
+         * 顺序消费，内存中对这个东西进行锁定。
+         */
         @Override
         public void run() {
             if (this.processQueue.isDropped()) {

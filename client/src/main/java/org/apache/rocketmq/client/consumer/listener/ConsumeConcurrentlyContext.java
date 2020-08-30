@@ -28,7 +28,9 @@ public class ConsumeConcurrentlyContext {
      * -1,no retry,put into DLQ directly<br>
      * 0,broker control retry frequency<br>
      * >0,client control retry frequency
+     *
      */
+    //0由服务端控制这个延迟等级
     private int delayLevelWhenNextConsume = 0;
     private int ackIndex = Integer.MAX_VALUE;
 

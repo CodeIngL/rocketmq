@@ -463,6 +463,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         boolean classFilter = false;
         SubscriptionData sd = this.rebalanceImpl.getSubscriptionInner().get(pullRequest.getMessageQueue().getTopic());
         if (sd != null) {
+            //是否支持传递订阅信息，当拉取信息的时候，默认是不支持。对于pull模式默认是支持的，且不是基于class过滤的模式
             if (this.defaultMQPushConsumer.isPostSubscriptionWhenPull() && !sd.isClassFilterMode()) {
                 //支持构建订阅的信息，我们会在标记中构建支持的订阅信息，并且不是基于类过滤的模式
                 subExpression = sd.getSubString();

@@ -503,7 +503,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
 
         try {
             /**
-             * 拉取形式总是支持使用本地的订阅信息，也就是使用携带相关的订阅信息
+             * 拉取形式总是支持使用本地的订阅信息，也就是使用携带相关的订阅信息，通常是不支持我们所谓的长轮训方式的，除非我们使用相关的指定的API来进行实现
              */
             int sysFlag = PullSysFlag.buildSysFlag(false, block, true, false);
 
