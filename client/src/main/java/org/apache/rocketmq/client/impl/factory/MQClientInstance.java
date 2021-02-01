@@ -537,6 +537,7 @@ public class MQClientInstance {
                     continue;
                 }
                 try {
+                    //简单校验
                     getMQClientAPIImpl().checkClientInBroker(addr, entry.getKey(), this.clientId, subscriptionData, 3 * 1000);
                 } catch (Exception e) {
                     if (e instanceof MQClientException) {

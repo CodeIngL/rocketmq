@@ -308,7 +308,7 @@ public abstract class RebalanceImpl {
                     return;
                 }
 
-                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup); //找到远程的消费者的Id
+                List<String> cidAll = this.mQClientFactory.findConsumerIdList(topic, consumerGroup); //找到远程的消费者的Id，根据groupId划分
                 if (null == cidAll) { //该topic没有相应的消费客户端，说明没有客户端进行消费，自然我们不需要进行负载均衡，直接返回
                     log.warn("doRebalance, {} {}, get consumer id list failed", consumerGroup, topic);
                     return;
