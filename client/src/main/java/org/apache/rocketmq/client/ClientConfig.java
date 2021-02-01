@@ -61,6 +61,8 @@ public class ClientConfig {
     /**
      * 获得mq中网络客户端的id
      * 由ip@rocketmq.client.name:default@unitName
+     *
+     * tip:ons 中不指定，会自动生成，导致网络客户端暴涨
      * @return
      */
     public String buildMQClientId() {
